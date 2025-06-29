@@ -253,12 +253,14 @@ export default class AppLauncher {
 
       // Determina modalità di lancio
       if (options.launchMode === 'newpage') {
-        // Apri direttamente l'URL blob in una nuova finestra/tab
-        const newWindow = window.open(htmlBlobUrl, `aideas_html_${app.id}_${Date.now()}`,
+        // Soluzione 1: apri subito una finestra vuota, poi imposta location sul blob
+        const newWindow = window.open('about:blank', `aideas_html_${app.id}_${Date.now()}`,
           'width=1200,height=800,scrollbars=yes,resizable=yes');
         if (!newWindow) {
           throw new Error('Popup bloccato dal browser. Consenti i popup per AIdeas.');
         }
+        // Appena il blob è pronto, imposta la location
+        newWindow.location = htmlBlobUrl;
         // Setup cleanup
         const cleanup = () => {
           URL.revokeObjectURL(htmlBlobUrl);
