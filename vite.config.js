@@ -101,6 +101,14 @@ export default defineConfig({
     exclude: []
   },
   
+  // Define global variables
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __DEV__: JSON.stringify(process.env.NODE_ENV === 'development'),
+    global: 'globalThis'
+  },
+  
   // Plugins
   plugins: [
     // PWA Plugin - DISABILITATO TEMPORANEAMENTE
@@ -191,13 +199,5 @@ export default defineConfig({
     //     ]
     //   }
     // })
-  ],
-  
-  // Environment variables
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
-    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
-    __DEV__: JSON.stringify(process.env.NODE_ENV === 'development'),
-    __PROD__: JSON.stringify(process.env.NODE_ENV === 'production')
-  }
+  ]
 });
