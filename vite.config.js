@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   root: '.',
   publicDir: 'public',
-  base: '/', // Configurazione per GitHub Pages
+  base: '/aideas.run/', // Percorso corretto per GitHub Pages
   
   // Build configuration
   build: {
