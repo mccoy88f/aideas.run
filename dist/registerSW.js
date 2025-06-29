@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/aideas.run/sw.js', { scope: '/aideas.run/' })})}
