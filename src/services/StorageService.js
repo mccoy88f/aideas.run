@@ -141,6 +141,48 @@ class StorageService {
     }
   }
 
+  // Aggiorna metadati specifici di un'app (CSP, domini esterni, ecc.)
+  async setAppMetadata(appId, metadata) {
+    try {
+      const app = await this.getApp(appId);
+      if (!app) {
+        throw new Error('App non trovata');
+      }
+
+      // Unisci i metadati esistenti con quelli nuovi
+      const updatedMetadata = {
+        ...app.metadata,
+        ...metadata
+      };
+
+      await this.db.apps.update(appId, { metadata: updatedMetadata });
+      console.log(`✅ Metadati aggiornati per app ${appId}:`, metadata);
+      return true;
+    } catch (error) {
+      console.error('Errore aggiornamento metadati app:', error);
+      return false;
+    }
+  }
+
+  // Ottieni metadati specifici di un'app
+  async getAppMetadata(appId, key = null) {
+    try {
+      const app = await this.getApp(appId);
+      if (!app || !app.metadata) {
+        return null;
+      }
+
+      if (key) {
+        return app.metadata[key] || null;
+      }
+
+      return app.metadata;
+    } catch (error) {
+      console.error('Errore recupero metadati app:', error);
+      return null;
+    }
+  }
+
   // Migra app esistenti per aggiungere campo content se mancante
   async migrateAppsForContent() {
     try {
