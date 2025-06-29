@@ -1,6 +1,6 @@
 /**
- * SAKAI - Google Drive Service
- * Gestisce le interazioni con Google Drive API per sync e storage
+ * AIdeas - Google Drive Service
+ * Gestione sincronizzazione con Google Drive
  */
 
 import { API_ENDPOINTS } from '../utils/constants.js';
@@ -25,7 +25,7 @@ export default class GoogleDriveService {
     this.tokenExpiry = null;
     this.userInfo = null;
     
-    // Scopes necessari per SAKAI
+    // Scopes necessari per AIdeas
     this.scopes = [
       'https://www.googleapis.com/auth/drive.file',
       'https://www.googleapis.com/auth/drive.appdata',
@@ -36,8 +36,8 @@ export default class GoogleDriveService {
     this.cache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minuti
 
-    // Cartella SAKAI su Drive
-    this.sakaiFolder = null;
+    // Cartella AIdeas su Drive
+    this.aideasFolder = null;
   }
 
   /**
@@ -177,8 +177,8 @@ export default class GoogleDriveService {
       // Salva credenziali
       await this.saveCredentials();
 
-      // Inizializza cartella SAKAI
-      await this.initializeSakaiFolder();
+      // Inizializza cartella AIdeas
+      await this.initializeAIdeasFolder();
 
       console.log('✅ Google Drive autenticato:', this.userInfo.name);
       
@@ -364,7 +364,7 @@ export default class GoogleDriveService {
     this.refreshToken = null;
     this.tokenExpiry = null;
     this.userInfo = null;
-    this.sakaiFolder = null;
+    this.aideasFolder = null;
     
     await this.clearCredentials();
     this.cache.clear();
@@ -375,43 +375,43 @@ export default class GoogleDriveService {
    */
 
   /**
-   * Inizializza cartella SAKAI su Drive
+   * Inizializza cartella AIdeas su Drive
    * @returns {Promise<Object>} Info cartella
    */
-  async initializeSakaiFolder() {
+  async initializeAIdeasFolder() {
     try {
-      // Cerca cartella SAKAI esistente
-      const existing = await this.findSakaiFolder();
+      // Cerca cartella AIdeas esistente
+      const existing = await this.findAIdeasFolder();
       if (existing) {
-        this.sakaiFolder = existing;
+        this.aideasFolder = existing;
         return existing;
       }
 
-      // Crea nuova cartella SAKAI
-      const folder = await this.createFolder('SAKAI', null, {
-        description: 'SAKAI App Data - Swiss Army Knife by AI'
+      // Crea nuova cartella AIdeas
+      const folder = await this.createFolder('AIdeas', null, {
+        description: 'AIdeas App Data - Swiss Army Knife by AI'
       });
 
-      this.sakaiFolder = folder;
+      this.aideasFolder = folder;
       return folder;
 
     } catch (error) {
-      console.error('Errore inizializzazione cartella SAKAI:', error);
+      console.error('Errore inizializzazione cartella AIdeas:', error);
       throw error;
     }
   }
 
   /**
-   * Cerca cartella SAKAI esistente
+   * Cerca cartella AIdeas esistente
    * @returns {Promise<Object|null>} Cartella se trovata
    */
-  async findSakaiFolder() {
+  async findAIdeasFolder() {
     try {
-      const query = 'name=\'SAKAI\' and mimeType=\'application/vnd.google-apps.folder\' and trashed=false';
+      const query = 'name=\'AIdeas\' and mimeType=\'application/vnd.google-apps.folder\' and trashed=false';
       const response = await this.makeRequest(`/files?q=${encodeURIComponent(query)}`);
 
       if (!response.ok) {
-        throw new Error('Errore ricerca cartella SAKAI');
+        throw new Error('Errore ricerca cartella AIdeas');
       }
 
       const data = await response.json();
@@ -708,8 +708,8 @@ export default class GoogleDriveService {
    */
   async uploadSyncData(syncData) {
     try {
-      if (!this.sakaiFolder) {
-        await this.initializeSakaiFolder();
+      if (!this.aideasFolder) {
+        await this.initializeAIdeasFolder();
       }
 
       const syncContent = JSON.stringify(syncData, null, 2);
@@ -722,23 +722,23 @@ export default class GoogleDriveService {
 
       // Upload file sync principale
       const syncFile = await this.uploadFile(
-        'sakai-sync.json',
+        'aideas-sync.json',
         syncContent,
         'application/json',
-        this.sakaiFolder.id,
+        this.aideasFolder.id,
         {
-          description: 'SAKAI Sync Data - Apps and Settings'
+          description: 'AIdeas Sync Data - Apps and Settings'
         }
       );
 
       // Upload metadati
       const metaFile = await this.uploadFile(
-        'sakai-meta.json',
+        'aideas-meta.json',
         JSON.stringify(metadata, null, 2),
         'application/json',
-        this.sakaiFolder.id,
+        this.aideasFolder.id,
         {
-          description: 'SAKAI Sync Metadata'
+          description: 'AIdeas Sync Metadata'
         }
       );
 
@@ -768,13 +768,13 @@ export default class GoogleDriveService {
    */
   async downloadSyncData() {
     try {
-      if (!this.sakaiFolder) {
-        await this.initializeSakaiFolder();
+      if (!this.aideasFolder) {
+        await this.initializeAIdeasFolder();
       }
 
       // Cerca file sync
-      const syncFiles = await this.listFiles(this.sakaiFolder.id, {
-        nameContains: 'sakai-sync.json'
+      const syncFiles = await this.listFiles(this.aideasFolder.id, {
+        nameContains: 'aideas-sync.json'
       });
 
       if (syncFiles.length === 0) {
@@ -791,8 +791,8 @@ export default class GoogleDriveService {
       // Prova a scaricare metadati
       let metadata = null;
       try {
-        const metaFiles = await this.listFiles(this.sakaiFolder.id, {
-          nameContains: 'sakai-meta.json'
+        const metaFiles = await this.listFiles(this.aideasFolder.id, {
+          nameContains: 'aideas-meta.json'
         });
 
         if (metaFiles.length > 0) {
@@ -915,7 +915,7 @@ export default class GoogleDriveService {
 
     // In produzione, usa crittografia più robusta
     const encrypted = btoa(JSON.stringify(credentials));
-    localStorage.setItem('sakai_googledrive_creds', encrypted);
+    localStorage.setItem('aideas_googledrive_creds', encrypted);
   }
 
   /**
@@ -924,7 +924,7 @@ export default class GoogleDriveService {
    */
   async loadCredentials() {
     try {
-      const encrypted = localStorage.getItem('sakai_googledrive_creds');
+      const encrypted = localStorage.getItem('aideas_googledrive_creds');
       if (!encrypted) return false;
 
       const credentials = JSON.parse(atob(encrypted));
@@ -946,7 +946,7 @@ export default class GoogleDriveService {
    * Rimuove credenziali salvate
    */
   async clearCredentials() {
-    localStorage.removeItem('sakai_googledrive_creds');
+    localStorage.removeItem('aideas_googledrive_creds');
   }
 
   /**

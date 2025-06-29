@@ -1,6 +1,6 @@
 /**
- * SAKAI - Main Entry Point
- * Inizializza l'applicazione e coordina tutti i componenti
+ * AIdeas - Main Entry Point
+ * Punto di ingresso principale dell'applicazione
  */
 
 import StorageService from './services/StorageService.js';
@@ -22,9 +22,10 @@ import {
 import { DEBUG, ErrorTracker, PerformanceMonitor } from './utils/debug.js';
 
 /**
- * Classe principale dell'applicazione SAKAI
+ * Classe principale dell'applicazione AIdeas
+ * Gestisce l'inizializzazione e il ciclo di vita dell'app
  */
-class SakaiApp {
+class AIdeasApp {
   constructor() {
     this.currentView = 'all';
     this.currentSort = 'lastUsed';
@@ -61,42 +62,48 @@ class SakaiApp {
    */
   async init() {
     try {
-      console.log('🚀 Inizializzazione SAKAI...');
-      
+      console.log('🚀 Inizializzazione AIdeas...');
+      this.setupEventListeners();
       // Mostra loading screen
+      console.log('📱 Mostra loading screen...');
       this.showLoadingScreen();
       
-      // Inizializza storage
-      await this.initializeStorage();
+      // Inizializza servizi
+      console.log('💾 Inizializza servizi...');
+      await StorageService.ensureDbOpen();
       
-      // Carica impostazioni utente
-      await this.loadUserSettings();
+      // Migra app esistenti per aggiungere campo content
+      console.log('🔄 Avvia migrazione app HTML...');
+      const migrated = await StorageService.migrateAppsForContent();
+      console.log(`✅ Migrazione completata: ${migrated} app migrate`);
       
-      // Setup event listeners
-      this.setupEventListeners();
-      
-      // Carica apps
+      // Carica app
+      console.log('📦 Carica app...');
       await this.loadApps();
       
       // Inizializza componenti
+      console.log('🔧 Inizializza componenti...');
       await this.initializeComponents();
       
-      // Aggiorna UI
-      this.updateUI();
-      
-      // Nascondi loading e mostra app
-      this.hideLoadingScreen();
-      
-      // Inizializza sync se configurato
+      // Inizializza sincronizzazione
+      console.log('🔄 Inizializza sincronizzazione...');
       await this.initializeSync();
       
-      console.log('✅ SAKAI inizializzato con successo');
+      console.log('✅ AIdeas inizializzato con successo');
       
       // Mostra welcome message se è la prima volta
+      console.log('👋 Controlla first run...');
       await this.checkFirstRun();
       
+      console.log('🎉 Inizializzazione completata!');
+      
+      // Nascondi loading screen e mostra l'app
+      console.log('👁️ Nascondi loading screen...');
+      this.hideLoadingScreen();
+      
     } catch (error) {
-      console.error('❌ Errore inizializzazione SAKAI:', error);
+      console.error('❌ Errore inizializzazione AIdeas:', error);
+      console.error('Stack trace:', error.stack);
       this.showError('Errore durante l\'inizializzazione dell\'applicazione');
     }
   }
@@ -784,7 +791,7 @@ class SakaiApp {
   showAboutModal() {
     showModal('about-modal', `
       <div class="modal-header">
-        <h2>Su SAKAI</h2>
+        <h2>Su AIdeas</h2>
         <button class="modal-close" onclick="hideModal('about-modal')">&times;</button>
       </div>
       <div class="modal-body">
@@ -801,7 +808,7 @@ class SakaiApp {
               <text x="50" y="65" text-anchor="middle" fill="white" font-size="32" font-weight="bold">S</text>
             </svg>
           </div>
-          <h3>SAKAI v1.0.0</h3>
+          <h3>AIdeas v1.0.0</h3>
           <p><strong>Swiss Army Knife by AI</strong></p>
           <p>Launcher per applicazioni web generate da AI</p>
           <div class="about-features">
@@ -815,8 +822,8 @@ class SakaiApp {
             </ul>
           </div>
           <div class="about-links">
-            <a href="https://github.com/sakai/sakai" target="_blank" rel="noopener">GitHub</a>
-            <a href="https://sakai.dev/docs" target="_blank" rel="noopener">Documentazione</a>
+            <a href="https://github.com/aideas-run/aideas-run" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://aideas.run/docs" target="_blank" rel="noopener">Documentazione</a>
           </div>
         </div>
       </div>
@@ -829,7 +836,7 @@ class SakaiApp {
   showAppStoreModal() {
     showModal('app-store-modal', `
       <div class="modal-header">
-        <h2>SAKAI App Store</h2>
+        <h2>AIdeas App Store</h2>
         <button class="modal-close" onclick="hideModal('app-store-modal')">&times;</button>
       </div>
       <div class="modal-body">
@@ -855,7 +862,7 @@ class SakaiApp {
       
       const a = document.createElement('a');
       a.href = url;
-      a.download = `sakai-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `aideas-backup-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -926,7 +933,7 @@ class SakaiApp {
     const isFirstRun = await StorageService.getSetting('firstRun', true);
     if (isFirstRun) {
       await StorageService.setSetting('firstRun', false);
-      showToast('Benvenuto in SAKAI! Inizia aggiungendo la tua prima app.', 'info', 5000);
+      showToast('Benvenuto in AIdeas! Inizia aggiungendo la tua prima app.', 'info', 5000);
     }
   }
 
@@ -1265,10 +1272,10 @@ class SakaiApp {
  */
 document.addEventListener('DOMContentLoaded', async () => {
   // Inizializza app
-  const app = new SakaiApp();
+  const app = new AIdeasApp();
   
   // Rendi globale per debugging
-  window.sakaiApp = app;
+  window.aideasApp = app;
   
   // Avvia applicazione
   await app.init();
@@ -1286,4 +1293,4 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 // Esporta per debug
-export default SakaiApp;
+export default AIdeasApp;

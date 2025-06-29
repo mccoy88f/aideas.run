@@ -1,6 +1,6 @@
 /**
- * SAKAI - Security Service
- * Gestisce validazione, sanitizzazione e sicurezza delle applicazioni
+ * AIdeas - Security Service
+ * Gestione crittografia e sicurezza per AIdeas.run
  */
 
 import { SECURITY_CONFIG, SANDBOX_PERMISSIONS, SUPPORTED_EXTENSIONS } from '../utils/constants.js';

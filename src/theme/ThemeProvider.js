@@ -19,7 +19,7 @@ export const useTheme = () => {
 export const ThemeProvider = ({ children }) => {
   const [mode, setMode] = useState(() => {
     // Recupera il tema salvato nel localStorage
-    const savedMode = localStorage.getItem('sakai-theme');
+    const savedMode = localStorage.getItem('aideas-theme');
     if (savedMode) {
       return savedMode;
     }
@@ -35,19 +35,19 @@ export const ThemeProvider = ({ children }) => {
   const toggleTheme = () => {
     const newMode = mode === 'light' ? 'dark' : 'light';
     setMode(newMode);
-    localStorage.setItem('sakai-theme', newMode);
+    localStorage.setItem('aideas-theme', newMode);
   };
 
   const setTheme = (newMode) => {
     setMode(newMode);
-    localStorage.setItem('sakai-theme', newMode);
+    localStorage.setItem('aideas-theme', newMode);
   };
 
   // Ascolta i cambiamenti del tema del sistema
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e) => {
-      if (!localStorage.getItem('sakai-theme')) {
+      if (!localStorage.getItem('aideas-theme')) {
         setMode(e.matches ? 'dark' : 'light');
       }
     };

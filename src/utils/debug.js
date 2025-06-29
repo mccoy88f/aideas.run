@@ -1,29 +1,29 @@
 /**
- * SAKAI - Debug Utilities
- * Utilità per il debugging dell'applicazione
+ * AIdeas - Debug Utilities
+ * Utility per debugging e sviluppo
  */
 
 import { DEBUG_CONFIG } from './constants.js';
 import { showToast, showConfirmPopup } from './helpers.js';
 
 export const DEBUG = {
-  enabled: import.meta.env.DEV || localStorage.getItem('sakai_debug') === 'true',
-  verbose: localStorage.getItem('sakai_verbose_logging') === 'true',
+  enabled: import.meta.env.DEV || localStorage.getItem('aideas_debug') === 'true',
+  verbose: localStorage.getItem('aideas_verbose_logging') === 'true',
   
   log(...args) {
     if (this.enabled) {
-      console.log('[SAKAI Debug]', ...args);
+      console.log('[AIdeas Debug]', ...args);
     }
   },
   
   warn(...args) {
     if (this.enabled) {
-      console.warn('[SAKAI Debug]', ...args);
+      console.warn('[AIdeas Debug]', ...args);
     }
   },
   
   error(...args) {
-    console.error('[SAKAI Debug]', ...args);
+    console.error('[AIdeas Debug]', ...args);
   },
   
   table(data) {
@@ -47,7 +47,7 @@ export const DEBUG = {
 
 // Development console tools
 if (import.meta.env.DEV || DEBUG.enabled) {
-  window.SAKAI_DEV = {
+  window.AIdeas_DEV = {
     // Storage inspection
     async inspectStorage() {
       const StorageService = await import('../services/StorageService.js').then(m => m.default);
@@ -55,7 +55,7 @@ if (import.meta.env.DEV || DEBUG.enabled) {
       const apps = await StorageService.getAllApps();
       const settings = await StorageService.getAllSettings();
       
-      console.group('🔍 SAKAI Storage Inspection');
+      console.group('🔍 AIdeas Storage Inspection');
       console.log('Stats:', stats);
       console.table(apps);
       console.log('Settings:', settings);
@@ -73,14 +73,14 @@ if (import.meta.env.DEV || DEBUG.enabled) {
     
     // Error log
     getErrors() {
-      return window.SAKAI_ERRORS || [];
+      return window.AIdeas_ERRORS || [];
     },
     
     // Clear all data
     clearAllData() {
       showConfirmPopup({
         title: 'Pulisci Dati',
-        message: 'Eliminare tutti i dati di SAKAI? Questa operazione non può essere annullata!',
+        message: 'Eliminare tutti i dati di AIdeas? Questa operazione non può essere annullata!',
         icon: 'danger',
         confirmText: 'Elimina',
         cancelText: 'Annulla',
@@ -89,7 +89,7 @@ if (import.meta.env.DEV || DEBUG.enabled) {
         if (confirmed) {
           localStorage.clear();
           sessionStorage.clear();
-          indexedDB.deleteDatabase('sakai-db');
+          indexedDB.deleteDatabase('aideas-db');
           showToast('Tutti i dati eliminati', 'success');
           setTimeout(() => window.location.reload(), 1000);
         }
@@ -98,14 +98,14 @@ if (import.meta.env.DEV || DEBUG.enabled) {
     
     // Enable verbose logging
     enableVerbose() {
-      localStorage.setItem('sakai_verbose_logging', 'true');
+      localStorage.setItem('aideas_verbose_logging', 'true');
       DEBUG.verbose = true;
       console.log('Verbose logging enabled');
     },
     
     // Disable verbose logging
     disableVerbose() {
-      localStorage.removeItem('sakai_verbose_logging');
+      localStorage.removeItem('aideas_verbose_logging');
       DEBUG.verbose = false;
       console.log('Verbose logging disabled');
     }
@@ -117,7 +117,7 @@ export class ErrorTracker {
   static errors = [];
   
   static init() {
-    window.SAKAI_ERRORS = this.errors;
+    window.AIdeas_ERRORS = this.errors;
     
     window.addEventListener('error', (event) => {
       this.trackError({
@@ -144,7 +144,7 @@ export class ErrorTracker {
   static trackError(error) {
     this.errors.push(error);
     if (DEBUG.enabled) {
-      console.error('[SAKAI Error Tracker]', error);
+      console.error('[AIdeas Error Tracker]', error);
     }
     
     // Limita il numero di errori memorizzati

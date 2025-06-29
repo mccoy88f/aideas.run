@@ -1,4 +1,4 @@
-# Problemi Risolti - SAKAI Reborn
+# Problemi Risolti - AIdeas
 
 ## 📋 Riepilogo Problemi Identificati
 
@@ -49,7 +49,7 @@
 #### 8. Manifest Protocol Handler
 - **Problema**: Protocollo `sakai` non valido nel manifest
 - **Impatto**: Warning nel manifest
-- **Soluzione**: ✅ Cambiato in `web+sakai`
+- **Soluzione**: ✅ Cambiato in `web+aideas`
 - **File modificato**: `public/manifest.json`
 
 #### 9. Meta Tag Deprecato
@@ -210,7 +210,7 @@ npm run lint
 Il progetto ora segue un'architettura modulare corretta:
 
 ```
-sakai-reborn/
+aideas-reborn/
 ├── index.html              # Entry point HTML completo
 ├── vite.config.js          # Configurazione corretta
 ├── src/
@@ -234,7 +234,7 @@ sakai-reborn/
 
 ## 🎯 Risultato Finale
 
-**SAKAI Reborn è ora completamente funzionante** con:
+**AIdeas è ora completamente funzionante** con:
 
 - ✅ Interfaccia utente completa e responsive
 - ✅ Sistema di storage funzionante

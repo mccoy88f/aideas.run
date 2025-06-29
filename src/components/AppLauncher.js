@@ -1,6 +1,6 @@
 /**
- * SAKAI - App Launcher Component
- * Gestisce il lancio sicuro delle applicazioni in sandbox iframe
+ * AIdeas - App Launcher Component
+ * Gestisce l'apertura e l'esecuzione delle applicazioni
  */
 
 import StorageService from '../services/StorageService.js';
@@ -88,6 +88,9 @@ export default class AppLauncher {
         case 'zip':
           iframe = await this.launchZipApp(app, options);
           break;
+        case 'html':
+          iframe = await this.launchHtmlApp(app, options);
+          break;
         case 'github':
           iframe = await this.launchGitHubApp(app, options);
           break;
@@ -165,19 +168,19 @@ export default class AppLauncher {
       // Determina modalità di lancio
       if (options.launchMode === 'newpage') {
         // Apri in nuova pagina
-        const newWindow = window.open('', `sakai_zip_${app.id}_${Date.now()}`, 
+        const newWindow = window.open('', `aideas_zip_${app.id}_${Date.now()}`, 
           'width=1200,height=800,scrollbars=yes,resizable=yes');
         
         if (!newWindow) {
-          throw new Error('Popup bloccato dal browser. Consenti i popup per SAKAI.');
+          throw new Error('Popup bloccato dal browser. Consenti i popup per AIdeas.');
         }
 
         // Scrivi il contenuto direttamente nella nuova finestra
         newWindow.document.write(htmlContent);
         newWindow.document.close();
 
-        // Inietta API SAKAI
-        this.injectSakaiAPI({ contentWindow: newWindow }, app);
+        // Inietta API AIdeas
+        this.injectAIdeasAPI({ contentWindow: newWindow }, app);
 
         // Setup cleanup
         const cleanup = () => {
@@ -230,6 +233,78 @@ export default class AppLauncher {
   }
 
   /**
+   * Lancia un'app HTML
+   * @param {Object} app - Dati dell'app
+   * @param {Object} options - Opzioni di lancio
+   */
+  async launchHtmlApp(app, options = {}) {
+    try {
+      // Validazione contenuto HTML
+      if (!app.content) {
+        throw new Error('Contenuto HTML mancante');
+      }
+
+      // Crea blob URL per il contenuto HTML
+      const htmlBlob = new Blob([app.content], { type: 'text/html' });
+      const htmlBlobUrl = URL.createObjectURL(htmlBlob);
+
+      // Determina modalità di lancio
+      if (options.launchMode === 'newpage') {
+        // Apri in nuova pagina
+        const newWindow = window.open('', `aideas_html_${app.id}_${Date.now()}`, 
+          'width=1200,height=800,scrollbars=yes,resizable=yes');
+        
+        if (!newWindow) {
+          throw new Error('Popup bloccato dal browser. Consenti i popup per AIdeas.');
+        }
+
+        // Scrivi il contenuto direttamente nella nuova finestra
+        newWindow.document.write(app.content);
+        newWindow.document.close();
+
+        // Inietta API AIdeas
+        this.injectAIdeasAPI({ contentWindow: newWindow }, app);
+
+        // Setup cleanup
+        const cleanup = () => {
+          URL.revokeObjectURL(htmlBlobUrl);
+        };
+
+        newWindow.addEventListener('beforeunload', cleanup);
+
+        return {
+          window: newWindow,
+          external: true,
+          cleanup
+        };
+      } else {
+        // Modalità iframe (default)
+        const iframe = this.createSecureFrame(app, {
+          src: htmlBlobUrl,
+          sandbox: 'allow-scripts allow-forms allow-modals allow-popups-to-escape-sandbox allow-same-origin'
+        });
+
+        // Setup cleanup quando l'iframe viene chiuso
+        iframe.addEventListener('unload', () => {
+          URL.revokeObjectURL(htmlBlobUrl);
+        });
+
+        return {
+          iframe,
+          window: iframe.contentWindow,
+          cleanup: () => {
+            URL.revokeObjectURL(htmlBlobUrl);
+          }
+        };
+      }
+
+    } catch (error) {
+      console.error('Errore lancio app HTML:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Lancia un'app URL
    * @param {Object} app - Dati dell'app
    * @param {Object} options - Opzioni di lancio
@@ -246,11 +321,11 @@ export default class AppLauncher {
       // Se forza nuova finestra o è impostato nelle preferenze
       if (options.launchMode === 'newpage' || options.forceNewWindow) {
         // Apri in nuova finestra/tab
-        const newWindow = window.open(targetUrl, `sakai_app_${app.id}`, 
+        const newWindow = window.open(targetUrl, `aideas_app_${app.id}`, 
           'width=1200,height=800,scrollbars=yes,resizable=yes');
         
         if (!newWindow) {
-          throw new Error('Popup bloccato dal browser. Consenti i popup per SAKAI.');
+          throw new Error('Popup bloccato dal browser. Consenti i popup per AIdeas.');
         }
 
         return {
@@ -265,11 +340,11 @@ export default class AppLauncher {
           // Fallback a nuova finestra se iframe non supportato
           showToast('Questo sito non supporta iframe, apertura in nuova finestra', 'info');
           
-          const newWindow = window.open(targetUrl, `sakai_app_${app.id}`, 
+          const newWindow = window.open(targetUrl, `aideas_app_${app.id}`, 
             'width=1200,height=800,scrollbars=yes,resizable=yes');
           
           if (!newWindow) {
-            throw new Error('Popup bloccato dal browser. Consenti i popup per SAKAI.');
+            throw new Error('Popup bloccato dal browser. Consenti i popup per AIdeas.');
           }
 
           return {
@@ -347,11 +422,11 @@ export default class AppLauncher {
       }
 
       // Per le PWA, preferisci sempre nuova finestra per esperienza nativa
-      const newWindow = window.open(app.url, `sakai_pwa_${app.id}`,
+      const newWindow = window.open(app.url, `aideas_pwa_${app.id}`,
         'width=1200,height=800,scrollbars=yes,resizable=yes,toolbar=no,location=no,status=no,menubar=no');
       
       if (!newWindow) {
-        throw new Error('Popup bloccato dal browser. Consenti i popup per SAKAI.');
+        throw new Error('Popup bloccato dal browser. Consenti i popup per AIdeas.');
       }
 
       // Prova a richiedere installazione PWA se supportato
@@ -452,8 +527,8 @@ export default class AppLauncher {
       }
       iframe.style.display = 'block';
       
-      // Inietta API SAKAI nell'iframe
-      this.injectSakaiAPI(iframe, app);
+      // Inietta API AIdeas nell'iframe
+      this.injectAIdeasAPI(iframe, app);
     });
 
     iframe.addEventListener('error', () => {
@@ -547,17 +622,17 @@ export default class AppLauncher {
   }
 
   /**
-   * Inietta l'API SAKAI nell'iframe
+   * Inietta l'API AIdeas nell'iframe
    * @param {Element} iframe - Iframe element
    * @param {Object} app - Dati dell'app
    */
-  injectSakaiAPI(iframe, app) {
+  injectAIdeasAPI(iframe, app) {
     try {
       const iframeWindow = iframe.contentWindow;
       if (!iframeWindow) return;
 
-      // API SAKAI per le app
-      iframeWindow.SAKAI = {
+      // API AIdeas per le app
+      iframeWindow.AIdeas = {
         // Informazioni app
         app: {
           id: app.id,
@@ -567,11 +642,11 @@ export default class AppLauncher {
 
         // Storage app-specific
         storage: {
-          get: (key) => localStorage.getItem(`sakai_app_${app.id}_${key}`),
-          set: (key, value) => localStorage.setItem(`sakai_app_${app.id}_${key}`, value),
-          remove: (key) => localStorage.removeItem(`sakai_app_${app.id}_${key}`),
+          get: (key) => localStorage.getItem(`aideas_app_${app.id}_${key}`),
+          set: (key, value) => localStorage.setItem(`aideas_app_${app.id}_${key}`, value),
+          remove: (key) => localStorage.removeItem(`aideas_app_${app.id}_${key}`),
           clear: () => {
-            const prefix = `sakai_app_${app.id}_`;
+            const prefix = `aideas_app_${app.id}_`;
             Object.keys(localStorage).forEach(key => {
               if (key.startsWith(prefix)) {
                 localStorage.removeItem(key);
@@ -617,10 +692,10 @@ export default class AppLauncher {
         }
       };
 
-      console.log(`✅ SAKAI API iniettata in ${app.name}`);
+      console.log(`✅ AIdeas API iniettata in ${app.name}`);
 
     } catch (error) {
-      console.warn('Impossibile iniettare SAKAI API:', error);
+      console.warn('Impossibile iniettare AIdeas API:', error);
     }
   }
 
@@ -747,9 +822,9 @@ export default class AppLauncher {
     const metaTags = `
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="sakai-app" content="${escapeHtml(app.name)}">
-      <meta name="sakai-version" content="${app.version || '1.0.0'}">
-      <meta name="sakai-type" content="zip">
+      <meta name="aideas-app" content="${escapeHtml(app.name)}">
+      <meta name="aideas-version" content="${app.version || '1.0.0'}">
+      <meta name="aideas-type" content="zip">
       <base href="blob:">
     `;
 

@@ -1,23 +1,23 @@
 /**
- * SAKAI - Constants & Configuration
+ * AIdeas - Constants & Configuration
  * Costanti e configurazioni globali dell'applicazione
  */
 
 // Informazioni applicazione
 export const APP_INFO = {
-  name: 'SAKAI',
+  name: 'AIdeas',
   fullName: 'Swiss Army Knife by AI',
   version: '1.0.0',
   description: 'Launcher per applicazioni web generate da AI',
-  author: 'SAKAI Team',
-  website: 'https://sakai.dev',
-  repository: 'https://github.com/sakai/sakai',
+  author: 'AIdeas Team',
+  website: 'https://aideas.run',
+  repository: 'https://github.com/aideas-run/aideas-run',
   license: 'MIT'
 };
 
 // Database configuration
 export const DATABASE_CONFIG = {
-  name: 'SAKAI_DB',
+  name: 'AIdeas_DB',
   version: 1,
   maxSize: 100 * 1024 * 1024, // 100MB
   backupRetention: 30 // giorni
@@ -124,7 +124,7 @@ export const SUPPORTED_EXTENSIONS = {
   ARCHIVES: ['.zip'],
   IMAGES: ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'],
   DOCUMENTS: ['.html', '.css', '.js', '.json', '.md', '.txt'],
-  MANIFESTS: ['manifest.json', 'sakai.json', 'package.json']
+  MANIFESTS: ['manifest.json', 'aideas.json', 'package.json']
 };
 
 // MIME types
@@ -199,26 +199,26 @@ export const CACHE_STRATEGIES = {
 
 // Eventi personalizzati
 export const CUSTOM_EVENTS = {
-  APP_LAUNCHED: 'sakai:app:launched',
-  APP_CLOSED: 'sakai:app:closed',
-  APP_INSTALLED: 'sakai:app:installed',
-  APP_UPDATED: 'sakai:app:updated',
-  APP_DELETED: 'sakai:app:deleted',
-  SYNC_STARTED: 'sakai:sync:started',
-  SYNC_COMPLETED: 'sakai:sync:completed',
-  SYNC_FAILED: 'sakai:sync:failed',
-  SETTINGS_CHANGED: 'sakai:settings:changed',
-  THEME_CHANGED: 'sakai:theme:changed'
+  APP_LAUNCHED: 'aideas:app:launched',
+  APP_CLOSED: 'aideas:app:closed',
+  APP_INSTALLED: 'aideas:app:installed',
+  APP_UPDATED: 'aideas:app:updated',
+  APP_DELETED: 'aideas:app:deleted',
+  SYNC_STARTED: 'aideas:sync:started',
+  SYNC_COMPLETED: 'aideas:sync:completed',
+  SYNC_FAILED: 'aideas:sync:failed',
+  SETTINGS_CHANGED: 'aideas:settings:changed',
+  THEME_CHANGED: 'aideas:theme:changed'
 };
 
 // Chiavi localStorage
 export const STORAGE_KEYS = {
-  THEME: 'sakai_theme',
-  LANGUAGE: 'sakai_language',
-  FIRST_RUN: 'sakai_first_run',
-  INSTALL_PROMPT: 'sakai_install_prompt_dismissed',
-  LAST_BACKUP: 'sakai_last_backup',
-  DEV_MODE: 'sakai_dev_mode'
+  THEME: 'aideas_theme',
+  LANGUAGE: 'aideas_language',
+  FIRST_RUN: 'aideas_first_run',
+  INSTALL_PROMPT: 'aideas_install_prompt_dismissed',
+  LAST_BACKUP: 'aideas_last_backup',
+  DEV_MODE: 'aideas_dev_mode'
 };
 
 // Configurazione PWA
