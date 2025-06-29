@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-// import { VitePWA } from 'vite-plugin-pwa';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   root: '.',
@@ -111,93 +111,93 @@ export default defineConfig({
   
   // Plugins
   plugins: [
-    // PWA Plugin - DISABILITATO TEMPORANEAMENTE
-    // VitePWA({
-    //   devOptions: {
-    //     enabled: true,  // Abilita SW in sviluppo
-    //     type: 'module'
-    //   },
-    //   registerType: 'autoUpdate',
-    //   workbox: {
-    //     globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-    //     runtimeCaching: [
-    //       {
-    //         urlPattern: /^https:\/\/api\.github\.com\/.*/i,
-    //         handler: 'NetworkFirst',
-    //         options: {
-    //           cacheName: 'github-api-cache',
-    //           expiration: {
-    //             maxEntries: 10,
-    //             maxAgeSeconds: 60 * 60 * 24 // 24 ore
-    //           }
-    //         }
-    //       },
-    //       {
-    //         urlPattern: /^https:\/\/.*\.googleapis\.com\/.*/i,
-    //         handler: 'CacheFirst',
-    //         options: {
-    //           cacheName: 'google-apis-cache',
-    //           expiration: {
-    //             maxEntries: 50,
-    //             maxAgeSeconds: 60 * 60 * 24 * 7 // 7 giorni
-    //           }
-    //         }
-    //       }
-    //     ]
-    //   },
-    //   manifest: {
-    //     name: 'SAKAI - Web App Launcher',
-    //     short_name: 'SAKAI',
-    //     description: 'Launcher per applicazioni web e PWA',
-    //     theme_color: '#3b82f6',
-    //     background_color: '#ffffff',
-    //     display: 'standalone',
-    //     orientation: 'portrait',
-    //     scope: '/',
-    //     start_url: '/',
-    //     icons: [
-    //       {
-    //         src: '/assets/icons/icon-72x72.png',
-    //         sizes: '72x72',
-    //         type: 'image/png'
-    //       },
-    //       {
-    //         src: '/assets/icons/icon-96x96.png',
-    //         sizes: '96x96',
-    //         type: 'image/png'
-    //       },
-    //       {
-    //         src: '/assets/icons/icon-128x128.png',
-    //         sizes: '128x128',
-    //         type: 'image/png'
-    //       },
-    //       {
-    //         src: '/assets/icons/icon-144x144.png',
-    //         sizes: '144x144',
-    //         type: 'image/png'
-    //       },
-    //       {
-    //         src: '/assets/icons/icon-152x152.png',
-    //         sizes: '152x152',
-    //         type: 'image/png'
-    //       },
-    //       {
-    //         src: '/assets/icons/icon-192x192.png',
-    //         sizes: '192x192',
-    //         type: 'image/png'
-    //       },
-    //       {
-    //         src: '/assets/icons/icon-384x384.png',
-    //         sizes: '384x384',
-    //         type: 'image/png'
-    //       },
-    //       {
-    //         src: '/assets/icons/icon-512x512.png',
-    //         sizes: '512x512',
-    //         type: 'image/png'
-    //       }
-    //     ]
-    //   }
-    // })
+    // PWA Plugin - RIATTIVATO
+    VitePWA({
+      devOptions: {
+        enabled: true,  // Abilita SW in sviluppo
+        type: 'module'
+      },
+      registerType: 'autoUpdate',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\.github\.com\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'github-api-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 // 24 ore
+              }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/.*\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-apis-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 giorni
+              }
+            }
+          }
+        ]
+      },
+      manifest: {
+        name: 'AIdeas - Run your AIdeas',
+        short_name: 'AIdeas',
+        description: 'Launcher per applicazioni web generate da AI',
+        theme_color: '#2563eb',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: '/aideas.run/',
+        start_url: '/aideas.run/',
+        icons: [
+          {
+            src: 'assets/icons/icon-72x72.png',
+            sizes: '72x72',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icons/icon-96x96.png',
+            sizes: '96x96',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icons/icon-128x128.png',
+            sizes: '128x128',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icons/icon-144x144.png',
+            sizes: '144x144',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icons/icon-152x152.png',
+            sizes: '152x152',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icons/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icons/icon-384x384.png',
+            sizes: '384x384',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
+      }
+    })
   ]
 });
