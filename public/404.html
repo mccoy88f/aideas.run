@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIdeas - Pagina non trovata</title>
+  <script>
+    // Reindirizza alla home page per gestire le route SPA
+    const path = window.location.pathname;
+    const search = window.location.search;
+    const hash = window.location.hash;
+    
+    // Se non è già sulla home, reindirizza
+    if (path !== '/' && path !== '/index.html') {
+      window.location.href = '/' + search + hash;
+    }
+  </script>
+</head>
+<body>
+  <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+    <div style="text-align: center;">
+      <h1>404 - Pagina non trovata</h1>
+      <p>Reindirizzamento in corso...</p>
+      <p><a href="/">Clicca qui se non vieni reindirizzato automaticamente</a></p>
+    </div>
+  </div>
+</body>
+</html> 

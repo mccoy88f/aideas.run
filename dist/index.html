@@ -4,34 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <!-- PWA Meta Tags -->
-  <meta name="theme-color" content="#2563eb">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="SAKAI">
-  <meta name="msapplication-TileColor" content="#2563eb">
-  <meta name="msapplication-TileImage" content="/assets/icons/icon-144x144.png">
-  <meta name="application-name" content="SAKAI">
-  
   <!-- SEO Meta Tags -->
-  <title>SAKAI - Swiss Army Knife by AI</title>
+  <title>AIdeas - Run your AIdeas</title>
   <meta name="description" content="Launcher per applicazioni web generate da AI. Gestisci, organizza e lancia le tue app web in sicurezza.">
   <meta name="keywords" content="PWA, launcher, AI apps, web apps, client-side, offline">
-  <meta name="author" content="SAKAI Team">
+  <meta name="author" content="AIdeas Team">
   
   <!-- Open Graph -->
-  <meta property="og:title" content="SAKAI - Swiss Army Knife by AI">
+  <meta property="og:title" content="AIdeas - Run your AIdeas">
   <meta property="og:description" content="Launcher per applicazioni web generate da AI">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://sakai.dev">
+  <meta property="og:url" content="https://aideas.run">
   <meta property="og:image" content="/assets/og-image.png">
   
-  <!-- Icons & Manifest -->
+  <!-- Icons -->
   <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
   <link rel="icon" type="image/png" href="/assets/icons/favicon.png">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
-  <link rel="manifest" href="/manifest.json">
   
   <!-- Preload Critical Resources -->
   
@@ -46,13 +35,13 @@
     img-src 'self' data: https: blob:;
     connect-src 'self' ws://localhost:* wss://localhost:* http://localhost:4000 https://api.github.com https://www.googleapis.com https://accounts.google.com https://api.allorigins.win https://cors-anywhere.herokuapp.com https://thingproxy.freeboard.io https://cors.bridged.cc https://api.codetabs.com https://corsproxy.io https://cors-anywhere.1d4s.me https://web.whatsapp.com https://github.com https://discord.com https://notion.so https://httpbin.org https:;
     frame-src 'self' https:;
-    worker-src 'self' blob:;
+    worker-src 'self';
     manifest-src 'self';
   ">
-  <script type="module" crossorigin src="/js/main-DdOV4Eu9.js"></script>
+  <script type="module" crossorigin src="/js/main-D3EHb2GR.js"></script>
   <link rel="modulepreload" crossorigin href="/js/vendor-DJejuOzK.js">
-  <link rel="stylesheet" crossorigin href="/css/main-CHkTmcp5.css">
-<link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+  <link rel="stylesheet" crossorigin href="/css/main-Bf1Y24g9.css">
+</head>
 <body>
   <!-- Loading Splash Screen -->
   <div id="loading-screen" class="loading-screen">
@@ -69,8 +58,8 @@
           <text x="50" y="65" text-anchor="middle" fill="white" font-size="32" font-weight="bold">A</text>
         </svg>
       </div>
-      <h1 class="loading-title">AIdeas.run</h1>
-      <p class="loading-subtitle">Run your Ideas</p>
+      <h1 class="loading-title">AIdeas</h1>
+      <p class="loading-subtitle">Run your AIdeas</p>
       <div class="loading-spinner">
         <div class="spinner"></div>
       </div>
@@ -90,7 +79,7 @@
               <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
             </svg>
           </button>
-          <h1 class="brand-title">AIdeas.run</h1>
+          <h1 class="brand-title">AIdeas</h1>
         </div>
 
         <!-- Search Bar -->
@@ -302,11 +291,12 @@
 
   <!-- Scripts -->
   
-  <!-- Service Worker Registration -->
+  <!-- PWA Install Prompt (se necessario) -->
   <script>
+    // Service Worker Registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/dev-dist/sw.js')
+        navigator.serviceWorker.register('/sw.js')
           .then(registration => {
             console.log('SW registered: ', registration);
           })
