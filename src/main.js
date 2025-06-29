@@ -90,9 +90,6 @@ class AIdeasApp {
       // Nascondi loading screen
       this.hideLoadingScreen();
       
-      // Mostra messaggio di benvenuto se abilitato
-      await this.showWelcomeMessage();
-      
       console.log('✅ AIdeas inizializzata con successo');
       
     } catch (error) {
