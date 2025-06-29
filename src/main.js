@@ -63,49 +63,83 @@ class AIdeasApp {
   async init() {
     try {
       console.log('🚀 Inizializzazione AIdeas...');
-      this.setupEventListeners();
-      // Mostra loading screen
-      console.log('📱 Mostra loading screen...');
-      this.showLoadingScreen();
       
-      // Inizializza servizi
-      console.log('💾 Inizializza servizi...');
-      await StorageService.ensureDbOpen();
+      // Inizializza storage
+      await this.storage.ensureDbOpen();
       
-      // Migra app esistenti per aggiungere campo content
-      console.log('🔄 Avvia migrazione app HTML...');
-      const migrated = await StorageService.migrateAppsForContent();
-      console.log(`✅ Migrazione completata: ${migrated} app migrate`);
+      // Verifica e correggi impostazioni critiche
+      await this.verifyCriticalSettings();
       
-      // Carica app
-      console.log('📦 Carica app...');
-      await this.loadApps();
+      // Test impostazioni (solo in debug)
+      if (localStorage.getItem('aideas_debug') === 'true') {
+        await this.testSettings();
+      }
       
       // Inizializza componenti
-      console.log('🔧 Inizializza componenti...');
-      await this.initializeComponents();
+      await this.appLauncher.init();
+      await this.appImporter.init();
+      await this.settingsPanel.init();
+      // await this.syncManager.init(); // DISABILITATO TEMPORANEAMENTE
       
-      // Inizializza sincronizzazione
-      console.log('🔄 Inizializza sincronizzazione...');
-      await this.initializeSync();
+      // Carica app
+      await this.loadApps();
       
-      console.log('✅ AIdeas inizializzato con successo');
+      // Setup event listeners
+      this.setupEventListeners();
       
-      // Mostra welcome message se è la prima volta
-      console.log('👋 Controlla first run...');
-      await this.checkFirstRun();
-      
-      console.log('🎉 Inizializzazione completata!');
-      
-      // Nascondi loading screen e mostra l'app
-      console.log('👁️ Nascondi loading screen...');
+      // Nascondi loading screen
       this.hideLoadingScreen();
+      
+      // Mostra messaggio di benvenuto se abilitato
+      await this.showWelcomeMessage();
+      
+      console.log('✅ AIdeas inizializzata con successo');
       
     } catch (error) {
       console.error('❌ Errore inizializzazione AIdeas:', error);
-      console.error('Stack trace:', error.stack);
-      this.showError('Errore durante l\'inizializzazione dell\'applicazione');
+      this.showErrorScreen(error);
     }
+  }
+
+  /**
+   * Verifica e correggi le impostazioni critiche all'avvio
+   */
+  async verifyCriticalSettings() {
+    console.log('🔍 Verifica impostazioni critiche...');
+    
+    // Verifica defaultLaunchMode
+    const currentLaunchMode = await this.storage.getSetting('defaultLaunchMode');
+    if (!currentLaunchMode || !['iframe', 'newpage'].includes(currentLaunchMode)) {
+      console.log('⚠️ defaultLaunchMode non valido, correzione a "newpage"');
+      await this.storage.setSetting('defaultLaunchMode', 'newpage');
+    }
+    
+    // Verifica altre impostazioni critiche
+    const criticalSettings = {
+      maxConcurrentApps: { min: 1, max: 10, default: 5 },
+      language: { valid: ['it', 'en'], default: 'it' },
+      theme: { valid: ['light', 'dark', 'auto'], default: 'auto' }
+    };
+    
+    for (const [key, validation] of Object.entries(criticalSettings)) {
+      const value = await this.storage.getSetting(key);
+      
+      if (validation.min !== undefined && validation.max !== undefined) {
+        // Validazione numerica
+        if (typeof value !== 'number' || value < validation.min || value > validation.max) {
+          console.log(`⚠️ ${key} non valido (${value}), correzione a ${validation.default}`);
+          await this.storage.setSetting(key, validation.default);
+        }
+      } else if (validation.valid) {
+        // Validazione enum
+        if (!validation.valid.includes(value)) {
+          console.log(`⚠️ ${key} non valido (${value}), correzione a ${validation.default}`);
+          await this.storage.setSetting(key, validation.default);
+        }
+      }
+    }
+    
+    console.log('✅ Impostazioni critiche verificate');
   }
 
   /**
@@ -126,21 +160,42 @@ class AIdeasApp {
    */
   hideLoadingScreen() {
     const loadingScreen = document.getElementById('loading-screen');
-    const appContainer = document.getElementById('app');
-    
-    if (loadingScreen && appContainer) {
-      // Animazione fade out
+    if (loadingScreen) {
       loadingScreen.style.opacity = '0';
       setTimeout(() => {
         loadingScreen.style.display = 'none';
-        appContainer.style.display = 'block';
-        appContainer.style.opacity = '0';
-        // Fade in dell'app
-        requestAnimationFrame(() => {
-          appContainer.style.transition = 'opacity 0.3s ease';
-          appContainer.style.opacity = '1';
-        });
       }, 300);
+    }
+  }
+
+  /**
+   * Mostra schermata di errore
+   */
+  showErrorScreen(error) {
+    console.error('Errore critico:', error);
+    
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+      loadingScreen.innerHTML = `
+        <div class="error-screen">
+          <div class="error-icon">⚠️</div>
+          <h1>Errore di Inizializzazione</h1>
+          <p>Si è verificato un errore durante l'avvio dell'applicazione.</p>
+          <p class="error-details">${error.message}</p>
+          <button onclick="location.reload()" class="btn btn-primary">Riprova</button>
+        </div>
+      `;
+    }
+  }
+
+  /**
+   * Mostra messaggio di benvenuto se abilitato
+   */
+  async showWelcomeMessage() {
+    const showWelcome = await this.storage.getSetting('showWelcomeMessage', true);
+    if (showWelcome) {
+      // Mostra messaggio di benvenuto
+      showToast('Benvenuto in AIdeas! 🎉', 'success', 3000);
     }
   }
 
@@ -1264,6 +1319,45 @@ class AIdeasApp {
       hideModal('launcher-app-info');
       await this.showEditAppModal(app);
     });
+  }
+
+  /**
+   * Testa il funzionamento delle impostazioni
+   */
+  async testSettings() {
+    console.log('🧪 Test impostazioni...');
+    
+    try {
+      // Test salvataggio e caricamento
+      const testKey = 'test_setting';
+      const testValue = 'test_value_' + Date.now();
+      
+      await this.storage.setSetting(testKey, testValue);
+      const loadedValue = await this.storage.getSetting(testKey);
+      
+      if (loadedValue === testValue) {
+        console.log('✅ Test salvataggio/caricamento impostazioni: PASS');
+      } else {
+        console.log('❌ Test salvataggio/caricamento impostazioni: FAIL');
+      }
+      
+      // Pulisci test
+      await this.storage.setSetting(testKey, null);
+      
+      // Mostra impostazioni attuali
+      const currentSettings = await this.storage.getAllSettings();
+      console.log('📋 Impostazioni attuali:', currentSettings);
+      
+      // Verifica impostazioni critiche
+      const criticalSettings = ['defaultLaunchMode', 'language', 'theme'];
+      for (const setting of criticalSettings) {
+        const value = await this.storage.getSetting(setting);
+        console.log(`🔍 ${setting}: ${value}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Errore test impostazioni:', error);
+    }
   }
 }
 

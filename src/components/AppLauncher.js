@@ -55,7 +55,7 @@ export default class AppLauncher {
       console.log(`🚀 Launching app: ${app.name} (${app.type})`);
 
       // Carica preferenze di lancio
-      const launchMode = await StorageService.getSetting('defaultLaunchMode', 'iframe'); // 'iframe' o 'newpage'
+      const launchMode = await StorageService.getSetting('defaultLaunchMode', 'newpage'); // Cambiato default da 'iframe' a 'newpage'
       const appSpecificMode = app.metadata?.launchMode; // Override per app specifica
       
       // Determina modalità finale
@@ -320,6 +320,7 @@ export default class AppLauncher {
 
       // Se forza nuova finestra o è impostato nelle preferenze
       if (options.launchMode === 'newpage' || options.forceNewWindow) {
+        console.log('🪟 Apertura in nuova finestra (modalità esplicita)');
         // Apri in nuova finestra/tab
         const newWindow = window.open(targetUrl, `aideas_app_${app.id}`, 
           'width=1200,height=800,scrollbars=yes,resizable=yes');
@@ -334,10 +335,12 @@ export default class AppLauncher {
         };
       } else {
         // Modalità iframe - controlla compatibilità
+        console.log('🔍 Tentativo apertura in iframe...');
         const canUseIframe = await this.checkIframeCompatibility(targetUrl);
 
         if (!canUseIframe) {
-          // Fallback a nuova finestra se iframe non supportato
+          // Fallback automatico a nuova finestra se iframe non supportato
+          console.log('🔄 Fallback automatico a nuova finestra - iframe non supportato');
           showToast('Questo sito non supporta iframe, apertura in nuova finestra', 'info');
           
           const newWindow = window.open(targetUrl, `aideas_app_${app.id}`, 
@@ -354,9 +357,30 @@ export default class AppLauncher {
           };
         } else {
           // Carica in iframe
+          console.log('✅ Caricamento in iframe...');
           const iframe = this.createSecureFrame(app, {
             src: targetUrl,
             sandbox: 'allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin'
+          });
+
+          // Aggiungi listener per errori di caricamento iframe
+          iframe.addEventListener('error', () => {
+            console.log('❌ Errore caricamento iframe, fallback a nuova finestra');
+            showToast('Errore caricamento iframe, apertura in nuova finestra', 'info');
+            
+            // Chiudi modal iframe
+            const modal = iframe.closest('.modal');
+            if (modal) {
+              hideModal(modal.id);
+            }
+            
+            // Apri in nuova finestra
+            const newWindow = window.open(targetUrl, `aideas_app_${app.id}_fallback`, 
+              'width=1200,height=800,scrollbars=yes,resizable=yes');
+            
+            if (newWindow) {
+              showToast('App aperta in nuova finestra', 'success');
+            }
           });
 
           return {
@@ -858,23 +882,91 @@ export default class AppLauncher {
   // Controlla compatibilità iframe per URL
   async checkIframeCompatibility(url) {
     try {
-      const response = await fetch(url, { method: 'HEAD' });
-      const xFrameOptions = response.headers.get('X-Frame-Options');
-      const csp = response.headers.get('Content-Security-Policy');
-
-      // Controlla se il sito blocca iframe
-      if (xFrameOptions && (xFrameOptions.toLowerCase() === 'deny' || xFrameOptions.toLowerCase() === 'sameorigin')) {
-        return false;
+      console.log(`🔍 Controllo compatibilità iframe per: ${url}`);
+      
+      // Per app locali (blob URLs), sempre compatibili
+      if (url.startsWith('blob:')) {
+        console.log('✅ Blob URL - compatibile con iframe');
+        return true;
       }
 
-      if (csp && csp.includes('frame-ancestors')) {
-        return false;
+      // Per app HTML locali, sempre compatibili
+      if (url.startsWith('data:')) {
+        console.log('✅ Data URL - compatibile con iframe');
+        return true;
       }
 
-      return true;
+      // Per URL esterni, controlla gli header
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 secondi timeout
+
+      try {
+        const response = await fetch(url, { 
+          method: 'HEAD',
+          signal: controller.signal,
+          mode: 'cors'
+        });
+        
+        clearTimeout(timeoutId);
+        
+        const xFrameOptions = response.headers.get('X-Frame-Options');
+        const csp = response.headers.get('Content-Security-Policy');
+
+        console.log(`📋 Headers ricevuti:`, {
+          'X-Frame-Options': xFrameOptions,
+          'Content-Security-Policy': csp ? csp.substring(0, 100) + '...' : 'none'
+        });
+
+        // Controlla se il sito blocca iframe
+        if (xFrameOptions) {
+          const xfo = xFrameOptions.toLowerCase();
+          if (xfo === 'deny') {
+            console.log('❌ X-Frame-Options: DENY - iframe non supportato');
+            return false;
+          }
+          if (xfo === 'sameorigin') {
+            console.log('⚠️ X-Frame-Options: SAMEORIGIN - iframe limitato');
+            // Potrebbe funzionare se siamo sulla stessa origine
+            return window.location.origin === new URL(url).origin;
+          }
+        }
+
+        // Controlla CSP frame-ancestors
+        if (csp) {
+          const cspLower = csp.toLowerCase();
+          if (cspLower.includes('frame-ancestors')) {
+            if (cspLower.includes('frame-ancestors \'none\'')) {
+              console.log('❌ CSP frame-ancestors: none - iframe non supportato');
+              return false;
+            }
+            if (cspLower.includes('frame-ancestors \'self\'')) {
+              console.log('⚠️ CSP frame-ancestors: self - iframe limitato');
+              return window.location.origin === new URL(url).origin;
+            }
+          }
+        }
+
+        console.log('✅ URL compatibile con iframe');
+        return true;
+
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError.name === 'AbortError') {
+          console.log('⏰ Timeout durante controllo compatibilità iframe');
+        } else {
+          console.log('⚠️ Errore durante controllo compatibilità iframe:', fetchError.message);
+        }
+        
+        // Se non riusciamo a fare la richiesta, proviamo comunque ma con warning
+        console.log('🔄 Fallback: proveremo iframe comunque');
+        return true;
+      }
+
     } catch (error) {
-      // Se non riusciamo a fare la richiesta, proviamo comunque
-      return true;
+      console.error('❌ Errore generale controllo compatibilità iframe:', error);
+      // In caso di errore, meglio essere sicuri e usare nuova finestra
+      return false;
     }
   }
 

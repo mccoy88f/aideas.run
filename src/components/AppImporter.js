@@ -327,7 +327,10 @@ export default class AppImporter {
                     <option value="iframe">Sempre in finestra modale</option>
                     <option value="newpage">Sempre in nuova pagina</option>
                   </select>
-                  <p class="setting-description">Scegli come questa app dovrebbe aprirsi di default</p>
+                  <p class="setting-description">
+                    Scegli come questa app dovrebbe aprirsi di default. 
+                    <span id="current-default-mode" style="font-weight: bold; color: #2563eb;"></span>
+                  </p>
                 </div>
               </div>
             </div>
@@ -543,41 +546,72 @@ export default class AppImporter {
    * Setup metadata form
    */
   setupMetadataForm(modal) {
-    const descTextarea = modal.querySelector('#app-description');
-    const charCount = modal.querySelector('#desc-char-count');
-    const iconInput = modal.querySelector('#app-icon');
-    const uploadIconBtn = modal.querySelector('#upload-icon-btn');
-    const iconFileInput = modal.querySelector('#icon-file-input');
-    const iconPreview = modal.querySelector('#icon-preview');
-
-    // Character count for description
-    descTextarea?.addEventListener('input', () => {
-      const count = descTextarea.value.length;
-      if (charCount) {
-        charCount.textContent = count;
-        charCount.style.color = count > 180 ? 'var(--color-error)' : 'var(--color-gray-500)';
-      }
-    });
-
+    // Popola modalità di default corrente
+    this.updateDefaultModeIndicator();
+    
     // Icon upload
-    uploadIconBtn?.addEventListener('click', () => {
-      iconFileInput?.click();
+    const iconInput = modal.querySelector('#app-icon');
+    const uploadBtn = modal.querySelector('#upload-icon-btn');
+    const fileInput = modal.querySelector('#icon-file-input');
+    const preview = modal.querySelector('#icon-preview');
+    const previewImg = modal.querySelector('#icon-preview-img');
+
+    uploadBtn?.addEventListener('click', () => {
+      fileInput?.click();
     });
 
-    iconFileInput?.addEventListener('change', (e) => {
+    fileInput?.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        this.handleIconUpload(file, iconInput, iconPreview);
+        this.handleIconUpload(file, iconInput, preview);
       }
     });
 
-    // Icon URL preview
-    iconInput?.addEventListener('blur', () => {
+    // Icon preview on URL change
+    iconInput?.addEventListener('input', () => {
       const url = iconInput.value.trim();
       if (url) {
-        this.showIconPreview(url, iconPreview);
+        this.showIconPreview(url, preview);
+      } else {
+        preview.style.display = 'none';
       }
     });
+
+    // Form validation
+    const nameInput = modal.querySelector('#app-name');
+    nameInput?.addEventListener('input', () => {
+      this.validateForm();
+    });
+  }
+
+  /**
+   * Aggiorna l'indicazione della modalità di default corrente
+   */
+  async updateDefaultModeIndicator() {
+    try {
+      const currentMode = await StorageService.getSetting('defaultLaunchMode', 'newpage');
+      const indicator = document.getElementById('current-default-mode');
+      
+      if (indicator) {
+        const modeLabel = currentMode === 'newpage' ? 'Nuova pagina' : 'Finestra modale';
+        indicator.textContent = `(Impostazione globale corrente: ${modeLabel})`;
+      }
+    } catch (error) {
+      console.warn('Impossibile caricare modalità di default:', error);
+    }
+  }
+
+  /**
+   * Valida il form di importazione
+   */
+  validateForm() {
+    const nameInput = document.getElementById('app-name');
+    const startImportBtn = document.getElementById('start-import');
+    
+    if (nameInput && startImportBtn) {
+      const isValid = nameInput.value.trim().length > 0;
+      startImportBtn.disabled = !isValid;
+    }
   }
 
   /**
@@ -839,6 +873,18 @@ export default class AppImporter {
         files: this.currentImportData.files,
         content: this.currentImportData.content
       };
+
+      // Log modalità di lancio
+      console.log(`🚀 Installazione app: ${appData.name}`);
+      console.log(`📋 Modalità di lancio app-specifica: ${appData.metadata?.launchMode || 'non specificata'}`);
+      
+      // Verifica modalità di default globale
+      const globalLaunchMode = await StorageService.getSetting('defaultLaunchMode', 'newpage');
+      console.log(`🌐 Modalità di lancio globale: ${globalLaunchMode}`);
+      
+      // Determina modalità finale che verrà usata
+      const finalLaunchMode = appData.metadata?.launchMode || globalLaunchMode;
+      console.log(`✅ Modalità finale per questa app: ${finalLaunchMode}`);
 
       // Aggiorna progress
       this.updateImportProgress(50, 'Salvando app...');
@@ -1218,6 +1264,9 @@ export default class AppImporter {
     if (launchModeEl && launchModeEl.value) {
       formData.metadata = formData.metadata || {};
       formData.metadata.launchMode = launchModeEl.value;
+      console.log(`📝 Modalità di lancio specificata per app: ${launchModeEl.value}`);
+    } else {
+      console.log(`📝 Nessuna modalità specifica, userà impostazione globale`);
     }
 
     return formData;
