@@ -125,10 +125,10 @@ const NavigationMaterial = ({
           </Avatar>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              AIdeas.run
+              AIdeas
             </Typography>
             <Typography variant="caption" sx={{ opacity: 0.8 }}>
-              Run your Ideas
+              Run your AIdeas
             </Typography>
           </Box>
         </Box>
@@ -317,7 +317,7 @@ const NavigationMaterial = ({
                 display: { xs: 'none', sm: 'block' }
               }}
             >
-              AIdeas.run
+              AIdeas
             </Typography>
           </Box>
 
