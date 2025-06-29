@@ -29,7 +29,7 @@ export default class SettingsPanel {
       theme: 'auto', // 'light', 'dark', 'auto'
       
       // Launcher
-      defaultLaunchMode: 'newpage', // 'iframe', 'newpage'
+      defaultLaunchMode: 'newpage', // Cambiato da 'iframe' a 'newpage' per evitare problemi di sicurezza
       maxConcurrentApps: 5,
       showAppTooltips: true,
       enableKeyboardShortcuts: true,
@@ -93,9 +93,82 @@ export default class SettingsPanel {
    * Inizializza il pannello impostazioni
    */
   async init() {
-    console.log('🔧 Inizializzazione SettingsPanel...');
-    await this.loadSettings();
-    this.applySettings();
+    try {
+      console.log('⚙️ Inizializzazione pannello impostazioni...');
+      
+      // Carica impostazioni esistenti
+      await this.loadSettings();
+      
+      // Verifica e correggi impostazioni
+      await this.validateAndFixSettings();
+      
+      // Applica impostazioni
+      this.applySettings();
+      
+      console.log('✅ Pannello impostazioni inizializzato');
+    } catch (error) {
+      console.error('❌ Errore inizializzazione pannello impostazioni:', error);
+    }
+  }
+
+  /**
+   * Verifica e correggi le impostazioni per assicurarsi che siano valide
+   */
+  async validateAndFixSettings() {
+    console.log('🔍 Verifica impostazioni...');
+    
+    let needsUpdate = false;
+    const currentSettings = { ...this.currentSettings };
+    
+    // Verifica defaultLaunchMode
+    if (!currentSettings.defaultLaunchMode || 
+        !['iframe', 'newpage'].includes(currentSettings.defaultLaunchMode)) {
+      console.log('⚠️ defaultLaunchMode non valido, correzione a "newpage"');
+      currentSettings.defaultLaunchMode = 'newpage';
+      needsUpdate = true;
+    }
+    
+    // Verifica altre impostazioni critiche
+    const criticalSettings = {
+      maxConcurrentApps: { min: 1, max: 10, default: 5 },
+      autoSyncInterval: { min: 5, max: 1440, default: 60 },
+      language: { valid: ['it', 'en'], default: 'it' },
+      theme: { valid: ['light', 'dark', 'auto'], default: 'auto' }
+    };
+    
+    for (const [key, validation] of Object.entries(criticalSettings)) {
+      const value = currentSettings[key];
+      
+      if (validation.min !== undefined && validation.max !== undefined) {
+        // Validazione numerica
+        if (typeof value !== 'number' || value < validation.min || value > validation.max) {
+          console.log(`⚠️ ${key} non valido (${value}), correzione a ${validation.default}`);
+          currentSettings[key] = validation.default;
+          needsUpdate = true;
+        }
+      } else if (validation.valid) {
+        // Validazione enum
+        if (!validation.valid.includes(value)) {
+          console.log(`⚠️ ${key} non valido (${value}), correzione a ${validation.default}`);
+          currentSettings[key] = validation.default;
+          needsUpdate = true;
+        }
+      }
+    }
+    
+    // Salva correzioni se necessarie
+    if (needsUpdate) {
+      console.log('💾 Salvataggio correzioni impostazioni...');
+      this.currentSettings = currentSettings;
+      
+      for (const [key, value] of Object.entries(currentSettings)) {
+        await StorageService.setSetting(key, value);
+      }
+      
+      console.log('✅ Impostazioni corrette salvate');
+    } else {
+      console.log('✅ Tutte le impostazioni sono valide');
+    }
   }
 
   /**

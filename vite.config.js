@@ -155,46 +155,83 @@ export default defineConfig({
         orientation: 'portrait',
         scope: '/aideas.run/',
         start_url: '/aideas.run/',
+        lang: 'it',
+        dir: 'ltr',
+        categories: ['productivity', 'utilities', 'developer'],
         icons: [
           {
             src: 'assets/icons/icon-72x72.png',
             sizes: '72x72',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'maskable any'
           },
           {
             src: 'assets/icons/icon-96x96.png',
             sizes: '96x96',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'maskable any'
           },
           {
             src: 'assets/icons/icon-128x128.png',
             sizes: '128x128',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'maskable any'
           },
           {
             src: 'assets/icons/icon-144x144.png',
             sizes: '144x144',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'maskable any'
           },
           {
             src: 'assets/icons/icon-152x152.png',
             sizes: '152x152',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'maskable any'
           },
           {
             src: 'assets/icons/icon-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'maskable any'
           },
           {
             src: 'assets/icons/icon-384x384.png',
             sizes: '384x384',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'maskable any'
           },
           {
             src: 'assets/icons/icon-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'maskable any'
+          }
+        ],
+        shortcuts: [
+          {
+            name: 'Aggiungi App',
+            short_name: 'Aggiungi',
+            description: 'Aggiungi una nuova applicazione',
+            url: '/aideas.run/?action=add',
+            icons: [
+              {
+                src: 'assets/icons/icon-96x96.png',
+                sizes: '96x96'
+              }
+            ]
+          },
+          {
+            name: 'Impostazioni',
+            short_name: 'Settings',
+            description: 'Accedi alle impostazioni',
+            url: '/aideas.run/?action=settings',
+            icons: [
+              {
+                src: 'assets/icons/icon-96x96.png',
+                sizes: '96x96'
+              }
+            ]
           }
         ]
       }
