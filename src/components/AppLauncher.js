@@ -302,23 +302,38 @@ export default class AppLauncher {
    * @returns {string} - Contenuto HTML con CSP modificata
    */
   injectCSPForHTMLApp(htmlContent) {
-    // CSP base che include i CDN necessari per React, React-DOM, Babel
-    const enhancedCSP = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://api.github.com https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self';";
+    // CSP potenziata che include tutti i CDN necessari
+    const enhancedCSP = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://api.github.com https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self';";
+    
+    console.log('🔧 Iniezione CSP per app HTML...');
+    
+    let modifiedContent;
     
     // Sostituisci o aggiungi meta CSP
     if (htmlContent.includes('<meta http-equiv="Content-Security-Policy"')) {
+      console.log('📝 Sostituzione CSP esistente...');
       // Sostituisci CSP esistente
-      return htmlContent.replace(
+      modifiedContent = htmlContent.replace(
         /<meta http-equiv="Content-Security-Policy"[^>]*>/g,
         `<meta http-equiv="Content-Security-Policy" content="${enhancedCSP}">`
       );
     } else {
+      console.log('📝 Aggiunta nuova CSP...');
       // Aggiungi CSP dopo il tag head
-      return htmlContent.replace(
+      modifiedContent = htmlContent.replace(
         /<head>/i,
         `<head>\n  <meta http-equiv="Content-Security-Policy" content="${enhancedCSP}">`
       );
     }
+    
+    // Verifica che la CSP sia stata iniettata
+    if (modifiedContent.includes(enhancedCSP)) {
+      console.log('✅ CSP iniettata con successo');
+    } else {
+      console.warn('⚠️ CSP non trovata nel contenuto modificato');
+    }
+    
+    return modifiedContent;
   }
 
   /**
