@@ -250,28 +250,17 @@ export default class AppLauncher {
 
       // Determina modalità di lancio
       if (options.launchMode === 'newpage') {
-        // Apri in nuova pagina
-        const newWindow = window.open('', `aideas_html_${app.id}_${Date.now()}`, 
+        // Apri direttamente l'URL blob in una nuova finestra/tab
+        const newWindow = window.open(htmlBlobUrl, `aideas_html_${app.id}_${Date.now()}`,
           'width=1200,height=800,scrollbars=yes,resizable=yes');
-        
         if (!newWindow) {
           throw new Error('Popup bloccato dal browser. Consenti i popup per AIdeas.');
         }
-
-        // Scrivi il contenuto direttamente nella nuova finestra
-        newWindow.document.write(app.content);
-        newWindow.document.close();
-
-        // Inietta API AIdeas
-        this.injectAIdeasAPI({ contentWindow: newWindow }, app);
-
         // Setup cleanup
         const cleanup = () => {
           URL.revokeObjectURL(htmlBlobUrl);
         };
-
         newWindow.addEventListener('beforeunload', cleanup);
-
         return {
           window: newWindow,
           external: true,
