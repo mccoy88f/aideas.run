@@ -244,8 +244,11 @@ export default class AppLauncher {
         throw new Error('Contenuto HTML mancante');
       }
 
-      // Crea blob URL per il contenuto HTML
-      const htmlBlob = new Blob([app.content], { type: 'text/html' });
+      // Inietta CSP corretta nel contenuto HTML
+      let modifiedContent = this.injectCSPForHTMLApp(app.content);
+
+      // Crea blob URL per il contenuto HTML modificato
+      const htmlBlob = new Blob([modifiedContent], { type: 'text/html' });
       const htmlBlobUrl = URL.createObjectURL(htmlBlob);
 
       // Determina modalità di lancio
@@ -290,6 +293,31 @@ export default class AppLauncher {
     } catch (error) {
       console.error('Errore lancio app HTML:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Inietta CSP corretta per app HTML
+   * @param {string} htmlContent - Contenuto HTML originale
+   * @returns {string} - Contenuto HTML con CSP modificata
+   */
+  injectCSPForHTMLApp(htmlContent) {
+    // CSP base che include i CDN necessari per React, React-DOM, Babel
+    const enhancedCSP = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://api.github.com https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self';";
+    
+    // Sostituisci o aggiungi meta CSP
+    if (htmlContent.includes('<meta http-equiv="Content-Security-Policy"')) {
+      // Sostituisci CSP esistente
+      return htmlContent.replace(
+        /<meta http-equiv="Content-Security-Policy"[^>]*>/g,
+        `<meta http-equiv="Content-Security-Policy" content="${enhancedCSP}">`
+      );
+    } else {
+      // Aggiungi CSP dopo il tag head
+      return htmlContent.replace(
+        /<head>/i,
+        `<head>\n  <meta http-equiv="Content-Security-Policy" content="${enhancedCSP}">`
+      );
     }
   }
 
