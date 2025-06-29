@@ -1,6 +1,6 @@
 /**
- * SAKAI - Utility Functions & Helpers
- * Funzioni di supporto utilizzate in tutta l'applicazione
+ * AIdeas - Utility Functions & Helpers
+ * Funzioni di utilità per l'applicazione
  */
 
 /**

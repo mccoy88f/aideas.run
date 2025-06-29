@@ -1,6 +1,6 @@
 /**
- * SAKAI - GitHub Service
- * Gestisce le interazioni con l'API GitHub per sync e import
+ * AIdeas - GitHub Service
+ * Gestione sincronizzazione con GitHub Gists
  */
 
 import { API_ENDPOINTS, REGEX_PATTERNS } from '../utils/constants.js';
@@ -272,7 +272,7 @@ export default class GitHubService {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          description: gistData.description || 'SAKAI Sync Data',
+          description: gistData.description || 'AIdeas Sync Data',
           public: gistData.public || false,
           files: gistData.files
         })
@@ -521,7 +521,7 @@ export default class GitHubService {
     const response = await fetch(url, {
       ...options,
       headers: {
-        'User-Agent': 'SAKAI-App/1.0.0',
+        'User-Agent': 'AIdeas-App/1.0.0',
         ...options.headers
       }
     });
@@ -571,7 +571,7 @@ export default class GitHubService {
   async saveToken(token) {
     // In produzione, usa un sistema più sicuro
     const encrypted = btoa(token); // Crittografia base64 semplice
-    localStorage.setItem('sakai_github_token', encrypted);
+    localStorage.setItem('aideas_github_token', encrypted);
   }
 
   /**
@@ -579,7 +579,7 @@ export default class GitHubService {
    * @returns {Promise<string|null>} Token se presente
    */
   async getToken() {
-    const encrypted = localStorage.getItem('sakai_github_token');
+    const encrypted = localStorage.getItem('aideas_github_token');
     if (!encrypted) return null;
 
     try {
@@ -594,7 +594,7 @@ export default class GitHubService {
    * Rimuove token salvato
    */
   async clearToken() {
-    localStorage.removeItem('sakai_github_token');
+    localStorage.removeItem('aideas_github_token');
   }
 
   /**
@@ -652,13 +652,13 @@ export default class GitHubService {
   async uploadSyncData(syncData, gistId = null) {
     try {
       const gistContent = {
-        description: 'SAKAI Sync Data',
+        description: 'AIdeas Sync Data',
         public: false,
         files: {
-          'sakai-sync.json': {
+          'aideas-sync.json': {
             content: JSON.stringify(syncData, null, 2)
           },
-          'sakai-meta.json': {
+          'aideas-meta.json': {
             content: JSON.stringify({
               version: '1.0.0',
               timestamp: new Date().toISOString(),
@@ -698,8 +698,8 @@ export default class GitHubService {
     try {
       const gist = await this.getGist(gistId);
       
-      const syncFile = gist.files['sakai-sync.json'];
-      const metaFile = gist.files['sakai-meta.json'];
+      const syncFile = gist.files['aideas-sync.json'];
+      const metaFile = gist.files['aideas-meta.json'];
 
       if (!syncFile) {
         throw new Error('File sync non trovato nel Gist');

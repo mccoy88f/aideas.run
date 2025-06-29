@@ -1,6 +1,6 @@
 /**
- * SAKAI - Proxy Service
- * Gestisce le richieste proxy per bypassare le restrizioni CORS
+ * AIdeas - Proxy Service
+ * Gestisce le richieste proxy per estrazione metadati
  */
 
 import * as cheerio from 'cheerio';
@@ -96,7 +96,7 @@ export default class ProxyService {
   async extractMetadata(url) {
     try {
       // Ottieni la lingua dalle impostazioni o usa italiano di default
-      const userLang = localStorage.getItem('sakai-language') || 'it';
+      const userLang = localStorage.getItem('aideas-language') || 'it';
       const response = await fetch(`http://localhost:4000/extract?url=${encodeURIComponent(url)}&lang=${userLang}`);
       if (!response.ok) throw new Error('Proxy meta fallito');
       return await response.json();

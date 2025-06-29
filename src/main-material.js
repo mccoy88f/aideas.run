@@ -1,6 +1,6 @@
 /**
- * SAKAI - Main Entry Point con Material UI
- * Inizializza l'applicazione e coordina tutti i componenti con Material UI
+ * AIdeas - Main Entry Point con Material UI
+ * Punto di ingresso principale dell'applicazione con Material Design
  */
 
 import React from 'react';
@@ -59,9 +59,10 @@ import NavigationMaterial from './components/NavigationMaterial.js';
 import SettingsMaterial from './components/SettingsMaterial.js';
 
 /**
- * Componente principale dell'applicazione SAKAI con Material UI
+ * Componente principale dell'applicazione AIdeas con Material UI
+ * Gestisce il layout e la navigazione dell'app
  */
-function SakaiApp() {
+function AIdeasApp() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
@@ -92,7 +93,7 @@ function SakaiApp() {
 
   const initializeApp = async () => {
     try {
-      console.log('🚀 Inizializzazione SAKAI con Material UI...');
+      console.log('🚀 Inizializzazione AIdeas con Material UI...');
       
       // Inizializza debug
       ErrorTracker.init();
@@ -104,10 +105,10 @@ function SakaiApp() {
       await loadUserSettings();
       
       setLoading(false);
-      console.log('✅ SAKAI inizializzato con successo');
+      console.log('✅ AIdeas inizializzato con successo');
       
     } catch (error) {
-      console.error('❌ Errore inizializzazione SAKAI:', error);
+      console.error('❌ Errore inizializzazione AIdeas:', error);
       showToast('Errore durante l\'inizializzazione dell\'applicazione', 'error');
     }
   };
@@ -474,13 +475,13 @@ function SakaiApp() {
 /**
  * Inizializza l'applicazione con Material UI
  */
-function initializeSakaiWithMaterialUI() {
+function initializeAIdeasWithMaterialUI() {
   const appContainer = document.getElementById('app');
   
   if (appContainer) {
     ReactDOM.render(
       <ThemeProvider>
-        <SakaiApp />
+        <AIdeasApp />
       </ThemeProvider>,
       appContainer
     );
@@ -490,11 +491,11 @@ function initializeSakaiWithMaterialUI() {
 }
 
 // Esporta per uso esterno
-window.initializeSakaiWithMaterialUI = initializeSakaiWithMaterialUI;
+window.initializeAIdeasWithMaterialUI = initializeAIdeasWithMaterialUI;
 
 // Auto-inizializzazione se il DOM è pronto
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeSakaiWithMaterialUI);
+  document.addEventListener('DOMContentLoaded', initializeAIdeasWithMaterialUI);
 } else {
-  initializeSakaiWithMaterialUI();
+  initializeAIdeasWithMaterialUI();
 } 

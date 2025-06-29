@@ -1,11 +1,11 @@
 /**
- * SAKAI - Service Worker
+ * AIdeas - Service Worker
  * Gestisce cache, offline functionality e PWA features
  */
 
-const CACHE_NAME = 'sakai-v1.0.0';
-const RUNTIME_CACHE = 'sakai-runtime-v1.0.0';
-const DATA_CACHE = 'sakai-data-v1.0.0';
+const CACHE_NAME = 'aideas-v1.0.0';
+const RUNTIME_CACHE = 'aideas-runtime-v1.0.0';
+const DATA_CACHE = 'aideas-data-v1.0.0';
 
 // Risorse statiche da cachare durante l'installazione
 let STATIC_RESOURCES = [
@@ -49,7 +49,7 @@ const API_CACHE_PATTERNS = [
 
 // Installazione SW - Pre-cache risorse statiche
 self.addEventListener('install', (event) => {
-  console.log('🔧 SAKAI Service Worker: Installing...');
+  console.log('🔧 AIdeas Service Worker: Installing...');
   
   event.waitUntil(
     Promise.all([
@@ -79,18 +79,18 @@ self.addEventListener('install', (event) => {
         }
       })
     ]).then(() => {
-      console.log('✅ SAKAI Service Worker: Installation complete');
+      console.log('✅ AIdeas Service Worker: Installation complete');
       // Forza attivazione immediata
       return self.skipWaiting();
     }).catch(error => {
-      console.error('❌ SAKAI Service Worker: Installation failed', error);
+      console.error('❌ AIdeas Service Worker: Installation failed', error);
     })
   );
 });
 
 // Attivazione SW - Pulizia cache obsolete
 self.addEventListener('activate', (event) => {
-  console.log('⚡ SAKAI Service Worker: Activating...');
+  console.log('⚡ AIdeas Service Worker: Activating...');
   
   event.waitUntil(
     Promise.all([
@@ -98,7 +98,7 @@ self.addEventListener('activate', (event) => {
       caches.keys().then(cacheNames => {
         return Promise.all(
           cacheNames.map(cacheName => {
-            if (cacheName.startsWith('sakai-') && 
+            if (cacheName.startsWith('aideas-') && 
                 ![CACHE_NAME, RUNTIME_CACHE, DATA_CACHE].includes(cacheName)) {
               console.log('🗑️ Deleting old cache:', cacheName);
               return caches.delete(cacheName);
@@ -110,7 +110,7 @@ self.addEventListener('activate', (event) => {
       // Prendi controllo di tutte le pagine
       self.clients.claim()
     ]).then(() => {
-      console.log('✅ SAKAI Service Worker: Activation complete');
+      console.log('✅ AIdeas Service Worker: Activation complete');
     })
   );
 });
@@ -322,11 +322,11 @@ async function handleOfflineFallback(request) {
 self.addEventListener('sync', (event) => {
   console.log('🔄 Background Sync:', event.tag);
   
-  if (event.tag === 'sakai-sync-apps') {
+  if (event.tag === 'aideas-sync-apps') {
     event.waitUntil(syncAppsData());
   }
   
-  if (event.tag === 'sakai-sync-settings') {
+  if (event.tag === 'aideas-sync-settings') {
     event.waitUntil(syncSettingsData());
   }
 });
@@ -337,7 +337,7 @@ self.addEventListener('push', (event) => {
   
   const data = event.data.json();
   const options = {
-    body: data.body || 'Notifica da SAKAI',
+    body: data.body || 'Notifica da AIdeas',
     icon: '/assets/icons/icon-192x192.png',
     badge: '/assets/icons/badge-72x72.png',
     data: data.data || {},
@@ -347,7 +347,7 @@ self.addEventListener('push', (event) => {
   };
   
   event.waitUntil(
-    self.registration.showNotification(data.title || 'SAKAI', options)
+    self.registration.showNotification(data.title || 'AIdeas', options)
   );
 });
 
@@ -551,7 +551,7 @@ self.addEventListener('beforeinstallprompt', (event) => {
 
 // PWA installata
 self.addEventListener('appinstalled', (event) => {
-  console.log('🎉 SAKAI PWA installed successfully');
+  console.log('🎉 AIdeas PWA installed successfully');
   
   // Notifica il client
   self.clients.matchAll().then(clients => {
@@ -563,4 +563,4 @@ self.addEventListener('appinstalled', (event) => {
   });
 });
 
-console.log('📱 SAKAI Service Worker loaded');
+console.log('📱 AIdeas Service Worker loaded');

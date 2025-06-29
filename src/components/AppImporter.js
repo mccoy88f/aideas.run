@@ -1,6 +1,6 @@
 /**
- * SAKAI - App Importer Component
- * Gestisce l'importazione di applicazioni da varie fonti (ZIP, URL, GitHub)
+ * AIdeas - App Importer Component
+ * Gestisce l'importazione di applicazioni da vari formati
  */
 
 import StorageService from '../services/StorageService.js';
@@ -629,12 +629,12 @@ export default class AppImporter {
 
         files.push(fileData);
 
-        // Cerca manifest SAKAI
-        if (filename === 'sakai.json') {
+        // Cerca manifest AIdeas
+        if (filename === 'aideas.json') {
           try {
             manifest = JSON.parse(content);
           } catch (e) {
-            console.warn('Manifest sakai.json non valido:', e);
+            console.warn('Manifest aideas.json non valido:', e);
           }
         }
       }
@@ -836,7 +836,8 @@ export default class AppImporter {
         type: this.currentImportData.type,
         url: this.currentImportData.url,
         githubUrl: this.currentImportData.githubUrl,
-        files: this.currentImportData.files
+        files: this.currentImportData.files,
+        content: this.currentImportData.content
       };
 
       // Aggiorna progress
@@ -854,8 +855,8 @@ export default class AppImporter {
         showToast(`App "${appData.name}" importata con successo!`, 'success');
         
         // Ricarica la lista app (se disponibile)
-        if (window.sakaiApp && window.sakaiApp.loadApps) {
-          window.sakaiApp.loadApps();
+        if (window.aideasApp && window.aideasApp.loadApps) {
+          window.aideasApp.loadApps();
         }
       }, 1000);
 
@@ -1364,14 +1365,11 @@ export default class AppImporter {
 
     try {
       const content = await file.text();
-      const metadata = {
-        name: extractDomain(file.name),
-        description: 'App web standalone',
-        category: 'tools',
-        type: 'html',
-        content: content
-      };
-
+      
+      // Estrai metadati dal contenuto HTML
+      const metadata = this.extractHtmlMetadata(content, file.name);
+      
+      // Popola il form con i metadati estratti
       this.populateMetadataForm(metadata);
 
       // Mostra sezione metadata
@@ -1391,11 +1389,77 @@ export default class AppImporter {
       // Abilita importazione
       this.enableImportButton();
 
-      showToast('File HTML importato con successo!', 'success');
+      showToast('File HTML analizzato con successo!', 'success');
 
     } catch (error) {
       console.error('Errore durante l\'importazione del file HTML:', error);
       showToast('Errore durante l\'importazione del file HTML', 'error');
     }
+  }
+
+  /**
+   * Estrae metadati da un file HTML
+   * @param {string} htmlContent - Contenuto HTML
+   * @param {string} filename - Nome del file
+   * @returns {Object} Metadati estratti
+   */
+  extractHtmlMetadata(htmlContent, filename) {
+    // Crea un DOM parser temporaneo
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    
+    // Estrai titolo
+    const title = doc.querySelector('title')?.textContent?.trim() || 
+                  doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+                  filename.replace('.html', '').replace(/[-_]/g, ' ');
+    
+    // Estrai descrizione
+    const description = doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
+                       doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
+                       'App web standalone';
+    
+    // Estrai favicon/icona
+    let icon = null;
+    const favicon = doc.querySelector('link[rel="icon"]')?.getAttribute('href') ||
+                   doc.querySelector('link[rel="shortcut icon"]')?.getAttribute('href') ||
+                   doc.querySelector('link[rel="apple-touch-icon"]')?.getAttribute('href');
+    
+    if (favicon) {
+      // Se è un URL relativo, convertilo in data URL se possibile
+      if (favicon.startsWith('data:')) {
+        icon = favicon;
+      } else if (favicon.startsWith('http')) {
+        icon = favicon;
+      } else {
+        // Per URL relativi, usa un'icona di default per ora
+        icon = null;
+      }
+    }
+    
+    // Estrai keywords/tags
+    const keywords = doc.querySelector('meta[name="keywords"]')?.getAttribute('content') || '';
+    const tags = keywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    
+    // Determina categoria basata su contenuto
+    let category = 'tools';
+    const bodyText = doc.body?.textContent?.toLowerCase() || '';
+    if (bodyText.includes('calcolatric') || bodyText.includes('calculator')) {
+      category = 'utilities';
+    } else if (bodyText.includes('game') || bodyText.includes('gioco')) {
+      category = 'games';
+    } else if (bodyText.includes('editor') || bodyText.includes('text')) {
+      category = 'productivity';
+    }
+    
+    return {
+      name: title,
+      description: description,
+      category: category,
+      type: 'html',
+      content: htmlContent,
+      icon: icon,
+      tags: tags,
+      version: '1.0.0'
+    };
   }
 }

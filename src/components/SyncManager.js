@@ -1,6 +1,6 @@
 /**
- * SAKAI - Sync Manager Component
- * Gestisce la sincronizzazione cloud delle app e impostazioni
+ * AIdeas - Sync Manager Component
+ * Gestisce la sincronizzazione dei dati con servizi esterni
  */
 
 import StorageService from '../services/StorageService.js';
@@ -787,7 +787,7 @@ export default class SyncManager {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `sakai-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `aideas-backup-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -804,13 +804,13 @@ export default class SyncManager {
   async saveCredentials(provider, credentials) {
     // In un'implementazione reale, si dovrebbe usare una forma di crittografia
     // Per semplicità, salviamo in localStorage con un prefix
-    const key = `sakai_sync_${provider}`;
+    const key = `aideas_sync_${provider}`;
     const encrypted = btoa(JSON.stringify(credentials)); // Crittografia base64 semplice
     localStorage.setItem(key, encrypted);
   }
 
   async getCredentials(provider) {
-    const key = `sakai_sync_${provider}`;
+    const key = `aideas_sync_${provider}`;
     const encrypted = localStorage.getItem(key);
     if (!encrypted) return null;
     
@@ -823,7 +823,7 @@ export default class SyncManager {
   }
 
   async clearCredentials() {
-    const keys = Object.keys(localStorage).filter(key => key.startsWith('sakai_sync_'));
+    const keys = Object.keys(localStorage).filter(key => key.startsWith('aideas_sync_'));
     keys.forEach(key => localStorage.removeItem(key));
   }
 

@@ -1,7 +1,7 @@
 import Dexie from 'dexie';
 
 /**
- * SAKAI Storage Service - Gestione IndexedDB con Dexie.js
+ * AIdeas Storage Service - Gestione IndexedDB con Dexie.js
  * Classe singleton per gestire tutto lo storage locale dell'applicazione
  */
 class StorageService {
@@ -10,7 +10,7 @@ class StorageService {
       return StorageService.instance;
     }
 
-    this.db = new Dexie('SAKAI_DB');
+    this.db = new Dexie('AIdeas_DB');
     this.initDatabase();
     StorageService.instance = this;
   }
@@ -64,13 +64,14 @@ class StorageService {
         category: appData.category || 'uncategorized',
         version: appData.version || '1.0.0',
         url: appData.url || null,
-        type: appData.type, // 'zip', 'url', 'github', 'pwa'
+        type: appData.type, // 'zip', 'url', 'github', 'pwa', 'html'
         githubUrl: appData.githubUrl || null,
         icon: appData.icon || null,
         manifest: appData.manifest || {},
         permissions: appData.permissions || [],
         tags: appData.tags || [],
-        metadata: appData.metadata || {}
+        metadata: appData.metadata || {},
+        content: appData.content || null // Aggiungi campo per contenuto HTML
       };
 
       const appId = await this.db.apps.add(app);
@@ -137,6 +138,52 @@ class StorageService {
     } catch (error) {
       console.error('Errore aggiornamento app:', error);
       return false;
+    }
+  }
+
+  // Migra app esistenti per aggiungere campo content se mancante
+  async migrateAppsForContent() {
+    try {
+      console.log('🔄 Inizio migrazione app HTML...');
+      const apps = await this.db.apps.toArray();
+      console.log(`📊 Trovate ${apps.length} app totali`);
+      
+      let migrated = 0;
+      
+      for (const app of apps) {
+        console.log(`🔍 Controllo app: ${app.name} (tipo: ${app.type})`);
+        
+        if (app.type === 'html' && !app.content) {
+          console.log(`📝 App HTML senza contenuto trovata: ${app.name}`);
+          
+          // Per le app HTML senza contenuto, prova a recuperarlo dai file
+          const files = await this.getAppFiles(app.id);
+          console.log(`📁 Trovati ${files.length} file per app ${app.name}`);
+          
+          const htmlFile = files.find(f => f.filename.endsWith('.html'));
+          
+          if (htmlFile) {
+            console.log(`✅ File HTML trovato: ${htmlFile.filename}`);
+            await this.db.apps.update(app.id, { content: htmlFile.content });
+            migrated++;
+            console.log(`✅ App ${app.name} migrata con successo`);
+          } else {
+            console.log(`⚠️ Nessun file HTML trovato per app ${app.name}`);
+          }
+        }
+      }
+      
+      if (migrated > 0) {
+        console.log(`✅ Migrate ${migrated} app HTML per aggiungere campo content`);
+      } else {
+        console.log('ℹ️ Nessuna app HTML da migrare');
+      }
+      
+      return migrated;
+    } catch (error) {
+      console.error('❌ Errore migrazione app:', error);
+      console.error('Stack trace:', error.stack);
+      return 0;
     }
   }
 

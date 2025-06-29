@@ -1,6 +1,6 @@
 /**
- * SAKAI - App Card Component
- * Renderizza le card delle applicazioni nella UI
+ * AIdeas - App Card Component
+ * Componente per la visualizzazione delle card delle applicazioni
  */
 
 import { formatRelativeDate, formatFileSize, escapeHtml } from '../utils/helpers.js';

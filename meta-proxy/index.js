@@ -1,5 +1,5 @@
 const express = require('express');
-const fetch = require('node-fetch');
+const axios = require('axios');
 const cheerio = require('cheerio');
 const cors = require('cors');
 
@@ -13,13 +13,13 @@ app.get('/extract', async (req, res) => {
   if (!url) return res.status(400).json({ error: 'Missing url param' });
 
   try {
-    const response = await fetch(url, {
+    const response = await axios.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; SakaiMetaProxy/1.0)',
+        'User-Agent': 'Mozilla/5.0 (compatible; AIdeasMetaProxy/1.0)',
         'Accept-Language': `${lang},${lang}-${lang.toUpperCase()};q=0.9,en;q=0.8`
       }
     });
-    const html = await response.text();
+    const html = response.data;
     const $ = cheerio.load(html);
 
     const getMeta = (name) =>
