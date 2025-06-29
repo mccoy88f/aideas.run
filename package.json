@@ -1,0 +1,86 @@
+{
+  "name": "aideas-run",
+  "version": "1.0.0",
+  "description": "AIdeas.run - Run your Ideas - PWA Launcher per applicazioni web client-side",
+  "main": "src/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:proxy\" \"npm run dev:vite\"",
+    "dev:vite": "vite --port 3001",
+    "dev:proxy": "node ./meta-proxy/index.js",
+    "build": "vite build && node scripts/patch-sw-css.cjs",
+    "preview": "vite preview",
+    "serve": "http-server dist -p 8080 -c-1",
+    "lint": "eslint src --ext .js",
+    "lint:fix": "eslint src --ext .js --fix",
+    "format": "prettier --write \"src/**/*.{js,css,html}\"",
+    "test": "vitest",
+    "validate": "npm run lint && npm run test"
+  },
+  "keywords": [
+    "pwa",
+    "launcher",
+    "ai",
+    "web-apps",
+    "client-side",
+    "offline",
+    "sandbox"
+  ],
+  "author": "AIdeas.run Team",
+  "license": "MIT",
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@fontsource/roboto": "^5.2.6",
+    "@mui/icons-material": "^7.1.2",
+    "@mui/lab": "^7.0.0-beta.14",
+    "@mui/material": "^7.1.2",
+    "cheerio": "^1.1.0",
+    "date-fns": "^2.30.0",
+    "dexie": "^4.0.11",
+    "dompurify": "^3.0.5",
+    "fuse.js": "^7.0.0",
+    "jszip": "^3.10.1",
+    "lodash-es": "^4.17.21",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-legacy": "^7.0.0",
+    "concurrently": "^9.2.0",
+    "eslint": "^8.55.0",
+    "http-server": "^14.1.1",
+    "prettier": "^3.1.0",
+    "vite": "^7.0.0",
+    "vite-plugin-pwa": "^1.0.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ],
+  "pwa": {
+    "name": "AIdeas.run",
+    "short_name": "AIdeas.run",
+    "description": "Run your Ideas - Launcher per app web",
+    "theme_color": "#2563eb",
+    "background_color": "#ffffff",
+    "display": "standalone",
+    "scope": "/",
+    "start_url": "/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aideas-run/aideas-run.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aideas-run/aideas-run/issues"
+  },
+  "homepage": "https://aideas.run"
+}
