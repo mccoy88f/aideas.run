@@ -160,11 +160,17 @@ class AIdeasApp {
    */
   hideLoadingScreen() {
     const loadingScreen = document.getElementById('loading-screen');
+    const appContainer = document.getElementById('app');
+    
     if (loadingScreen) {
       loadingScreen.style.opacity = '0';
       setTimeout(() => {
         loadingScreen.style.display = 'none';
       }, 300);
+    }
+    
+    if (appContainer) {
+      appContainer.style.display = 'block';
     }
   }
 
