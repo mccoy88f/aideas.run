@@ -244,8 +244,8 @@ export default class AppLauncher {
         throw new Error('Contenuto HTML mancante');
       }
 
-      // Inietta CSP completamente permissiva per app HTML
-      let modifiedContent = this.injectCSPForHTMLApp(app.content);
+      // Inietta CSP personalizzata basata sull'analisi del contenuto
+      let modifiedContent = await this.injectCSPForHTMLApp(app.content, app.id);
 
       // Crea blob URL per il contenuto HTML modificato
       const htmlBlob = new Blob([modifiedContent], { type: 'text/html' });
@@ -300,29 +300,213 @@ export default class AppLauncher {
   }
 
   /**
-   * Inietta CSP completamente permissiva per app HTML
+   * Analizza l'HTML per trovare CDN e risorse esterne
+   * @param {string} htmlContent - Contenuto HTML da analizzare
+   * @returns {Object} - Oggetto con domini trovati per categoria
+   */
+  analyzeHTMLForExternalResources(htmlContent) {
+    const domains = {
+      scripts: new Set(),
+      styles: new Set(),
+      fonts: new Set(),
+      images: new Set(),
+      frames: new Set(),
+      connections: new Set()
+    };
+
+    // Regex per trovare URL esterni
+    const patterns = {
+      scripts: /<script[^>]*src=["']([^"']+)["'][^>]*>/gi,
+      styles: /<link[^>]*href=["']([^"']+)["'][^>]*>/gi,
+      fonts: /<link[^>]*href=["']([^"']+)["'][^>]*rel=["'](?:preload|stylesheet)["'][^>]*>/gi,
+      images: /<img[^>]*src=["']([^"']+)["'][^>]*>/gi,
+      frames: /<iframe[^>]*src=["']([^"']+)["'][^>]*>/gi,
+      connections: /fetch\(["']([^"']+)["']\)|XMLHttpRequest\(["']([^"']+)["']\)/gi
+    };
+
+    // Estrai domini da URL
+    const extractDomain = (url) => {
+      try {
+        if (url.startsWith('//')) {
+          url = 'https:' + url;
+        } else if (url.startsWith('/')) {
+          return null; // URL relativo
+        } else if (!url.startsWith('http')) {
+          return null; // URL relativo o data URL
+        }
+        return new URL(url).hostname;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    // Analizza script tags
+    let match;
+    while ((match = patterns.scripts.exec(htmlContent)) !== null) {
+      const domain = extractDomain(match[1]);
+      if (domain) domains.scripts.add(domain);
+    }
+
+    // Analizza link tags (CSS e font)
+    while ((match = patterns.styles.exec(htmlContent)) !== null) {
+      const domain = extractDomain(match[1]);
+      if (domain) {
+        // Determina se è CSS o font basandosi su rel o type
+        const linkTag = match[0];
+        if (linkTag.includes('rel="stylesheet"') || linkTag.includes('type="text/css"')) {
+          domains.styles.add(domain);
+        } else if (linkTag.includes('rel="preload"') && linkTag.includes('as="font"')) {
+          domains.fonts.add(domain);
+        }
+      }
+    }
+
+    // Analizza img tags
+    while ((match = patterns.images.exec(htmlContent)) !== null) {
+      const domain = extractDomain(match[1]);
+      if (domain) domains.images.add(domain);
+    }
+
+    // Analizza iframe tags
+    while ((match = patterns.frames.exec(htmlContent)) !== null) {
+      const domain = extractDomain(match[1]);
+      if (domain) domains.frames.add(domain);
+    }
+
+    // Analizza fetch/XMLHttpRequest calls
+    while ((match = patterns.connections.exec(htmlContent)) !== null) {
+      const url = match[1] || match[2];
+      const domain = extractDomain(url);
+      if (domain) domains.connections.add(domain);
+    }
+
+    // Converti Set in array
+    return {
+      scripts: Array.from(domains.scripts),
+      styles: Array.from(domains.styles),
+      fonts: Array.from(domains.fonts),
+      images: Array.from(domains.images),
+      frames: Array.from(domains.frames),
+      connections: Array.from(domains.connections)
+    };
+  }
+
+  /**
+   * Genera CSP personalizzata basata sui domini trovati
+   * @param {Object} domains - Domini trovati dall'analisi
+   * @returns {string} - CSP personalizzata
+   */
+  generateCustomCSP(domains) {
+    const allDomains = new Set();
+    
+    // Raccogli tutti i domini
+    Object.values(domains).forEach(domainList => {
+      domainList.forEach(domain => allDomains.add(domain));
+    });
+
+    const domainList = Array.from(allDomains);
+    
+    // CSP base con domini trovati
+    let csp = "default-src 'self' data: blob: 'unsafe-inline' 'unsafe-eval'; ";
+    csp += "script-src 'self' data: blob: 'unsafe-inline' 'unsafe-eval' " + domainList.join(' ') + "; ";
+    csp += "style-src 'self' data: blob: 'unsafe-inline' " + domainList.join(' ') + "; ";
+    csp += "img-src 'self' data: blob: " + domainList.join(' ') + "; ";
+    csp += "font-src 'self' data: blob: " + domainList.join(' ') + "; ";
+    csp += "connect-src 'self' data: blob: " + domainList.join(' ') + "; ";
+    csp += "frame-src 'self' data: blob: " + domainList.join(' ') + "; ";
+    csp += "object-src 'self' data: blob:; ";
+    csp += "base-uri 'self'; ";
+    csp += "form-action 'self';";
+
+    return csp;
+  }
+
+  /**
+   * Inietta CSP personalizzata per app HTML basata sull'analisi del contenuto
    * @param {string} htmlContent - Contenuto HTML originale
+   * @param {string} appId - ID dell'app per caching
    * @returns {string} - Contenuto HTML con CSP modificata
    */
-  injectCSPForHTMLApp(htmlContent) {
-    // CSP completamente permissiva che include blob URL
-    const openCSP = "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; style-src * data: blob: 'unsafe-inline'; img-src * data: blob:; font-src * data: blob:; connect-src * data: blob:; frame-src * data: blob:; object-src * data: blob:; base-uri *; form-action *;";
-    
-    let modifiedContent;
-    
-    // Sostituisci o aggiungi meta CSP
-    if (htmlContent.includes('<meta http-equiv="Content-Security-Policy"')) {
-      modifiedContent = htmlContent.replace(
-        /<meta http-equiv="Content-Security-Policy"[^>]*>/g,
-        `<meta http-equiv="Content-Security-Policy" content="${openCSP}">`
-      );
-    } else {
-      modifiedContent = htmlContent.replace(
-        /<head>/i,
-        `<head>\n  <meta http-equiv="Content-Security-Policy" content="${openCSP}">`
-      );
+  async injectCSPForHTMLApp(htmlContent, appId = null) {
+    try {
+      let customCSP = null;
+      let domains = null;
+
+      // Se abbiamo un ID app, controlla se abbiamo già una CSP cached
+      if (appId) {
+        const cachedCSP = await StorageService.getAppMetadata(appId, 'customCSP');
+        const cachedDomains = await StorageService.getAppMetadata(appId, 'externalDomains');
+        const lastAnalyzed = await StorageService.getAppMetadata(appId, 'lastAnalyzed');
+        
+        // Usa CSP cached se è recente (meno di 24 ore)
+        if (cachedCSP && cachedDomains && lastAnalyzed) {
+          const hoursSinceAnalysis = (Date.now() - lastAnalyzed) / (1000 * 60 * 60);
+          if (hoursSinceAnalysis < 24) {
+            console.log(`♻️ Usando CSP cached per app ${appId} (analizzata ${hoursSinceAnalysis.toFixed(1)} ore fa)`);
+            customCSP = cachedCSP;
+            domains = cachedDomains;
+          }
+        }
+      }
+
+      // Se non abbiamo CSP cached, analizza l'HTML
+      if (!customCSP) {
+        console.log(`🔍 Analisi HTML per app ${appId || 'senza ID'}...`);
+        domains = this.analyzeHTMLForExternalResources(htmlContent);
+        customCSP = this.generateCustomCSP(domains);
+        
+        // Cache la CSP per questa app se abbiamo un ID
+        if (appId) {
+          await StorageService.setAppMetadata(appId, { 
+            customCSP: customCSP,
+            externalDomains: domains,
+            lastAnalyzed: Date.now()
+          });
+          console.log(`💾 CSP cached per app ${appId}`);
+        }
+      }
+      
+      console.log('🔍 Domini trovati nell\'HTML:', domains);
+      
+      let modifiedContent;
+      
+      // Sostituisci o aggiungi meta CSP
+      if (htmlContent.includes('<meta http-equiv="Content-Security-Policy"')) {
+        modifiedContent = htmlContent.replace(
+          /<meta http-equiv="Content-Security-Policy"[^>]*>/g,
+          `<meta http-equiv="Content-Security-Policy" content="${customCSP}">`
+        );
+      } else {
+        modifiedContent = htmlContent.replace(
+          /<head>/i,
+          `<head>\n  <meta http-equiv="Content-Security-Policy" content="${customCSP}">`
+        );
+      }
+      
+      return modifiedContent;
+      
+    } catch (error) {
+      console.warn('Errore nell\'analisi CSP, uso CSP di fallback:', error);
+      
+      // Fallback a CSP completamente permissiva
+      const fallbackCSP = "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; style-src * data: blob: 'unsafe-inline'; img-src * data: blob:; font-src * data: blob:; connect-src * data: blob:; frame-src * data: blob:; object-src * data: blob:; base-uri *; form-action *;";
+      
+      let modifiedContent;
+      
+      if (htmlContent.includes('<meta http-equiv="Content-Security-Policy"')) {
+        modifiedContent = htmlContent.replace(
+          /<meta http-equiv="Content-Security-Policy"[^>]*>/g,
+          `<meta http-equiv="Content-Security-Policy" content="${fallbackCSP}">`
+        );
+      } else {
+        modifiedContent = htmlContent.replace(
+          /<head>/i,
+          `<head>\n  <meta http-equiv="Content-Security-Policy" content="${fallbackCSP}">`
+        );
+      }
+      
+      return modifiedContent;
     }
-    return modifiedContent;
   }
 
   /**
