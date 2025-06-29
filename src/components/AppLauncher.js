@@ -247,9 +247,13 @@ export default class AppLauncher {
       // Inietta CSP completamente permissiva per app HTML
       let modifiedContent = this.injectCSPForHTMLApp(app.content);
 
+      // Crea blob URL per il contenuto HTML modificato
+      const htmlBlob = new Blob([modifiedContent], { type: 'text/html' });
+      const htmlBlobUrl = URL.createObjectURL(htmlBlob);
+
       // Determina modalità di lancio
       if (options.launchMode === 'newpage') {
-        // Soluzione: usa document.write invece di blob URL per massima compatibilità
+        // Modalità nuova finestra - usa document.write per massima compatibilità
         const newWindow = window.open('', `aideas_html_${app.id}_${Date.now()}`,
           'width=1200,height=800,scrollbars=yes,resizable=yes');
         if (!newWindow) {
@@ -264,25 +268,28 @@ export default class AppLauncher {
         return {
           window: newWindow,
           external: true,
-          cleanup: () => {}
+          cleanup: () => {
+            URL.revokeObjectURL(htmlBlobUrl);
+          }
         };
       } else {
-        // Modalità iframe - usa document.write invece di blob URL per evitare CSP
-        const newWindow = window.open('', `aideas_html_${app.id}_iframe_${Date.now()}`,
-          'width=1200,height=800,scrollbars=yes,resizable=yes');
-        if (!newWindow) {
-          throw new Error('Popup bloccato dal browser. Consenti i popup per AIdeas.');
-        }
-        
-        // Scrivi direttamente il contenuto HTML
-        newWindow.document.open();
-        newWindow.document.write(modifiedContent);
-        newWindow.document.close();
-        
+        // Modalità iframe (default) - usa blob URL con CSP corretta
+        const iframe = this.createSecureFrame(app, {
+          src: htmlBlobUrl,
+          sandbox: 'allow-scripts allow-forms allow-modals allow-popups-to-escape-sandbox allow-same-origin'
+        });
+
+        // Setup cleanup quando l'iframe viene chiuso
+        iframe.addEventListener('unload', () => {
+          URL.revokeObjectURL(htmlBlobUrl);
+        });
+
         return {
-          window: newWindow,
-          external: true,
-          cleanup: () => {}
+          iframe,
+          window: iframe.contentWindow,
+          cleanup: () => {
+            URL.revokeObjectURL(htmlBlobUrl);
+          }
         };
       }
 
@@ -298,7 +305,7 @@ export default class AppLauncher {
    * @returns {string} - Contenuto HTML con CSP modificata
    */
   injectCSPForHTMLApp(htmlContent) {
-    // CSP completamente permissiva
+    // CSP completamente permissiva che include blob URL
     const openCSP = "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * data: blob: 'unsafe-inline' 'unsafe-eval'; style-src * data: blob: 'unsafe-inline'; img-src * data: blob:; font-src * data: blob:; connect-src * data: blob:; frame-src * data: blob:; object-src * data: blob:; base-uri *; form-action *;";
     
     let modifiedContent;
@@ -312,7 +319,7 @@ export default class AppLauncher {
     } else {
       modifiedContent = htmlContent.replace(
         /<head>/i,
-        `<head>\n  <meta http-equiv=\"Content-Security-Policy\" content=\"${openCSP}\">`
+        `<head>\n  <meta http-equiv="Content-Security-Policy" content="${openCSP}">`
       );
     }
     return modifiedContent;
@@ -357,7 +364,7 @@ export default class AppLauncher {
           console.log('🔄 Fallback automatico a nuova finestra - iframe non supportato');
           showToast('Questo sito non supporta iframe, apertura in nuova finestra', 'info');
           
-          const newWindow = window.open(targetUrl, `aideas_app_${app.id}`, 
+          const newWindow = window.open(targetUrl, `aideas_app_${app.id}_fallback`, 
             'width=1200,height=800,scrollbars=yes,resizable=yes');
           
           if (!newWindow) {
