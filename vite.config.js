@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   root: '.',
   publicDir: 'public',
-  base: '/aideas.run/', // Percorso corretto per GitHub Pages
+  base: '/', // Percorso root per dominio personalizzato aideas.run
   
   // Build configuration
   build: {
@@ -153,8 +153,8 @@ export default defineConfig({
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/aideas.run/',
-        start_url: '/aideas.run/',
+        scope: '/',
+        start_url: '/',
         lang: 'it',
         dir: 'ltr',
         categories: ['productivity', 'utilities', 'developer'],
@@ -213,7 +213,7 @@ export default defineConfig({
             name: 'Aggiungi App',
             short_name: 'Aggiungi',
             description: 'Aggiungi una nuova applicazione',
-            url: '/aideas.run/?action=add',
+            url: '/?action=add',
             icons: [
               {
                 src: 'assets/icons/icon-96x96.png',
@@ -225,7 +225,7 @@ export default defineConfig({
             name: 'Impostazioni',
             short_name: 'Settings',
             description: 'Accedi alle impostazioni',
-            url: '/aideas.run/?action=settings',
+            url: '/?action=settings',
             icons: [
               {
                 src: 'assets/icons/icon-96x96.png',
