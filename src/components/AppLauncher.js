@@ -247,48 +247,42 @@ export default class AppLauncher {
       // Inietta CSP completamente permissiva per app HTML
       let modifiedContent = this.injectCSPForHTMLApp(app.content);
 
-      // Crea blob URL per il contenuto HTML modificato
-      const htmlBlob = new Blob([modifiedContent], { type: 'text/html' });
-      const htmlBlobUrl = URL.createObjectURL(htmlBlob);
-
       // Determina modalità di lancio
       if (options.launchMode === 'newpage') {
-        // Soluzione 1: apri subito una finestra vuota, poi imposta location sul blob
-        const newWindow = window.open('about:blank', `aideas_html_${app.id}_${Date.now()}`,
+        // Soluzione: usa document.write invece di blob URL per massima compatibilità
+        const newWindow = window.open('', `aideas_html_${app.id}_${Date.now()}`,
           'width=1200,height=800,scrollbars=yes,resizable=yes');
         if (!newWindow) {
           throw new Error('Popup bloccato dal browser. Consenti i popup per AIdeas.');
         }
-        // Appena il blob è pronto, imposta la location
-        newWindow.location = htmlBlobUrl;
-        // Setup cleanup
-        const cleanup = () => {
-          URL.revokeObjectURL(htmlBlobUrl);
-        };
-        newWindow.addEventListener('beforeunload', cleanup);
+        
+        // Scrivi direttamente il contenuto HTML
+        newWindow.document.open();
+        newWindow.document.write(modifiedContent);
+        newWindow.document.close();
+        
         return {
           window: newWindow,
           external: true,
-          cleanup
+          cleanup: () => {}
         };
       } else {
-        // Modalità iframe (default)
-        const iframe = this.createSecureFrame(app, {
-          src: htmlBlobUrl,
-          sandbox: 'allow-scripts allow-forms allow-modals allow-popups-to-escape-sandbox allow-same-origin'
-        });
-
-        // Setup cleanup quando l'iframe viene chiuso
-        iframe.addEventListener('unload', () => {
-          URL.revokeObjectURL(htmlBlobUrl);
-        });
-
+        // Modalità iframe - usa document.write invece di blob URL per evitare CSP
+        const newWindow = window.open('', `aideas_html_${app.id}_iframe_${Date.now()}`,
+          'width=1200,height=800,scrollbars=yes,resizable=yes');
+        if (!newWindow) {
+          throw new Error('Popup bloccato dal browser. Consenti i popup per AIdeas.');
+        }
+        
+        // Scrivi direttamente il contenuto HTML
+        newWindow.document.open();
+        newWindow.document.write(modifiedContent);
+        newWindow.document.close();
+        
         return {
-          iframe,
-          window: iframe.contentWindow,
-          cleanup: () => {
-            URL.revokeObjectURL(htmlBlobUrl);
-          }
+          window: newWindow,
+          external: true,
+          cleanup: () => {}
         };
       }
 

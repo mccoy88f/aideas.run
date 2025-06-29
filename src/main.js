@@ -671,7 +671,12 @@ class AIdeasApp {
     document.querySelectorAll('.nav-link').forEach(link => {
       link.classList.remove('active');
     });
-    e.target.closest('.nav-link').classList.add('active');
+    
+    // Controllo null per evitare errore
+    const clickedLink = e.target.closest('.nav-link');
+    if (clickedLink) {
+      clickedLink.classList.add('active');
+    }
     
     // Aggiorna view
     this.currentView = category;
