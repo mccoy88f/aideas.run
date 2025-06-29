@@ -1,7 +1,7 @@
 {
-  "name": "AIdeas - Run your Ideas",
+  "name": "AIdeas - Run your AIdeas",
   "short_name": "AIdeas",
-  "description": "Run your Ideas - PWA Launcher per applicazioni web client-side",
+  "description": "Run your AIdeas - PWA Launcher per applicazioni web client-side",
   "version": "1.0.0",
   "manifest_version": 3,
   

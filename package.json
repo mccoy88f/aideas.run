@@ -1,7 +1,7 @@
 {
   "name": "aideas-run",
   "version": "1.0.0",
-  "description": "AIdeas.run - Run your Ideas - PWA Launcher per applicazioni web client-side",
+  "description": "AIdeas - Run your AIdeas - PWA Launcher per applicazioni web client-side",
   "main": "src/main.js",
   "type": "module",
   "scripts": {
@@ -26,7 +26,7 @@
     "offline",
     "sandbox"
   ],
-  "author": "AIdeas.run Team",
+  "author": "AIdeas Team",
   "license": "MIT",
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -70,9 +70,9 @@
     "not ie 11"
   ],
   "pwa": {
-    "name": "AIdeas.run",
-    "short_name": "AIdeas.run",
-    "description": "Run your Ideas - Launcher per app web",
+    "name": "AIdeas",
+    "short_name": "AIdeas",
+    "description": "Run your AIdeas - Launcher per app web",
     "theme_color": "#2563eb",
     "background_color": "#ffffff",
     "display": "standalone",

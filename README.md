@@ -1,9 +1,9 @@
-# AIdeas.run
+# AIdeas
 (fase alpha)
 
 Un launcher di applicazioni moderno e personalizzabile, progettato per offrire un'esperienza utente fluida e intuitiva.
 
-**Run your Ideas** - Trasforma le tue idee in applicazioni web con il nostro launcher intelligente.
+**Run your AIdeas** - Trasforma le tue idee in applicazioni web con il nostro launcher intelligente.
 
 ## 🚀 Caratteristiche Principali
 
