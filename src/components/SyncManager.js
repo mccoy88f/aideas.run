@@ -18,6 +18,15 @@ export default class SyncManager {
       googledrive: new GoogleDriveService()
     };
     
+    // Controllo di sicurezza sui provider
+    Object.entries(this.syncProviders).forEach(([key, provider]) => {
+      if (!provider) {
+        console.error(`[SyncManager] Provider '${key}' non istanziato correttamente!`);
+      } else {
+        console.log(`[SyncManager] Provider '${key}' istanziato:`, provider.constructor.name);
+      }
+    });
+    
     this.syncStatus = {
       isEnabled: false,
       lastSync: null,
