@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    button { padding: 10px; margin: 5px; }
+    .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  <h1>Test Blob URL</h1>
+  
+  <button onclick="test1()">Test 1: Blob diretto</button>
+  <button onclick="test2()">Test 2: About:blank</button>
+  <button onclick="test3()">Test 3: Document.write</button>
+  <button onclick="test4()">Test 4: Iframe</button>
+  
+  <div id="results"></div>
+
+  <script>
+    function log(message, isError) {
+      var div = document.createElement('div');
+      div.className = 'result ' + (isError ? 'error' : 'success');
+      div.textContent = message;
+      document.getElementById('results').appendChild(div);
+    }
+
+    function test1() {
+      try {
+        var html = '<html><body><h1>Test 1 OK</h1></body></html>';
+        var blob = new Blob([html], {type: 'text/html'});
+        var url = URL.createObjectURL(blob);
+        window.open(url, 'test1');
+        log('Test 1: Finestra aperta', false);
+      } catch (e) {
+        log('Test 1: Errore - ' + e.message, true);
+      }
+    }
+
+    function test2() {
+      try {
+        var html = '<html><body><h1>Test 2 OK</h1></body></html>';
+        var blob = new Blob([html], {type: 'text/html'});
+        var url = URL.createObjectURL(blob);
+        var win = window.open('about:blank', 'test2');
+        win.location = url;
+        log('Test 2: Finestra aperta', false);
+      } catch (e) {
+        log('Test 2: Errore - ' + e.message, true);
+      }
+    }
+
+    function test3() {
+      try {
+        var html = '<html><body><h1>Test 3 OK</h1></body></html>';
+        var win = window.open('', 'test3');
+        win.document.write(html);
+        win.document.close();
+        log('Test 3: Document.write eseguito', false);
+      } catch (e) {
+        log('Test 3: Errore - ' + e.message, true);
+      }
+    }
+
+    function test4() {
+      try {
+        var html = '<html><body><h1>Test 4 OK</h1></body></html>';
+        var blob = new Blob([html], {type: 'text/html'});
+        var url = URL.createObjectURL(blob);
+        var iframe = document.createElement('iframe');
+        iframe.src = url;
+        iframe.style.width = '300px';
+        iframe.style.height = '200px';
+        document.body.appendChild(iframe);
+        log('Test 4: Iframe creato', false);
+      } catch (e) {
+        log('Test 4: Errore - ' + e.message, true);
+      }
+    }
+  </script>
+</body>
+</html> 

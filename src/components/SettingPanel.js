@@ -69,7 +69,7 @@ export default class SettingsPanel {
 
     // Funzionalità disabilitate
     this.disabledFeatures = {
-      syncEnabled: true, // SyncManager disabilitato
+      // syncEnabled: true, // SyncManager disabilitato
       autoUpdateApps: true, // Non implementato
       analyticsEnabled: true, // Non implementato
       crashReportingEnabled: true, // Non implementato

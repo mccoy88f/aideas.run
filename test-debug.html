@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Debug - AIdeas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .error {
+      color: red;
+      background: #ffe6e6;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .success {
+      color: green;
+      background: #e6ffe6;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    .info {
+      color: blue;
+      background: #e6f3ff;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+    pre {
+      background: #f8f8f8;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test Debug - AIdeas</h1>
+  
+  <div class="test-section">
+    <h2>1. Test Caricamento Moduli JavaScript</h2>
+    <div id="module-test-results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. Test Storage Service</h2>
+    <div id="storage-test-results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Test Console Errors</h2>
+    <div id="console-errors"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. Test DOM Elements</h2>
+    <div id="dom-test-results"></div>
+  </div>
+
+  <script type="module">
+    // Test 1: Caricamento moduli
+    async function testModules() {
+      const results = document.getElementById('module-test-results');
+      
+      try {
+        // Test import di StorageService
+        const StorageService = await import('./src/services/StorageService.js');
+        results.innerHTML += '<div class="success">✅ StorageService caricato correttamente</div>';
+        
+        // Test import di helpers
+        const helpers = await import('./src/utils/helpers.js');
+        results.innerHTML += '<div class="success">✅ Helpers caricati correttamente</div>';
+        
+        // Test import di debug
+        const debug = await import('./src/utils/debug.js');
+        results.innerHTML += '<div class="success">✅ Debug utilities caricate correttamente</div>';
+        
+        // Test import di constants
+        const constants = await import('./src/utils/constants.js');
+        results.innerHTML += '<div class="success">✅ Constants caricate correttamente</div>';
+        
+      } catch (error) {
+        results.innerHTML += `<div class="error">❌ Errore caricamento moduli: ${error.message}</div>`;
+        console.error('Errore test moduli:', error);
+      }
+    }
+
+    // Test 2: Storage Service
+    async function testStorage() {
+      const results = document.getElementById('storage-test-results');
+      
+      try {
+        const StorageService = await import('./src/services/StorageService.js');
+        
+        // Test inizializzazione
+        await StorageService.default.ensureDbOpen();
+        results.innerHTML += '<div class="success">✅ Database inizializzato correttamente</div>';
+        
+        // Test operazioni base
+        await StorageService.default.setSetting('test', 'value');
+        const value = await StorageService.default.getSetting('test');
+        
+        if (value === 'value') {
+          results.innerHTML += '<div class="success">✅ Operazioni di storage funzionanti</div>';
+        } else {
+          results.innerHTML += '<div class="error">❌ Errore operazioni storage</div>';
+        }
+        
+      } catch (error) {
+        results.innerHTML += `<div class="error">❌ Errore storage: ${error.message}</div>`;
+        console.error('Errore test storage:', error);
+      }
+    }
+
+    // Test 3: Console errors
+    function testConsoleErrors() {
+      const results = document.getElementById('console-errors');
+      
+      // Override console.error per catturare errori
+      const originalError = console.error;
+      const errors = [];
+      
+      console.error = function(...args) {
+        errors.push(args.join(' '));
+        originalError.apply(console, args);
+      };
+      
+      // Test dopo 2 secondi
+      setTimeout(() => {
+        if (errors.length > 0) {
+          results.innerHTML += '<div class="error">❌ Errori nella console:</div>';
+          errors.forEach(error => {
+            results.innerHTML += `<pre>${error}</pre>`;
+          });
+        } else {
+          results.innerHTML += '<div class="success">✅ Nessun errore nella console</div>';
+        }
+      }, 2000);
+    }
+
+    // Test 4: DOM Elements
+    function testDOM() {
+      const results = document.getElementById('dom-test-results');
+      
+      // Test elementi critici
+      const criticalElements = [
+        'loading-screen',
+        'app',
+        'search-input',
+        'apps-grid',
+        'sidebar'
+      ];
+      
+      criticalElements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+          results.innerHTML += `<div class="success">✅ Elemento #${id} trovato</div>`;
+        } else {
+          results.innerHTML += `<div class="error">❌ Elemento #${id} mancante</div>`;
+        }
+      });
+    }
+
+    // Esegui tutti i test
+    window.addEventListener('DOMContentLoaded', () => {
+      testModules();
+      testStorage();
+      testConsoleErrors();
+      testDOM();
+    });
+  </script>
+</body>
+</html> 

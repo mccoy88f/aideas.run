@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Minimale - AIdeas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .error { color: red; background: #ffe6e6; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    .success { color: green; background: #e6ffe6; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    .info { color: blue; background: #e6f3ff; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    pre { background: #f8f8f8; padding: 10px; border-radius: 4px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>Test Minimale - AIdeas</h1>
+  
+  <div class="test-container">
+    <h2>Test Step-by-Step</h2>
+    <div id="test-results"></div>
+  </div>
+
+  <script type="module">
+    const results = document.getElementById('test-results');
+
+    function addResult(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = type;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      results.appendChild(div);
+      console.log(message);
+    }
+
+    async function runTests() {
+      try {
+        addResult('🚀 Iniziando test step-by-step...', 'info');
+
+        // Test 1: Import StorageService
+        addResult('📦 Test 1: Import StorageService...', 'info');
+        const StorageService = await import('./src/services/StorageService.js');
+        addResult('✅ StorageService importato', 'success');
+
+        // Test 2: Import helpers
+        addResult('📦 Test 2: Import helpers...', 'info');
+        const helpers = await import('./src/utils/helpers.js');
+        addResult('✅ Helpers importati', 'success');
+
+        // Test 3: Import debug
+        addResult('📦 Test 3: Import debug...', 'info');
+        const debug = await import('./src/utils/debug.js');
+        addResult('✅ Debug importato', 'success');
+
+        // Test 4: Import constants
+        addResult('📦 Test 4: Import constants...', 'info');
+        const constants = await import('./src/utils/constants.js');
+        addResult('✅ Constants importati', 'success');
+
+        // Test 5: Import main.js
+        addResult('📦 Test 5: Import main.js...', 'info');
+        const mainModule = await import('./src/main.js');
+        addResult('✅ Main.js importato', 'success');
+
+        // Test 6: Verifica classe AIdeasApp
+        addResult('🔍 Test 6: Verifica classe AIdeasApp...', 'info');
+        if (mainModule.default) {
+          addResult('✅ Classe AIdeasApp trovata', 'success');
+        } else {
+          addResult('❌ Classe AIdeasApp non trovata', 'error');
+          return;
+        }
+
+        // Test 7: Creazione istanza
+        addResult('🔧 Test 7: Creazione istanza...', 'info');
+        const app = new mainModule.default();
+        addResult('✅ Istanza creata', 'success');
+
+        // Test 8: Verifica metodo init
+        addResult('🔧 Test 8: Verifica metodo init...', 'info');
+        if (typeof app.init === 'function') {
+          addResult('✅ Metodo init trovato', 'success');
+        } else {
+          addResult('❌ Metodo init non trovato', 'error');
+          return;
+        }
+
+        // Test 9: Inizializzazione (con timeout)
+        addResult('🔄 Test 9: Inizializzazione (timeout 10s)...', 'info');
+        
+        const initPromise = app.init();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout inizializzazione')), 10000)
+        );
+
+        try {
+          await Promise.race([initPromise, timeoutPromise]);
+          addResult('✅ Inizializzazione completata', 'success');
+        } catch (error) {
+          if (error.message === 'Timeout inizializzazione') {
+            addResult('⚠️ Inizializzazione in timeout (potrebbe essere normale)', 'info');
+          } else {
+            addResult(`❌ Errore inizializzazione: ${error.message}`, 'error');
+            addResult(`Stack: ${error.stack}`, 'error');
+          }
+        }
+
+        addResult('🎉 Test completati!', 'success');
+
+      } catch (error) {
+        addResult(`❌ Errore generale: ${error.message}`, 'error');
+        addResult(`Stack: ${error.stack}`, 'error');
+      }
+    }
+
+    // Avvia test quando il DOM è pronto
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(runTests, 1000);
+    });
+  </script>
+</body>
+</html> 

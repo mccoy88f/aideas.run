@@ -5,10 +5,10 @@ Questo documento elenca le funzionalità che sono presenti nel codice ma attualm
 ## Funzionalità Disabilitate
 
 ### 1. Sincronizzazione Cloud (SyncManager)
-- **Stato**: Disabilitato temporaneamente
+- **Stato**: ATTIVO
 - **Posizione**: `src/main.js` linea 40
-- **Motivo**: In fase di sviluppo/testing
-- **Impatto**: Le impostazioni di sincronizzazione sono visibili ma non funzionanti
+- **Motivo**: Funzionalità riattivata per test
+- **Impatto**: Le impostazioni di sincronizzazione sono ora funzionanti
 
 ### 2. PWA Plugin
 - **Stato**: Disabilitato per debug

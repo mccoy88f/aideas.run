@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Console - AIdeas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .console-container {
+      background: #1e1e1e;
+      color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      height: 400px;
+      overflow-y: auto;
+      margin: 20px 0;
+    }
+    .console-line {
+      margin: 2px 0;
+      word-wrap: break-word;
+    }
+    .console-error { color: #ff6b6b; }
+    .console-warn { color: #ffd93d; }
+    .console-info { color: #6bcf7f; }
+    .console-log { color: #fff; }
+    .test-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .error { color: red; background: #ffe6e6; padding: 10px; border-radius: 4px; }
+    .success { color: green; background: #e6ffe6; padding: 10px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Test Console - AIdeas</h1>
+  
+  <div class="test-section">
+    <h2>Console Output</h2>
+    <div id="console-output" class="console-container"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test Risultati</h2>
+    <div id="test-results"></div>
+  </div>
+
+  <script type="module">
+    const consoleOutput = document.getElementById('console-output');
+    const testResults = document.getElementById('test-results');
+
+    function addConsoleLine(message, type = 'log') {
+      const line = document.createElement('div');
+      line.className = `console-line console-${type}`;
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      consoleOutput.appendChild(line);
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    }
+
+    function addTestResult(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = type;
+      div.textContent = message;
+      testResults.appendChild(div);
+    }
+
+    // Override console methods
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    const originalInfo = console.info;
+
+    console.log = function(...args) {
+      addConsoleLine(args.join(' '), 'log');
+      originalLog.apply(console, args);
+    };
+
+    console.error = function(...args) {
+      addConsoleLine(args.join(' '), 'error');
+      originalError.apply(console, args);
+    };
+
+    console.warn = function(...args) {
+      addConsoleLine(args.join(' '), 'warn');
+      originalWarn.apply(console, args);
+    };
+
+    console.info = function(...args) {
+      addConsoleLine(args.join(' '), 'info');
+      originalInfo.apply(console, args);
+    };
+
+    // Gestione errori globali
+    window.addEventListener('error', (e) => {
+      addConsoleLine(`Errore globale: ${e.message}`, 'error');
+      addConsoleLine(`File: ${e.filename}:${e.lineno}:${e.colno}`, 'error');
+      if (e.error && e.error.stack) {
+        addConsoleLine(`Stack: ${e.error.stack}`, 'error');
+      }
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+      addConsoleLine(`Promise rejection non gestita: ${e.reason}`, 'error');
+    });
+
+    // Test inizializzazione
+    async function testInitialization() {
+      try {
+        addConsoleLine('🚀 Iniziando test inizializzazione...', 'info');
+        
+        // Test import di main.js
+        const mainModule = await import('./src/main.js');
+        addConsoleLine('✅ main.js importato correttamente', 'info');
+        
+        // Test creazione istanza
+        const app = new mainModule.default();
+        addConsoleLine('✅ Istanza AIdeasApp creata', 'info');
+        
+        // Test inizializzazione
+        addConsoleLine('🔄 Avviando inizializzazione...', 'info');
+        await app.init();
+        addConsoleLine('✅ Inizializzazione completata', 'info');
+        
+        addTestResult('✅ Test completato con successo', 'success');
+        
+      } catch (error) {
+        addConsoleLine(`❌ Errore durante il test: ${error.message}`, 'error');
+        addConsoleLine(`Stack: ${error.stack}`, 'error');
+        addTestResult(`❌ Test fallito: ${error.message}`, 'error');
+      }
+    }
+
+    // Avvia test quando il DOM è pronto
+    window.addEventListener('DOMContentLoaded', () => {
+      addConsoleLine('📋 DOM caricato, avviando test...', 'info');
+      setTimeout(testInitialization, 1000);
+    });
+  </script>
+</body>
+</html> 

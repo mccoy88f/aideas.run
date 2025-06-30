@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/aideas.run/dev-sw.js?dev-sw', { scope: '/aideas.run/', type: 'classic' })

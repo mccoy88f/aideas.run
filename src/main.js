@@ -20,6 +20,7 @@ import {
   showResetSettingsConfirm
 } from './utils/helpers.js';
 import { DEBUG, ErrorTracker, PerformanceMonitor } from './utils/debug.js';
+import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from '../google-oauth.local.js';
 
 /**
  * Classe principale dell'applicazione AIdeas
@@ -39,7 +40,7 @@ class AIdeasApp {
     this.appLauncher = new AppLauncher();
     this.appImporter = new AppImporter();
     this.settingsPanel = new SettingPanel();
-    // this.syncManager = new SyncManager(); // DISABILITATO TEMPORANEAMENTE
+    this.syncManager = new SyncManager();
     
     // Inizializza debug
     ErrorTracker.init(); // Inizializza il tracker di errori
@@ -79,7 +80,12 @@ class AIdeasApp {
       await this.appLauncher.init();
       await this.appImporter.init();
       await this.settingsPanel.init();
-      // await this.syncManager.init(); // DISABILITATO TEMPORANEAMENTE
+      await this.syncManager.init();
+      
+      // Configura Google Drive OAuth2 (solo se provider presente)
+      if (this.syncManager.syncProviders && this.syncManager.syncProviders.googledrive) {
+        this.syncManager.syncProviders.googledrive.configure(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
+      }
       
       // Carica app
       await this.loadApps();
