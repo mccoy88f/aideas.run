@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -49,7 +49,9 @@ import {
   Restore as RestoreIcon,
   Delete as DeleteIcon,
   CloudUpload as CloudUploadIcon,
-  CloudDownload as CloudDownloadIcon
+  CloudDownload as CloudDownloadIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  ErrorOutline as ErrorOutlineIcon
 } from '@mui/icons-material';
 
 /**
@@ -74,6 +76,7 @@ const SettingsMaterial = ({
   const [token, setToken] = useState('');
   const [gdriveToken, setGDriveToken] = useState('');
   const fileInputRef = React.useRef();
+  const [syncStatus, setSyncStatus] = useState({});
 
   const sections = [
     {
@@ -402,26 +405,46 @@ const SettingsMaterial = ({
         </Grid>
         {provider === 'github' && (
           <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="GitHub Token"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              variant="outlined"
-              placeholder="ghp_xxx"
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <TextField
+                fullWidth
+                label="GitHub Token"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                variant="outlined"
+                placeholder="ghp_xxx"
+              />
+              <a
+                href="https://github.com/settings/tokens/new?scopes=gist&description=AIdeas%20Gist%20Sync"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: '0.95em', color: '#1976d2', textDecoration: 'underline', marginTop: 4 }}
+              >
+                Genera un token GitHub Gist
+              </a>
+            </Box>
           </Grid>
         )}
         {provider === 'googledrive' && (
           <Grid item xs={12} md={6}>
-            <TextField
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={async () => {
+                const gdriveProvider = window.settingsPanel.syncManager.providers.googledrive;
+                try {
+                  await gdriveProvider.authenticate();
+                  await window.settingsPanel.enableSync('googledrive', {});
+                  alert('Autenticazione Google Drive completata!');
+                } catch (err) {
+                  alert('Errore autenticazione Google Drive: ' + err.message);
+                }
+              }}
               fullWidth
-              label="Google Access Token"
-              value={gdriveToken}
-              onChange={(e) => setGDriveToken(e.target.value)}
-              variant="outlined"
-              placeholder="ya29.xxx"
-            />
+              sx={{ mb: 1 }}
+            >
+              Login con Google
+            </Button>
           </Grid>
         )}
         <Grid item xs={12}>
@@ -453,6 +476,31 @@ const SettingsMaterial = ({
               Ripristina completamente
             </Button>
           </Box>
+        </Grid>
+        <Grid item xs={12}>
+          {/* Stato sincronizzazione */}
+          {provider && (
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
+              {syncStatus[provider]?.isEnabled ? (
+                <>
+                  <span style={{ color: '#388e3c', fontWeight: 500 }}>
+                    <CheckCircleOutlineIcon style={{ verticalAlign: 'middle', color: '#388e3c' }} />
+                    &nbsp;Sincronizzazione attiva
+                  </span>
+                  {syncStatus[provider]?.lastSync && (
+                    <span style={{ marginLeft: 12, fontSize: '0.95em', color: '#666' }}>
+                      Ultima sync: {new Date(syncStatus[provider].lastSync).toLocaleString()}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span style={{ color: '#d32f2f', fontWeight: 500 }}>
+                  <ErrorOutlineIcon style={{ verticalAlign: 'middle', color: '#d32f2f' }} />
+                  &nbsp;Non connesso
+                </span>
+              )}
+            </Box>
+          )}
         </Grid>
       </Grid>
     </Box>
@@ -520,6 +568,28 @@ const SettingsMaterial = ({
         return null;
     }
   };
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      const github = window.settingsPanel?.syncManager?.providers?.github;
+      const googledrive = window.settingsPanel?.syncManager?.providers?.googledrive;
+      const status = {};
+      if (github) {
+        status.github = {
+          isEnabled: await github.loadCredentials().then(c => !!c.token),
+          lastSync: window.settingsPanel?.syncManager?.status?.lastSync
+        };
+      }
+      if (googledrive) {
+        status.googledrive = {
+          isEnabled: await googledrive.loadCredentials().then(c => !!c.accessToken),
+          lastSync: window.settingsPanel?.syncManager?.status?.lastSync
+        };
+      }
+      setSyncStatus(status);
+    };
+    fetchStatus();
+  }, [provider, open]);
 
   return (
     <Dialog
