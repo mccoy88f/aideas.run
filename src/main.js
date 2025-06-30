@@ -79,7 +79,6 @@ class AIdeasApp {
       await this.appLauncher.init();
       await this.appImporter.init();
       await this.settingsPanel.init();
-      await this.syncManager.init();
       
       // Configura Google Drive OAuth2 (solo se provider presente)
       if (this.syncManager.syncProviders && this.syncManager.syncProviders.googledrive) {
