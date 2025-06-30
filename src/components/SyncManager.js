@@ -38,14 +38,14 @@ export default class SyncManager {
     this.syncQueue = [];
     this.conflictResolutions = [];
 
-    // Bind methods
-    this.init = this.init.bind(this);
-    this.enableSync = this.enableSync.bind(this);
-    this.disableSync = this.disableSync.bind(this);
-    this.performSync = this.performSync.bind(this);
-    this.showSyncModal = this.showSyncModal.bind(this);
-    this.handleConflict = this.handleConflict.bind(this);
-    this.autoSync = this.autoSync.bind(this);
+    // Bind methods solo se esistono effettivamente
+    ['init', 'enableSync', 'disableSync', 'performSync', 'showSyncModal', 'handleConflict', 'autoSync'].forEach(method => {
+      if (typeof this[method] === 'function') {
+        this[method] = this[method].bind(this);
+      } else {
+        console.error(`[SyncManager] Metodo mancante o undefined: ${method}`);
+      }
+    });
   }
 
   /**
