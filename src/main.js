@@ -7,7 +7,7 @@ import StorageService from './services/StorageService.js';
 import AppLauncher from './components/AppLauncher.js';
 import AppImporter from './components/AppImporter.js';
 import AppCard from './components/AppCard.js';
-import SyncManager from './components/SyncManager.js';
+import SyncManager from './sync/SyncManager.js';
 import SettingPanel from './components/SettingPanel.js';
 import { 
   showToast, 
@@ -1374,6 +1374,22 @@ class AIdeasApp {
     } catch (error) {
       console.error('❌ Errore test impostazioni:', error);
     }
+  }
+
+  /**
+   * Esempio di utilizzo della nuova sincronizzazione
+   */
+  async testSync() {
+    // Abilita la sync con GitHub (token fittizio per esempio)
+    await this.syncManager.enableSync('github', { token: 'ghp_xxx' });
+    // Oppure per Google Drive
+    // await this.syncManager.enableSync('googledrive', { accessToken: 'ya29.xxx' });
+
+    // Esegui upload
+    await this.syncManager.sync('upload', { foo: 'bar' });
+    // Esegui download
+    // const data = await this.syncManager.sync('download');
+    // console.log('Dati scaricati:', data);
   }
 }
 

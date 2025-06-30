@@ -16,6 +16,7 @@ import {
   formatFileSize, 
   getDeviceInfo
 } from '../utils/helpers.js';
+import SyncManager from '../sync/SyncManager.js';
 
 /**
  * Classe per gestire il pannello delle impostazioni
@@ -23,6 +24,7 @@ import {
 export default class SettingsPanel {
   constructor() {
     this.currentSettings = {};
+    this.syncManager = new SyncManager();
     this.defaultSettings = {
       // Generali
       language: 'it',
@@ -1391,5 +1393,79 @@ export default class SettingsPanel {
     this.currentSettings[key] = value;
     await StorageService.setSetting(key, value);
     this.applySettings();
+  }
+
+  /**
+   * Esempio: metodi per gestire la sync dal pannello
+   */
+  async enableSync(provider, credentials) {
+    await this.syncManager.enableSync(provider, credentials);
+    this.currentSettings.syncEnabled = true;
+    this.currentSettings.syncProvider = provider;
+    showToast('Sincronizzazione abilitata', 'success');
+  }
+  async disableSync() {
+    await this.syncManager.disableSync();
+    this.currentSettings.syncEnabled = false;
+    showToast('Sincronizzazione disabilitata', 'info');
+  }
+  async syncUpload(data) {
+    await this.syncManager.sync('upload', data);
+    showToast('Dati caricati sul cloud', 'success');
+  }
+  async syncDownload() {
+    const data = await this.syncManager.sync('download');
+    showToast('Dati scaricati dal cloud', 'success');
+    return data;
+  }
+
+  /**
+   * Esporta tutti i dati in un file JSON
+   */
+  async exportAll() {
+    const data = await StorageService.exportAllData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'aideas-backup.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Backup esportato', 'success');
+  }
+
+  /**
+   * Importa dati da un file JSON
+   */
+  async importAll(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          await StorageService.importData(data);
+          showToast('Backup importato', 'success');
+          resolve();
+        } catch (err) {
+          showToast('Errore importazione backup', 'error');
+          reject(err);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  }
+
+  /**
+   * Reset completo: cancella tutto lo storage e le impostazioni
+   */
+  async resetAll() {
+    await StorageService.close();
+    localStorage.clear();
+    indexedDB.deleteDatabase('AIdeas_DB');
+    showToast('App ripristinata. Ricarica la pagina.', 'warning');
+    setTimeout(() => window.location.reload(), 1000);
   }
 }

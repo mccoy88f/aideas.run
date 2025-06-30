@@ -70,6 +70,10 @@ const SettingsMaterial = ({
   const [localSettings, setLocalSettings] = useState(settings);
   const [activeSection, setActiveSection] = useState('general');
   const [hasChanges, setHasChanges] = useState(false);
+  const [provider, setProvider] = useState(localSettings.syncProvider || 'github');
+  const [token, setToken] = useState('');
+  const [gdriveToken, setGDriveToken] = useState('');
+  const fileInputRef = React.useRef();
 
   const sections = [
     {
@@ -122,6 +126,46 @@ const SettingsMaterial = ({
     setLocalSettings(settings);
     setHasChanges(false);
     onClose();
+  };
+
+  // Funzioni per chiamare i nuovi metodi del SettingPanel
+  const handleEnableSync = async () => {
+    if (provider === 'github') {
+      await window.settingsPanel.enableSync('github', { token });
+    } else if (provider === 'googledrive') {
+      // Avvia autenticazione OAuth2 con popup
+      const gdriveProvider = window.settingsPanel.syncManager.providers.googledrive;
+      try {
+        await gdriveProvider.authenticate();
+        await window.settingsPanel.enableSync('googledrive', {});
+        alert('Autenticazione Google Drive completata!');
+      } catch (err) {
+        alert('Errore autenticazione Google Drive: ' + err.message);
+      }
+    }
+  };
+  const handleDisableSync = async () => {
+    await window.settingsPanel.disableSync();
+  };
+  const handleSyncUpload = async () => {
+    await window.settingsPanel.syncUpload({ foo: 'bar' }); // Sostituisci con i dati reali
+  };
+  const handleSyncDownload = async () => {
+    const data = await window.settingsPanel.syncDownload();
+    alert('Dati scaricati: ' + JSON.stringify(data));
+  };
+
+  const handleExport = async () => {
+    await window.settingsPanel.exportAll();
+  };
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (file) await window.settingsPanel.importAll(file);
+  };
+  const handleReset = async () => {
+    if (window.confirm('Sei sicuro di voler cancellare TUTTI i dati e ripristinare l\'app?')) {
+      await window.settingsPanel.resetAll();
+    }
   };
 
   const renderGeneralSettings = () => (
@@ -342,57 +386,73 @@ const SettingsMaterial = ({
       <Typography variant="h6" gutterBottom>
         Sincronizzazione e Backup
       </Typography>
-      
       <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Backup Locale
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Salva i tuoi dati localmente per backup e ripristino
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                variant="outlined"
-                startIcon={<CloudDownloadIcon />}
-                onClick={() => onExport?.()}
-              >
-                Esporta Dati
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<CloudUploadIcon />}
-                onClick={() => onImport?.()}
-              >
-                Importa Dati
-              </Button>
-            </Box>
-          </Paper>
+        <Grid item xs={12} md={6}>
+          <FormControl fullWidth>
+            <InputLabel>Provider Cloud</InputLabel>
+            <Select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              label="Provider Cloud"
+            >
+              <MenuItem value="github">GitHub Gist</MenuItem>
+              <MenuItem value="googledrive">Google Drive</MenuItem>
+            </Select>
+          </FormControl>
         </Grid>
-        
+        {provider === 'github' && (
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="GitHub Token"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              variant="outlined"
+              placeholder="ghp_xxx"
+            />
+          </Grid>
+        )}
+        {provider === 'googledrive' && (
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Google Access Token"
+              value={gdriveToken}
+              onChange={(e) => setGDriveToken(e.target.value)}
+              variant="outlined"
+              placeholder="ya29.xxx"
+            />
+          </Grid>
+        )}
         <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={localSettings.autoBackup || false}
-                onChange={(e) => handleSettingChange('autoBackup', e.target.checked)}
-              />
-            }
-            label="Backup automatico"
-          />
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button variant="contained" color="primary" onClick={handleEnableSync}>
+              Abilita Sync
+            </Button>
+            <Button variant="outlined" color="secondary" onClick={handleDisableSync}>
+              Disabilita Sync
+            </Button>
+            <Button variant="contained" color="success" onClick={handleSyncUpload}>
+              Upload
+            </Button>
+            <Button variant="contained" color="info" onClick={handleSyncDownload}>
+              Download
+            </Button>
+          </Box>
         </Grid>
-        
         <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={localSettings.cloudSync || false}
-                onChange={(e) => handleSettingChange('cloudSync', e.target.checked)}
-              />
-            }
-            label="Sincronizzazione cloud (Beta)"
-          />
+          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+            <Button variant="outlined" color="primary" onClick={handleExport}>
+              Esporta tutto
+            </Button>
+            <Button variant="outlined" color="secondary" onClick={() => fileInputRef.current.click()}>
+              Importa tutto
+            </Button>
+            <input type="file" accept="application/json" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImport} />
+            <Button variant="contained" color="error" onClick={handleReset}>
+              Ripristina completamente
+            </Button>
+          </Box>
         </Grid>
       </Grid>
     </Box>
