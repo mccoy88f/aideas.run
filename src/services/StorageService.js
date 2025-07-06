@@ -349,6 +349,29 @@ class StorageService {
     }
   }
 
+  // Salva tutte le impostazioni
+  async setAllSettings(settings) {
+    try {
+      const transactions = [];
+      
+      for (const [key, value] of Object.entries(settings)) {
+        transactions.push(
+          this.db.settings.put({
+            key,
+            value,
+            lastModified: new Date()
+          })
+        );
+      }
+      
+      await Promise.all(transactions);
+      return true;
+    } catch (error) {
+      console.error('Errore salvataggio impostazioni:', error);
+      return false;
+    }
+  }
+
   /**
    * SYNC EVENTS MANAGEMENT
    */

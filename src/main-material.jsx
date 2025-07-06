@@ -78,6 +78,8 @@ function AIdeasApp() {
   const [selectedApp, setSelectedApp] = React.useState(null);
   const [importerOpen, setImporterOpen] = React.useState(false);
   const [settings, setSettings] = React.useState({});
+  const [launchModalOpen, setLaunchModalOpen] = React.useState(false);
+  const [launchingApp, setLaunchingApp] = React.useState(null);
 
   // Inizializzazione
   React.useEffect(() => {
@@ -247,9 +249,16 @@ function AIdeasApp() {
         await StorageService.updateApp(appId, { lastUsed: new Date().toISOString() });
         
         // Lancia l'app
-        window.open(app.url, '_blank');
-        
-        showToast(`Avviata: ${app.name}`, 'success');
+        if (app.type === 'url' && app.url) {
+          window.open(app.url, '_blank');
+          showToast(`Avviata: ${app.name}`, 'success');
+        } else if (app.type === 'html' && app.content) {
+          // Avvia app HTML in modale
+          setLaunchingApp(app);
+          setLaunchModalOpen(true);
+        } else {
+          showToast('Tipo di app non supportato', 'error');
+        }
       }
     } catch (error) {
       console.error('Errore avvio app:', error);
@@ -291,8 +300,8 @@ function AIdeasApp() {
 
   const handleAddApp = async (appData) => {
     try {
-      const newApp = await StorageService.addApp(appData);
-      setApps(prev => [...prev, newApp]);
+      const appId = await StorageService.installApp(appData);
+      await loadApps(); // Ricarica tutte le app
       setImporterOpen(false);
       showToast('Applicazione aggiunta con successo', 'success');
     } catch (error) {
@@ -551,6 +560,121 @@ function AIdeasApp() {
         onImport={() => {}}
         onReset={() => {}}
       />
+
+      {/* Modale per modificare app */}
+      {selectedApp && (
+        <Dialog
+          open={!!selectedApp}
+          onClose={() => setSelectedApp(null)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            Modifica App: {selectedApp.name}
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
+              <TextField
+                fullWidth
+                label="Nome"
+                value={selectedApp.name}
+                onChange={(e) => setSelectedApp({...selectedApp, name: e.target.value})}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                label="Descrizione"
+                value={selectedApp.description}
+                onChange={(e) => setSelectedApp({...selectedApp, description: e.target.value})}
+                multiline
+                rows={3}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                label="Categoria"
+                value={selectedApp.category}
+                onChange={(e) => setSelectedApp({...selectedApp, category: e.target.value})}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                label="URL"
+                value={selectedApp.url}
+                onChange={(e) => setSelectedApp({...selectedApp, url: e.target.value})}
+                sx={{ mb: 2 }}
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSelectedApp(null)}>
+              Annulla
+            </Button>
+            <Button 
+              onClick={async () => {
+                try {
+                  await StorageService.updateApp(selectedApp.id, selectedApp);
+                  await loadApps(); // Ricarica le app
+                  setSelectedApp(null);
+                } catch (error) {
+                  console.error('Errore aggiornamento app:', error);
+                }
+              }}
+              variant="contained"
+            >
+              Salva
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
+      {/* Modale per avvio app HTML */}
+      {launchingApp && (
+        <Dialog
+          open={launchModalOpen}
+          onClose={() => {
+            setLaunchModalOpen(false);
+            setLaunchingApp(null);
+          }}
+          maxWidth="lg"
+          fullWidth
+          sx={{
+            '& .MuiDialog-paper': {
+              height: '80vh'
+            }
+          }}
+        >
+          <DialogTitle>
+            {launchingApp.name}
+            <IconButton
+              aria-label="close"
+              onClick={() => {
+                setLaunchModalOpen(false);
+                setLaunchingApp(null);
+              }}
+              sx={{
+                position: 'absolute',
+                right: 8,
+                top: 8,
+                color: 'grey.500',
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ p: 0 }}>
+            <iframe
+              srcDoc={launchingApp.content}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none'
+              }}
+              title={launchingApp.name}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </Box>
   );
 }
@@ -569,20 +693,19 @@ function initializeAIdeasWithMaterialUI() {
   
   const appContainer = document.getElementById('app');
         console.log('📦 Container app trovato:', !!appContainer);
-      console.log('📦 Container app HTML:', appContainer?.outerHTML);
       
       if (appContainer) {
         // Rimuovi display: none dal container
         appContainer.style.display = '';
         console.log('🔧 Display none rimosso dal container');
         
-        // Svuota il container per permettere a React di renderizzare
-        appContainer.innerHTML = '';
-        console.log('🧹 Container svuotato per React');
+            // Svuota il container per permettere a React di renderizzare
+    appContainer.innerHTML = '';
+    // Rimuovi aria-hidden per evitare problemi di accessibilità
+    appContainer.removeAttribute('aria-hidden');
+    console.log('🧹 Container svuotato per React');
         
-        // Debug: verifica stile del container
-        console.log('🔍 Debug: Container style dopo pulizia:', appContainer.style.cssText);
-        console.log('🔍 Debug: Container class dopo pulizia:', appContainer.className);
+
     try {
       console.log('🌳 Creazione React root...');
       // Usa createRoot per React 18+
@@ -601,15 +724,10 @@ function initializeAIdeasWithMaterialUI() {
         </ThemeProvider>
       );
       
-      // Debug: verifica se React si è renderizzato
+      // Debug finale
       setTimeout(() => {
-        console.log('🔍 Debug: Container dopo render:', appContainer.innerHTML);
-        console.log('🔍 Debug: Container children:', appContainer.children.length);
-        console.log('🔍 Debug: Container visible:', appContainer.offsetHeight > 0);
-        console.log('🔍 Debug: Container computed style:', window.getComputedStyle(appContainer).display);
-        console.log('🔍 Debug: Body height:', document.body.offsetHeight);
-        console.log('🔍 Debug: HTML height:', document.documentElement.offsetHeight);
-      }, 500);
+        console.log('✅ Material UI inizializzato correttamente');
+      }, 100);
       
       console.log('✅ Material UI renderizzato con successo');
     } catch (error) {

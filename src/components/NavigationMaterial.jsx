@@ -284,10 +284,15 @@ const NavigationMaterial = ({
         position="fixed"
         elevation={0}
         sx={{
-          background: 'rgba(255, 255, 255, 0.9)',
+          background: mode === 'dark' 
+            ? 'rgba(15, 23, 42, 0.9)' 
+            : 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-          zIndex: theme.zIndex.drawer + 1
+          borderBottom: mode === 'dark' 
+            ? '1px solid rgba(255, 255, 255, 0.08)' 
+            : '1px solid rgba(0, 0, 0, 0.08)',
+          zIndex: theme.zIndex.drawer + 1,
+          color: mode === 'dark' ? '#f8fafc' : '#1e293b'
         }}
       >
         <Toolbar>
@@ -374,7 +379,8 @@ const NavigationMaterial = ({
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(20px)',
             borderRight: '1px solid rgba(0, 0, 0, 0.08)',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            mt: '64px' // Margine superiore per l'AppBar
           }
         }}
         open
