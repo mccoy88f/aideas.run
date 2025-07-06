@@ -336,13 +336,73 @@ function AIdeasApp() {
 
   const handleAddApp = async (appData) => {
     try {
-      const appId = await StorageService.installApp(appData);
+      let processedAppData = { ...appData };
+      
+      // Gestisci file ZIP
+      if (appData.type === 'zip' && appData.zipFile) {
+        console.log('📦 Processando file ZIP:', appData.zipFile.name);
+        
+        // Importa JSZip dinamicamente
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        
+        // Leggi il contenuto del ZIP
+        const contents = await zip.loadAsync(appData.zipFile);
+        
+        // Estrai tutti i file
+        const files = [];
+        let manifest = null;
+        
+        for (const [filename, fileObj] of Object.entries(contents.files)) {
+          if (fileObj.dir) continue;
+          
+          const content = await fileObj.async('text');
+          const fileData = {
+            filename,
+            content,
+            size: content.length,
+            mimeType: getMimeType(filename)
+          };
+          
+          files.push(fileData);
+          
+          // Cerca manifest AIdeas
+          if (filename === 'aideas.json') {
+            try {
+              manifest = JSON.parse(content);
+            } catch (e) {
+              console.warn('Manifest aideas.json non valido:', e);
+            }
+          }
+        }
+        
+        // Validazione: deve contenere almeno un file HTML
+        const hasHTML = files.some(f => f.filename.endsWith('.html'));
+        if (!hasHTML) {
+          throw new Error('Il file ZIP deve contenere almeno un file HTML');
+        }
+        
+        // Estrai metadati dal manifest o dai file
+        const metadata = extractZipMetadata(files, manifest);
+        
+        // Prepara i dati dell'app
+        processedAppData = {
+          ...appData,
+          ...metadata,
+          files: files,
+          manifest: manifest || {}
+        };
+        
+        console.log('✅ ZIP processato con successo:', files.length, 'file estratti');
+      }
+      
+      const appId = await StorageService.installApp(processedAppData);
       await loadApps(); // Ricarica tutte le app
       setImporterOpen(false);
       showToast('Applicazione aggiunta con successo', 'success');
     } catch (error) {
       console.error('Errore aggiunta app:', error);
-      showToast('Errore nell\'aggiunta dell\'applicazione', 'error');
+      showToast(`Errore nell'aggiunta dell'applicazione: ${error.message}`, 'error');
     }
   };
 
@@ -356,6 +416,51 @@ function AIdeasApp() {
       'altro': 'default'
     };
     return colors[category?.toLowerCase()] || 'default';
+  };
+
+  // Funzioni helper per gestione ZIP
+  const getMimeType = (filename) => {
+    const ext = filename.split('.').pop().toLowerCase();
+    const mimeTypes = {
+      'html': 'text/html',
+      'css': 'text/css',
+      'js': 'application/javascript',
+      'json': 'application/json',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'svg': 'image/svg+xml',
+      'ico': 'image/x-icon',
+      'txt': 'text/plain',
+      'md': 'text/markdown'
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
+  };
+
+  const extractZipMetadata = (files, manifest) => {
+    const metadata = {
+      name: manifest?.name || 'App Importata',
+      description: manifest?.description || '',
+      version: manifest?.version || '1.0.0',
+      category: manifest?.category || 'altro',
+      tags: manifest?.tags || [],
+      icon: manifest?.icon || null,
+      permissions: manifest?.permissions || []
+    };
+
+    // Cerca icona nei file se non specificata nel manifest
+    if (!metadata.icon) {
+      const iconFile = files.find(f => 
+        f.filename.match(/^(icon|logo|app-icon)\.(png|jpg|jpeg|svg)$/i)
+      );
+      if (iconFile) {
+        const blob = new Blob([iconFile.content], { type: iconFile.mimeType });
+        metadata.icon = URL.createObjectURL(blob);
+      }
+    }
+
+    return metadata;
   };
 
   const renderAppCard = (app) => (
@@ -648,9 +753,14 @@ function AIdeasApp() {
               spacing={3}
               sx={{
                 justifyContent: 'center',
+                width: '100%',
                 '& .MuiGrid-item': {
                   display: 'flex',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  width: 'auto'
+                },
+                '& .MuiGrid-root': {
+                  width: '100%'
                 }
               }}
             >
@@ -666,8 +776,8 @@ function AIdeasApp() {
                 sx={{
                   display: 'flex',
                   justifyContent: 'center',
-                  minWidth: { xs: '100%', sm: '280px', md: '320px', lg: '280px', xl: '240px' },
-                  maxWidth: { xs: '100%', sm: '400px', md: '400px', lg: '350px', xl: '300px' }
+                  width: { xs: '100%', sm: '320px', md: '360px', lg: '320px', xl: '280px' },
+                  flexShrink: 0
                 }}
               >
                 <AppCardMaterial
