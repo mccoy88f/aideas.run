@@ -547,12 +547,24 @@ function AIdeasApp() {
       {/* Main Content */}
       <Box component="main" sx={{ 
         flexGrow: 1, 
-        p: { xs: 2, sm: 4 }, 
         mt: '64px', 
         ml: { sm: drawerOpen ? '280px' : 0 },
-        transition: 'margin-left 0.3s ease'
+        transition: 'margin-left 0.3s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        minHeight: 'calc(100vh - 64px)'
       }}>
-        {/* Search Bar e Controlli - Layout fisso */}
+        {/* Container centrale con padding */}
+        <Box sx={{ 
+          width: '100%',
+          maxWidth: '1200px',
+          p: { xs: 2, sm: 4 },
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
+        }}>
+        {/* Search Bar e Controlli - Layout fisso e centrato */}
         <Box sx={{ 
           mb: 3, 
           display: 'flex', 
@@ -560,14 +572,24 @@ function AIdeasApp() {
           gap: 2,
           alignItems: 'center',
           width: '100%',
-          maxWidth: '100%'
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          backgroundColor: 'background.default',
+          py: 2,
+          borderRadius: 2
         }}>
-          {/* Barra di ricerca con larghezza fissa */}
+          {/* Barra di ricerca fissa e centrata */}
           <TextField
             sx={{ 
               width: '100%',
               maxWidth: 600,
-              minWidth: 300
+              minWidth: 300,
+              backgroundColor: 'background.paper',
+              borderRadius: 2,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2
+              }
             }}
             variant="outlined"
             placeholder="Cerca applicazioni..."
@@ -578,8 +600,16 @@ function AIdeasApp() {
             }}
           />
           
-          {/* Controlli vista centrati */}
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+          {/* Controlli vista centrati e fissi */}
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 1, 
+            justifyContent: 'center',
+            backgroundColor: 'background.paper',
+            borderRadius: 2,
+            px: 2,
+            py: 1
+          }}>
             <IconButton
               onClick={() => handleViewModeChange('grid')}
               color={currentViewMode === 'grid' ? 'primary' : 'default'}
@@ -604,9 +634,10 @@ function AIdeasApp() {
           </Box>
         </Box>
 
-        {/* Apps con visualizzazione condizionale */}
+        {/* Apps con visualizzazione condizionale - Sfrutta tutto lo spazio */}
         {currentViewMode === 'grid' && (
-          <Grid container spacing={3}>
+          <Box sx={{ width: '100%' }}>
+            <Grid container spacing={3}>
             {filteredApps.map(app => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={app.id}>
                 <AppCardMaterial
@@ -619,11 +650,12 @@ function AIdeasApp() {
                 />
               </Grid>
             ))}
-          </Grid>
+            </Grid>
+          </Box>
         )}
 
         {currentViewMode === 'list' && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {filteredApps.map(app => (
               <Card key={app.id} sx={{ display: 'flex', alignItems: 'center', p: 2 }}>
                 <Avatar 
@@ -691,6 +723,7 @@ function AIdeasApp() {
 
         {currentViewMode === 'compact' && (
           <Box sx={{ 
+            width: '100%',
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
             gap: 2,
@@ -836,7 +869,8 @@ function AIdeasApp() {
             </Typography>
           </Box>
         )}
-      </Box>
+        </Box> {/* Chiusura del container centrale */}
+      </Box> {/* Chiusura del main content */}
 
       {/* Floating Action Button */}
       <Fab
