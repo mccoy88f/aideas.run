@@ -59,7 +59,10 @@ export default function SyncManagerMaterial({ open, onClose }) {
   const [setupMode, setSetupMode] = useState(false);
   const [credentials, setCredentials] = useState({
     github: { token: '' },
-    googledrive: { clientId: '', clientSecret: '' }
+    googledrive: { 
+      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '', 
+      clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '' 
+    }
   });
 
   const [syncHistory, setSyncHistory] = useState([]);
@@ -159,7 +162,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
       setProgress({ show: false, value: 100, text: '' });
       
       if (isConnected) {
-        setSuccess('Connessione testata con successo!');
+        setSuccess(`Connessione ${provider} testata con successo!`);
         return true;
       } else {
         throw new Error('Connessione fallita');
@@ -482,6 +485,19 @@ export default function SyncManagerMaterial({ open, onClose }) {
                   <Typography variant="subtitle1" sx={{ mb: 2 }}>
                     Configurazione GitHub
                   </Typography>
+                  
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <Typography variant="body2">
+                      📝 Per utilizzare GitHub Gist, devi creare un Personal Access Token
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                      1. Vai su <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">GitHub Settings → Tokens</a><br/>
+                      2. Clicca "Generate new token (classic)"<br/>
+                      3. Seleziona lo scope "gist"<br/>
+                      4. Copia il token e incollalo qui sotto
+                    </Typography>
+                  </Alert>
+                  
                   <TextField
                     fullWidth
                     label="Personal Access Token"
@@ -489,15 +505,16 @@ export default function SyncManagerMaterial({ open, onClose }) {
                     value={credentials.github.token}
                     onChange={(e) => handleCredentialChange('github', 'token', e.target.value)}
                     placeholder="ghp_xxxxxxxxxxxx"
-                    helperText="Crea un token su GitHub Settings con scope 'gist'"
+                    helperText="Il token verrà salvato localmente in modo sicuro"
                     sx={{ mb: 2 }}
                   />
                   <Button
                     variant="outlined"
                     onClick={testConnection}
                     disabled={!credentials.github.token}
+                    startIcon={<GitHubIcon />}
                   >
-                    Test Connessione
+                    Test Connessione GitHub
                   </Button>
                 </Box>
               )}
@@ -508,29 +525,34 @@ export default function SyncManagerMaterial({ open, onClose }) {
                   <Typography variant="subtitle1" sx={{ mb: 2 }}>
                     Configurazione Google Drive
                   </Typography>
-                  <TextField
-                    fullWidth
-                    label="Client ID"
-                    value={credentials.googledrive.clientId}
-                    onChange={(e) => handleCredentialChange('googledrive', 'clientId', e.target.value)}
-                    placeholder="123456789-abcdef.apps.googleusercontent.com"
-                    sx={{ mb: 2 }}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Client Secret (opzionale)"
-                    type="password"
-                    value={credentials.googledrive.clientSecret}
-                    onChange={(e) => handleCredentialChange('googledrive', 'clientSecret', e.target.value)}
-                    placeholder="GOCSPX-xxxxxxxxxxxx"
-                    sx={{ mb: 2 }}
-                  />
+                  
+                  {credentials.googledrive.clientId ? (
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                      <Typography variant="body2">
+                        ✅ Credenziali Google Drive pre-configurate
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        Client ID configurato tramite variabili d'ambiente
+                      </Typography>
+                    </Alert>
+                  ) : (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      <Typography variant="body2">
+                        ⚠️ Credenziali Google Drive non configurate
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        Configura VITE_GOOGLE_CLIENT_ID nelle variabili d'ambiente
+                      </Typography>
+                    </Alert>
+                  )}
+                  
                   <Button
                     variant="outlined"
                     onClick={testConnection}
                     disabled={!credentials.googledrive.clientId}
+                    startIcon={<GoogleIcon />}
                   >
-                    Test Connessione
+                    Test Connessione Google Drive
                   </Button>
                 </Box>
               )}
@@ -539,7 +561,10 @@ export default function SyncManagerMaterial({ open, onClose }) {
                 <Button
                   variant="contained"
                   onClick={enableSync}
-                  disabled={!credentials[syncStatus.provider][syncStatus.provider === 'github' ? 'token' : 'clientId']}
+                  disabled={
+                    (syncStatus.provider === 'github' && !credentials.github.token) ||
+                    (syncStatus.provider === 'googledrive' && !credentials.googledrive.clientId)
+                  }
                 >
                   Abilita Sincronizzazione
                 </Button>
