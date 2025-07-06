@@ -552,20 +552,22 @@ function AIdeasApp() {
         ml: { sm: drawerOpen ? '280px' : 0 },
         transition: 'margin-left 0.3s ease'
       }}>
-        {/* Search Bar e Controlli */}
+        {/* Search Bar e Controlli - Layout fisso */}
         <Box sx={{ 
           mb: 3, 
           display: 'flex', 
           flexDirection: 'column',
           gap: 2,
-          alignItems: 'center'
+          alignItems: 'center',
+          width: '100%',
+          maxWidth: '100%'
         }}>
-          {/* Barra di ricerca centrata */}
+          {/* Barra di ricerca con larghezza fissa */}
           <TextField
             sx={{ 
               width: '100%',
-              maxWidth: { xs: '100%', sm: 600, md: 800 },
-              mx: 'auto'
+              maxWidth: 600,
+              minWidth: 300
             }}
             variant="outlined"
             placeholder="Cerca applicazioni..."
@@ -734,15 +736,36 @@ function AIdeasApp() {
                   sx={{
                     width: 56,
                     height: 56,
-                    background: app.favorite 
+                    background: app.icon ? 'transparent' : (app.favorite 
                       ? `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`
-                      : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                      : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`),
                     fontSize: '1.2rem',
                     fontWeight: 'bold',
-                    border: app.favorite ? `2px solid ${theme.palette.secondary.main}` : 'none'
+                    border: app.favorite ? `2px solid ${theme.palette.secondary.main}` : 'none',
+                    position: 'relative'
                   }}
                 >
-                  {app.name.charAt(0).toUpperCase()}
+                  {app.icon ? (
+                    <img 
+                      src={app.icon} 
+                      alt={app.name} 
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'cover',
+                        borderRadius: '50%'
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  {!app.icon && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                      {app.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                 </Avatar>
                 <Typography
                   variant="caption"

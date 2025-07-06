@@ -56,6 +56,48 @@ const AppCardMaterial = ({
       .slice(0, 2);
   };
 
+  const getAppIcon = (app) => {
+    if (app.icon) {
+      // Se è un'icona custom (base64, URL, etc.)
+      if (app.icon.startsWith('data:') || app.icon.startsWith('http')) {
+        return (
+          <img 
+            src={app.icon} 
+            alt={app.name} 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'cover',
+              borderRadius: '50%'
+            }}
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+        );
+      }
+      // Se è un'icona SVG inline
+      if (app.icon.includes('<svg')) {
+        return (
+          <div 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}
+            dangerouslySetInnerHTML={{ __html: app.icon }}
+          />
+        );
+      }
+    }
+
+    // Fallback: iniziali
+    return getInitials(app.name);
+  };
+
   const formatLastUsed = (lastUsed) => {
     if (!lastUsed) return null;
     
@@ -73,7 +115,7 @@ const AppCardMaterial = ({
   return (
     <Card
       sx={{
-        height: '100%',
+        height: 320, // Altezza fissa per tutte le card
         display: 'flex',
         flexDirection: 'column',
         transition: 'all 0.3s ease',
@@ -93,7 +135,7 @@ const AppCardMaterial = ({
         }
       }}
     >
-      <CardContent sx={{ flexGrow: 1, p: 3 }}>
+      <CardContent sx={{ flexGrow: 1, p: 3, display: 'flex', flexDirection: 'column' }}>
         {/* Header con avatar e titolo */}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
           <Avatar
@@ -101,13 +143,19 @@ const AppCardMaterial = ({
               width: 56,
               height: 56,
               mr: 2,
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+              background: app.icon ? 'transparent' : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
               fontSize: '1.2rem',
               fontWeight: 600,
-              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+              position: 'relative'
             }}
           >
-            {getInitials(app.name)}
+            {getAppIcon(app)}
+            {!app.icon && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                {getInitials(app.name)}
+              </div>
+            )}
           </Avatar>
           
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -186,8 +234,11 @@ const AppCardMaterial = ({
           )}
         </Box>
 
+        {/* Spacer per spingere le azioni in fondo */}
+        <Box sx={{ flexGrow: 1 }} />
+        
         {/* Informazioni aggiuntive */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto' }}>
           {app.lastUsed && (
             <Typography variant="caption" color="text.secondary">
               Ultimo uso: {formatLastUsed(app.lastUsed)}
