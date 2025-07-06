@@ -584,6 +584,10 @@ function initializeAIdeasWithMaterialUI() {
         // Rimuovi display: none dal container
         appContainer.style.display = '';
         console.log('🔧 Display none rimosso dal container');
+        
+        // Svuota il container per permettere a React di renderizzare
+        appContainer.innerHTML = '';
+        console.log('🧹 Container svuotato per React');
     try {
       console.log('🌳 Creazione React root...');
       // Usa createRoot per React 18+
