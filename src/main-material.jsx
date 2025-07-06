@@ -5,7 +5,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { ThemeProvider } from './theme/ThemeProvider.js';
+import { ThemeProvider } from './theme/ThemeProvider.jsx';
 import { 
   AppBar, 
   Toolbar, 
@@ -53,10 +53,10 @@ import {
 import StorageService from './services/StorageService.js';
 import { showToast, hideToast } from './utils/helpers.js';
 import { DEBUG, ErrorTracker } from './utils/debug.js';
-import AppCardMaterial from './components/AppCardMaterial.js';
-import AppImporterMaterial from './components/AppImporterMaterial.js';
-import NavigationMaterial from './components/NavigationMaterial.js';
-import SettingsMaterial from './components/SettingsMaterial.js';
+import AppCardMaterial from './components/AppCardMaterial.jsx';
+import AppImporterMaterial from './components/AppImporterMaterial.jsx';
+import NavigationMaterial from './components/NavigationMaterial.jsx';
+import SettingsMaterial from './components/SettingsMaterial.jsx';
 
 /**
  * Componente principale dell'applicazione AIdeas con Material UI
