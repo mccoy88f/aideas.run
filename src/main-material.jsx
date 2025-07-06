@@ -547,13 +547,14 @@ function AIdeasApp() {
       {/* Main Content */}
       <Box component="main" sx={{ 
         flexGrow: 1, 
-        mt: '64px', 
+        mt: { xs: '56px', sm: '64px' }, 
         ml: { sm: drawerOpen ? '280px' : 0 },
         transition: 'margin-left 0.3s ease',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        minHeight: 'calc(100vh - 64px)'
+        minHeight: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' },
+        width: { sm: drawerOpen ? 'calc(100vw - 280px)' : '100vw' }
       }}>
         {/* Container centrale con padding */}
         <Box sx={{ 
@@ -589,6 +590,11 @@ function AIdeasApp() {
               borderRadius: 2,
               '& .MuiOutlinedInput-root': {
                 borderRadius: 2
+              },
+              '& .MuiFormControl-root': {
+                width: '100%',
+                maxWidth: 600,
+                minWidth: 300
               }
             }}
             variant="outlined"

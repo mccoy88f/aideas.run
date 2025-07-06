@@ -309,8 +309,7 @@ const NavigationMaterial = ({
             <AppsIcon 
               sx={{ 
                 mr: 1, 
-                color: theme.palette.primary.main,
-                display: { xs: 'none', sm: 'block' }
+                color: theme.palette.primary.main
               }} 
             />
             <Typography
@@ -318,11 +317,20 @@ const NavigationMaterial = ({
               component="div"
               sx={{
                 color: theme.palette.primary.main,
-                fontWeight: 700,
-                display: { xs: 'none', sm: 'block' }
+                fontWeight: 700
               }}
             >
               AIdeas
+            </Typography>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                ml: 1, 
+                opacity: 0.7,
+                display: { xs: 'block', sm: 'none' }
+              }}
+            >
+              Gestore App
             </Typography>
           </Box>
 
@@ -362,7 +370,9 @@ const NavigationMaterial = ({
             width: drawerWidth,
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(20px)',
-            borderRight: '1px solid rgba(0, 0, 0, 0.08)'
+            borderRight: '1px solid rgba(0, 0, 0, 0.08)',
+            mt: '56px', // Margine superiore per l'AppBar su mobile
+            height: 'calc(100vh - 56px)' // Altezza corretta su mobile
           }
         }}
       >
@@ -390,15 +400,7 @@ const NavigationMaterial = ({
         {drawerContent}
       </Drawer>
 
-      {/* Spacer per il contenuto */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          ml: { sm: `${drawerWidth}px` },
-          mt: '64px' // Altezza dell'AppBar
-        }}
-      />
+
     </>
   );
 };
