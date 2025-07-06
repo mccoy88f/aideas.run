@@ -452,9 +452,16 @@ function AIdeasApp() {
   console.log('🎯 Loading state:', loading);
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', background: theme.palette.background.default }}>
-      <Typography variant="h4" sx={{ position: 'absolute', top: 10, left: 10, zIndex: 9999, color: 'red' }}>
-        DEBUG: Material UI Loaded - Apps: {apps.length}
+    <Box sx={{ 
+      display: 'flex', 
+      minHeight: '100vh', 
+      background: theme.palette.background.default,
+      border: '3px solid red',
+      position: 'relative',
+      zIndex: 1
+    }}>
+      <Typography variant="h4" sx={{ position: 'absolute', top: 10, left: 10, zIndex: 9999, color: 'red', backgroundColor: 'white', padding: 1 }}>
+        DEBUG: Material UI Loaded - Apps: {apps.length} - Loading: {loading.toString()}
       </Typography>
       
       {/* NavigationMaterial */}
@@ -571,6 +578,7 @@ function initializeAIdeasWithMaterialUI() {
   
   const appContainer = document.getElementById('app');
   console.log('📦 Container app trovato:', !!appContainer);
+  console.log('📦 Container app HTML:', appContainer?.outerHTML);
   
   if (appContainer) {
     try {
@@ -582,6 +590,13 @@ function initializeAIdeasWithMaterialUI() {
       window.aideasMaterialUIRoot = root;
       
       console.log('🎨 Rendering componente Material UI...');
+      
+      // Debug: verifica stile del container
+      console.log('📦 Container style:', appContainer.style.cssText);
+      console.log('📦 Container computed style:', window.getComputedStyle(appContainer));
+      console.log('📦 Body style:', document.body.style.cssText);
+      console.log('📦 HTML style:', document.documentElement.style.cssText);
+      
       root.render(
         <ThemeProvider>
           <AIdeasApp />
