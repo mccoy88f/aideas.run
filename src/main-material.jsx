@@ -46,7 +46,9 @@ import {
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
   Menu as MenuIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  List as ListIcon,
+  ViewList as ViewListIcon
 } from '@mui/icons-material';
 
 import StorageService from './services/StorageService.js';
@@ -431,6 +433,15 @@ function AIdeasApp() {
     }
   };
 
+  // Aggiorna modalità di visualizzazione
+  const handleViewModeChange = (newViewMode) => {
+    setCurrentViewMode(newViewMode);
+    // Salva nelle impostazioni
+    const updatedSettings = { ...settings, viewMode: newViewMode };
+    setSettings(updatedSettings);
+    StorageService.setAllSettings(updatedSettings);
+  };
+
   // Aggiorna tema
   const handleThemeToggle = () => {
     toggleTheme();
@@ -479,11 +490,17 @@ function AIdeasApp() {
       />
 
       {/* Main Content */}
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, sm: 4 }, mt: '64px', ml: { sm: '280px' } }}>
-        {/* Search Bar */}
-        <Box sx={{ mb: 3 }}>
+      <Box component="main" sx={{ 
+        flexGrow: 1, 
+        p: { xs: 2, sm: 4 }, 
+        mt: '64px', 
+        ml: { sm: drawerOpen ? '280px' : 0 },
+        transition: 'margin-left 0.3s ease'
+      }}>
+        {/* Search Bar e Controlli */}
+        <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField
-            fullWidth
+            sx={{ flexGrow: 1, minWidth: 200 }}
             variant="outlined"
             placeholder="Cerca applicazioni..."
             value={searchQuery}
@@ -492,23 +509,138 @@ function AIdeasApp() {
               startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
             }}
           />
+          
+          {/* Controlli vista */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <IconButton
+              onClick={() => handleViewModeChange('grid')}
+              color={currentViewMode === 'grid' ? 'primary' : 'default'}
+              title="Vista griglia"
+            >
+              <AppsIcon />
+            </IconButton>
+            <IconButton
+              onClick={() => handleViewModeChange('list')}
+              color={currentViewMode === 'list' ? 'primary' : 'default'}
+              title="Vista lista"
+            >
+              <ListIcon />
+            </IconButton>
+            <IconButton
+              onClick={() => handleViewModeChange('compact')}
+              color={currentViewMode === 'compact' ? 'primary' : 'default'}
+              title="Vista compatta"
+            >
+              <ViewListIcon />
+            </IconButton>
+          </Box>
         </Box>
 
-        {/* Apps Grid con AppCardMaterial */}
-        <Grid container spacing={3}>
-          {filteredApps.map(app => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={app.id}>
-              <AppCardMaterial
-                app={app}
-                onLaunch={handleLaunchApp}
-                onToggleFavorite={handleToggleFavorite}
-                onEdit={setSelectedApp}
-                onDelete={handleDeleteApp}
-                onShowMenu={() => {}}
+        {/* Apps con visualizzazione condizionale */}
+        {currentViewMode === 'grid' && (
+          <Grid container spacing={3}>
+            {filteredApps.map(app => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={app.id}>
+                <AppCardMaterial
+                  app={app}
+                  onLaunch={handleLaunchApp}
+                  onToggleFavorite={handleToggleFavorite}
+                  onEdit={setSelectedApp}
+                  onDelete={handleDeleteApp}
+                  onShowMenu={() => {}}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        )}
+
+        {currentViewMode === 'list' && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {filteredApps.map(app => (
+              <Card key={app.id} sx={{ display: 'flex', alignItems: 'center', p: 2 }}>
+                <Avatar 
+                  sx={{ 
+                    width: 48, 
+                    height: 48, 
+                    mr: 2,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`
+                  }}
+                >
+                  {app.name.charAt(0).toUpperCase()}
+                </Avatar>
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography variant="h6" component="h3">
+                    {app.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {app.description || 'Nessuna descrizione'}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                    <Chip 
+                      label={app.category || 'Altro'} 
+                      color={getCategoryColor(app.category)}
+                      size="small"
+                    />
+                    {app.favorite && (
+                      <Chip 
+                        icon={<FavoriteIcon />} 
+                        label="Preferita" 
+                        color="secondary" 
+                        size="small"
+                      />
+                    )}
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <IconButton
+                    onClick={() => handleLaunchApp(app.id)}
+                    color="primary"
+                  >
+                    <LaunchIcon />
+                  </IconButton>
+                  <IconButton
+                    onClick={() => handleToggleFavorite(app.id)}
+                    color={app.favorite ? 'secondary' : 'default'}
+                  >
+                    <FavoriteIcon />
+                  </IconButton>
+                  <IconButton
+                    onClick={() => setSelectedApp(app)}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDeleteApp(app.id)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+              </Card>
+            ))}
+          </Box>
+        )}
+
+        {currentViewMode === 'compact' && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {filteredApps.map(app => (
+              <Chip
+                key={app.id}
+                label={app.name}
+                onClick={() => handleLaunchApp(app.id)}
+                onDelete={() => handleDeleteApp(app.id)}
+                color={app.favorite ? 'secondary' : 'default'}
+                variant={app.favorite ? 'filled' : 'outlined'}
+                sx={{ 
+                  cursor: 'pointer',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover
+                  }
+                }}
               />
-            </Grid>
-          ))}
-        </Grid>
+            ))}
+          </Box>
+        )}
 
         {/* Empty State */}
         {filteredApps.length === 0 && (

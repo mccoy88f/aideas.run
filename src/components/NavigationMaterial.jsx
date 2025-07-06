@@ -300,7 +300,7 @@ const NavigationMaterial = ({
             edge="start"
             color="inherit"
             onClick={onDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+            sx={{ mr: 2 }}
           >
             <MenuIcon />
           </IconButton>
@@ -372,18 +372,20 @@ const NavigationMaterial = ({
       {/* Drawer per desktop */}
       <Drawer
         variant="permanent"
+        open={drawerOpen}
         sx={{
           display: { xs: 'none', sm: 'block' },
           '& .MuiDrawer-paper': {
-            width: drawerWidth,
+            width: drawerOpen ? drawerWidth : 0,
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(20px)',
             borderRight: '1px solid rgba(0, 0, 0, 0.08)',
             boxSizing: 'border-box',
-            mt: '64px' // Margine superiore per l'AppBar
+            mt: '64px', // Margine superiore per l'AppBar
+            transition: 'width 0.3s ease',
+            overflow: 'hidden'
           }
         }}
-        open
       >
         {drawerContent}
       </Drawer>

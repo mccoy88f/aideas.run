@@ -57,6 +57,8 @@ const AppImporterMaterial = ({
   const [error, setError] = useState('');
   const [htmlContent, setHtmlContent] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadedZip, setUploadedZip] = useState(null);
 
   const steps = [
     {
@@ -89,6 +91,20 @@ const AppImporterMaterial = ({
       color: 'secondary'
     },
     {
+      id: 'file',
+      title: 'Carica file HTML',
+      description: 'Carica un file HTML direttamente',
+      icon: <CodeIcon />,
+      color: 'info'
+    },
+    {
+      id: 'zip',
+      title: 'Carica ZIP',
+      description: 'Carica un file ZIP con HTML, CSS, JS',
+      icon: <CodeIcon />,
+      color: 'warning'
+    },
+    {
       id: 'github',
       title: 'Importa da GitHub',
       description: 'Importa un\'app da un repository GitHub',
@@ -113,8 +129,34 @@ const AppImporterMaterial = ({
     }
     
     if (activeStep === 1) {
-      if (!formData.name.trim() || !formData.url.trim()) {
-        setError('Nome e URL sono obbligatori');
+      if (!formData.name.trim()) {
+        setError('Il nome è obbligatorio');
+        return;
+      }
+      
+      // Validazione specifica per tipo
+      if (importType === 'url' && !formData.url.trim()) {
+        setError('URL è obbligatorio per importazione da URL');
+        return;
+      }
+      
+      if (importType === 'html' && !htmlContent.trim()) {
+        setError('Il contenuto HTML è obbligatorio');
+        return;
+      }
+      
+      if (importType === 'file' && !uploadedFile) {
+        setError('Devi caricare un file HTML');
+        return;
+      }
+      
+      if (importType === 'zip' && !uploadedZip) {
+        setError('Devi caricare un file ZIP');
+        return;
+      }
+      
+      if (importType === 'github' && !githubUrl.trim()) {
+        setError('URL GitHub è obbligatorio');
         return;
       }
     }
@@ -140,6 +182,8 @@ const AppImporterMaterial = ({
     });
     setHtmlContent('');
     setGithubUrl('');
+    setUploadedFile(null);
+    setUploadedZip(null);
     setError('');
   };
 
@@ -153,8 +197,18 @@ const AppImporterMaterial = ({
       // Gestisci i diversi tipi di importazione
       switch (importType) {
         case 'html':
-          appData.url = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
+          appData.content = htmlContent;
           appData.type = 'html';
+          break;
+        case 'file':
+          appData.content = htmlContent;
+          appData.type = 'html';
+          appData.filename = uploadedFile.name;
+          break;
+        case 'zip':
+          appData.type = 'zip';
+          appData.zipFile = uploadedZip;
+          appData.filename = uploadedZip.name;
           break;
         case 'github':
           appData.url = githubUrl;
@@ -197,6 +251,33 @@ const AppImporterMaterial = ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
+  };
+
+  const handleFileUpload = (event, type) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (type === 'html') {
+      if (!file.name.endsWith('.html')) {
+        setError('Devi caricare un file HTML');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setHtmlContent(e.target.result);
+        setUploadedFile(file);
+        setError('');
+      };
+      reader.readAsText(file);
+    } else if (type === 'zip') {
+      if (!file.name.endsWith('.zip')) {
+        setError('Devi caricare un file ZIP');
+        return;
+      }
+      setUploadedZip(file);
+      setError('');
+    }
   };
 
   const renderStepContent = () => {
@@ -289,6 +370,69 @@ const AppImporterMaterial = ({
                   variant="outlined"
                   placeholder="<html><body><h1>La mia app</h1></body></html>"
                 />
+              )}
+              
+              {importType === 'file' && (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Carica file HTML
+                  </Typography>
+                  <input
+                    accept=".html"
+                    style={{ display: 'none' }}
+                    id="html-file-upload"
+                    type="file"
+                    onChange={(e) => handleFileUpload(e, 'html')}
+                  />
+                  <label htmlFor="html-file-upload">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      fullWidth
+                      sx={{ mb: 1 }}
+                    >
+                      Scegli file HTML
+                    </Button>
+                  </label>
+                  {uploadedFile && (
+                    <Typography variant="body2" color="success.main">
+                      ✓ File caricato: {uploadedFile.name}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+              
+              {importType === 'zip' && (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Carica file ZIP
+                  </Typography>
+                  <input
+                    accept=".zip"
+                    style={{ display: 'none' }}
+                    id="zip-file-upload"
+                    type="file"
+                    onChange={(e) => handleFileUpload(e, 'zip')}
+                  />
+                  <label htmlFor="zip-file-upload">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      fullWidth
+                      sx={{ mb: 1 }}
+                    >
+                      Scegli file ZIP
+                    </Button>
+                  </label>
+                  {uploadedZip && (
+                    <Typography variant="body2" color="success.main">
+                      ✓ File caricato: {uploadedZip.name}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    Il file ZIP deve contenere un index.html nella root
+                  </Typography>
+                </Box>
               )}
               
               {importType === 'github' && (
