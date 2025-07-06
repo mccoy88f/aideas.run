@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import StorageService from '../services/StorageService.js';
+import { showToast } from '../utils/helpers.js';
 import {
   Dialog,
   DialogTitle,
@@ -122,6 +124,92 @@ const SettingsMaterial = ({
     setLocalSettings(settings);
     setHasChanges(false);
     onClose();
+  };
+
+  const handleExportData = async () => {
+    try {
+      const data = {
+        settings: localSettings,
+        apps: await StorageService.getAllApps(),
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `aideas-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      showToast('Backup esportato con successo', 'success');
+    } catch (error) {
+      console.error('Errore export dati:', error);
+      showToast('Errore durante l\'esportazione', 'error');
+    }
+  };
+
+  const handleImportData = async (event) => {
+    try {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          
+          // Validazione dati
+          if (!data.settings || !data.apps) {
+            throw new Error('Formato file non valido');
+          }
+          
+          // Importa impostazioni
+          await StorageService.setAllSettings(data.settings);
+          
+          // Importa app
+          for (const app of data.apps) {
+            await StorageService.installApp(app);
+          }
+          
+          showToast('Dati importati con successo', 'success');
+          
+          // Ricarica le impostazioni
+          setLocalSettings(data.settings);
+          
+        } catch (error) {
+          console.error('Errore import dati:', error);
+          showToast('Errore durante l\'importazione', 'error');
+        }
+      };
+      reader.readAsText(file);
+    } catch (error) {
+      console.error('Errore lettura file:', error);
+      showToast('Errore durante la lettura del file', 'error');
+    }
+  };
+
+  const handleResetSettings = async () => {
+    try {
+      // Reset impostazioni
+      await StorageService.setAllSettings({});
+      
+      // Reset app (opzionale - chiedi conferma)
+      const confirmed = window.confirm('Vuoi anche eliminare tutte le app?');
+      if (confirmed) {
+        await StorageService.clearAllApps();
+      }
+      
+      showToast('Impostazioni ripristinate', 'success');
+      setLocalSettings({});
+      
+    } catch (error) {
+      console.error('Errore reset impostazioni:', error);
+      showToast('Errore durante il reset', 'error');
+    }
   };
 
   const renderGeneralSettings = () => (
@@ -256,8 +344,8 @@ const SettingsMaterial = ({
           <FormControlLabel
             control={
               <Switch
-                checked={localSettings.animations || true}
-                onChange={(e) => handleSettingChange('animations', e.target.checked)}
+                checked={localSettings.enableAnimations !== false}
+                onChange={(e) => handleSettingChange('enableAnimations', e.target.checked)}
               />
             }
             label="Animazioni"
@@ -273,6 +361,18 @@ const SettingsMaterial = ({
               />
             }
             label="Effetto glossy"
+          />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={localSettings.enableDebugMode || false}
+                onChange={(e) => handleSettingChange('enableDebugMode', e.target.checked)}
+              />
+            }
+            label="Modalità debug"
           />
         </Grid>
       </Grid>
@@ -352,20 +452,37 @@ const SettingsMaterial = ({
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Salva i tuoi dati localmente per backup e ripristino
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Button
                 variant="outlined"
                 startIcon={<CloudDownloadIcon />}
-                onClick={() => onExport?.()}
+                onClick={handleExportData}
               >
                 Esporta Dati
               </Button>
+              <input
+                accept=".json"
+                style={{ display: 'none' }}
+                id="import-data-input"
+                type="file"
+                onChange={handleImportData}
+              />
+              <label htmlFor="import-data-input">
+                <Button
+                  variant="outlined"
+                  startIcon={<CloudUploadIcon />}
+                  component="span"
+                >
+                  Importa Dati
+                </Button>
+              </label>
               <Button
                 variant="outlined"
-                startIcon={<CloudUploadIcon />}
-                onClick={() => onImport?.()}
+                color="error"
+                startIcon={<RestoreIcon />}
+                onClick={handleResetSettings}
               >
-                Importa Dati
+                Reset Impostazioni
               </Button>
             </Box>
           </Paper>
@@ -429,17 +546,7 @@ const SettingsMaterial = ({
           />
         </Grid>
         
-        <Grid item xs={12}>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={() => onReset?.()}
-            fullWidth
-          >
-            Reset Impostazioni
-          </Button>
-        </Grid>
+
       </Grid>
     </Box>
   );

@@ -93,6 +93,38 @@ function AIdeasApp() {
     filterApps();
   }, [searchQuery, currentView, apps]);
 
+  // Keyboard shortcuts
+  React.useEffect(() => {
+    const handleKeyboardShortcuts = (e) => {
+      // Ctrl/Cmd + K per focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="Cerca"]');
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }
+      
+      // Ctrl/Cmd + N per nuova app
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        setImporterOpen(true);
+      }
+      
+      // Escape per chiudere modals
+      if (e.key === 'Escape') {
+        setImporterOpen(false);
+        setSettingsDialogOpen(false);
+        setSelectedApp(null);
+        setLaunchModalOpen(false);
+        setLaunchingApp(null);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+    return () => document.removeEventListener('keydown', handleKeyboardShortcuts);
+  }, []);
+
   const initializeApp = async () => {
     try {
       console.log('🚀 Inizializzazione AIdeas con Material UI...');
