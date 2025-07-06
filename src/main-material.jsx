@@ -745,39 +745,30 @@ function AIdeasApp() {
           </Box>
         </Box>
 
-        {/* Apps con visualizzazione condizionale - Sfrutta tutto lo spazio */}
+        {/* Apps con visualizzazione condizionale - Griglia vera come vanilla */}
         {currentViewMode === 'grid' && (
           <Box sx={{ width: '100%' }}>
-            <Grid 
-              container 
-              spacing={{ xs: 2, sm: 3, md: 3, lg: 3 }}
+            <Box
               sx={{
-                justifyContent: 'center',
-                width: '100%',
-                '& .MuiGrid-item': {
-                  display: 'flex',
-                  justifyContent: 'center',
-                  width: '100%'
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  sm: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  md: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  lg: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  xl: 'repeat(auto-fill, minmax(320px, 1fr))'
                 },
-                '& .MuiGrid-root': {
-                  width: '100%'
-                }
+                gap: { xs: 2, sm: 3, md: 3, lg: 3 },
+                width: '100%'
               }}
             >
             {filteredApps.map(app => (
-              <Grid 
-                item 
-                xs={12} 
-                sm={6} 
-                md={4} 
-                lg={4} 
-                xl={4}
+              <Box
                 key={app.id}
                 sx={{
                   display: 'flex',
                   justifyContent: 'center',
-                  width: '100%',
-                  flexShrink: 0
+                  width: '100%'
                 }}
               >
                 <AppCardMaterial
@@ -788,9 +779,9 @@ function AIdeasApp() {
                   onDelete={handleDeleteApp}
                   onShowMenu={() => {}}
                 />
-              </Grid>
+              </Box>
             ))}
-            </Grid>
+            </Box>
           </Box>
         )}
 
