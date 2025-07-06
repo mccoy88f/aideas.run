@@ -491,7 +491,8 @@ function initializeAIdeasWithMaterialUI() {
   }
 }
 
-// Esporta per uso esterno
+// Esporta per uso esterno (sia ES6 che window)
+export { initializeAIdeasWithMaterialUI };
 window.initializeAIdeasWithMaterialUI = initializeAIdeasWithMaterialUI;
 
 // Auto-inizializzazione se il DOM è pronto
