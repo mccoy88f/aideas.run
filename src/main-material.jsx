@@ -479,11 +479,12 @@ function initializeAIdeasWithMaterialUI() {
   const appContainer = document.getElementById('app');
   
   if (appContainer) {
-    ReactDOM.render(
+    // Usa createRoot per React 18+
+    const root = ReactDOM.createRoot(appContainer);
+    root.render(
       <ThemeProvider>
         <AIdeasApp />
-      </ThemeProvider>,
-      appContainer
+      </ThemeProvider>
     );
   } else {
     console.error('Container #app non trovato');
