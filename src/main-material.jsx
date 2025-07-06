@@ -136,36 +136,39 @@ function AIdeasApp() {
           // Importa le app di default dal file di configurazione
           const defaultApps = [
             {
-              id: 'google',
               name: 'Google',
+              description: 'Motore di ricerca Google',
               url: 'https://www.google.com',
               icon: 'https://www.google.com/favicon.ico',
               category: 'Search',
+              type: 'url',
               favorite: true,
-              lastUsed: Date.now()
+              tags: ['search', 'web']
             },
             {
-              id: 'github',
               name: 'GitHub',
+              description: 'Piattaforma di sviluppo software',
               url: 'https://github.com',
               icon: 'https://github.com/favicon.ico',
               category: 'Development',
+              type: 'url',
               favorite: true,
-              lastUsed: Date.now()
+              tags: ['development', 'code', 'git']
             },
             {
-              id: 'stackoverflow',
               name: 'Stack Overflow',
+              description: 'Community di programmatori',
               url: 'https://stackoverflow.com',
               icon: 'https://stackoverflow.com/favicon.ico',
               category: 'Development',
+              type: 'url',
               favorite: false,
-              lastUsed: Date.now()
+              tags: ['development', 'qa', 'help']
             }
           ];
           
           for (const app of defaultApps) {
-            await StorageService.addApp(app);
+            await StorageService.installApp(app);
           }
           
           console.log('📱 App di default importate');
