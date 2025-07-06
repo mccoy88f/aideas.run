@@ -96,14 +96,18 @@ function AIdeasApp() {
       console.log('🚀 Inizializzazione AIdeas con Material UI...');
       
       // Inizializza debug
+      console.log('🔧 Inizializzazione ErrorTracker...');
       ErrorTracker.init();
       
       // Carica apps
+      console.log('📱 Caricamento apps...');
       await loadApps();
       
       // Carica impostazioni
+      console.log('⚙️ Caricamento impostazioni...');
       await loadUserSettings();
       
+      console.log('🎯 Impostazione loading a false...');
       setLoading(false);
       console.log('✅ AIdeas inizializzato con successo');
       
@@ -476,18 +480,32 @@ function AIdeasApp() {
  * Inizializza l'applicazione con Material UI
  */
 function initializeAIdeasWithMaterialUI() {
+  console.log('🎯 Inizializzazione Material UI iniziata...');
+  
   const appContainer = document.getElementById('app');
+  console.log('📦 Container app trovato:', !!appContainer);
   
   if (appContainer) {
-    // Usa createRoot per React 18+
-    const root = createRoot(appContainer);
-    root.render(
-      <ThemeProvider>
-        <AIdeasApp />
-      </ThemeProvider>
-    );
+    try {
+      console.log('🌳 Creazione React root...');
+      // Usa createRoot per React 18+
+      const root = createRoot(appContainer);
+      
+      console.log('🎨 Rendering componente Material UI...');
+      root.render(
+        <ThemeProvider>
+          <AIdeasApp />
+        </ThemeProvider>
+      );
+      
+      console.log('✅ Material UI renderizzato con successo');
+    } catch (error) {
+      console.error('❌ Errore durante il rendering Material UI:', error);
+      throw error;
+    }
   } else {
     console.error('Container #app non trovato');
+    throw new Error('Container #app non trovato');
   }
 }
 

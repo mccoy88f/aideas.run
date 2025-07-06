@@ -166,10 +166,14 @@ class UILoader {
     }, 10000);
 
     try {
+      console.log('📦 Importazione modulo Material UI...');
       // Carica il modulo Material UI
       const { initializeAIdeasWithMaterialUI } = await import('./main-material.jsx');
       
+      console.log('🔧 Funzione di inizializzazione ottenuta:', typeof initializeAIdeasWithMaterialUI);
+      
       // Inizializza l'app
+      console.log('🚀 Avvio inizializzazione Material UI...');
       initializeAIdeasWithMaterialUI();
       
       // Cancella timeout
@@ -179,6 +183,7 @@ class UILoader {
       
     } catch (error) {
       clearTimeout(this.loadingTimeout);
+      console.error('❌ Errore durante caricamento Material UI:', error);
       throw error;
     }
   }
