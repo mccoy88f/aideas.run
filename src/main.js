@@ -1369,20 +1369,6 @@ class AIdeasApp {
   }
 }
 
-/**
- * Bootstrap dell'applicazione
- */
-document.addEventListener('DOMContentLoaded', async () => {
-  // Inizializza app
-  const app = new AIdeasApp();
-  
-  // Rendi globale per debugging
-  window.aideasApp = app;
-  
-  // Avvia applicazione
-  await app.init();
-});
-
 // Gestione errori globali
 window.addEventListener('error', (e) => {
   console.error('Errore globale:', e.error);

@@ -28,19 +28,20 @@ export default class SettingsPanel {
       language: 'it',
       theme: 'auto', // 'light', 'dark', 'auto'
       
+      // UI/UX
+      uiMode: 'auto', // 'vanilla', 'material', 'auto' - nuova impostazione
+      viewMode: 'grid', // 'grid', 'list'
+      sortBy: 'lastUsed', // 'lastUsed', 'name', 'installDate', 'category'
+      showWelcomeMessage: true,
+      enableAnimations: true,
+      compactMode: false,
+      
       // Launcher
       defaultLaunchMode: 'newpage', // Cambiato da 'iframe' a 'newpage' per evitare problemi di sicurezza
       maxConcurrentApps: 5,
       showAppTooltips: true,
       enableKeyboardShortcuts: true,
       autoUpdateApps: false,
-      
-      // UI/UX
-      viewMode: 'grid', // 'grid', 'list'
-      sortBy: 'lastUsed', // 'lastUsed', 'name', 'installDate', 'category'
-      showWelcomeMessage: true,
-      enableAnimations: true,
-      compactMode: false,
       
       // Sync & Backup
       syncEnabled: false,
@@ -133,7 +134,8 @@ export default class SettingsPanel {
       maxConcurrentApps: { min: 1, max: 10, default: 5 },
       autoSyncInterval: { min: 5, max: 1440, default: 60 },
       language: { valid: ['it', 'en'], default: 'it' },
-      theme: { valid: ['light', 'dark', 'auto'], default: 'auto' }
+      theme: { valid: ['light', 'dark', 'auto'], default: 'auto' },
+      uiMode: { valid: ['vanilla', 'material', 'auto'], default: 'auto' }
     };
     
     for (const [key, validation] of Object.entries(criticalSettings)) {
@@ -327,6 +329,16 @@ export default class SettingsPanel {
                 </div>
                 
                 <div class="setting-item">
+                  <label for="setting-uiMode">Interfaccia Utente</label>
+                  <select id="setting-uiMode" class="form-input">
+                    <option value="auto">Automatico (rileva e fallback)</option>
+                    <option value="vanilla">Vanilla (classica)</option>
+                    <option value="material">Material UI (moderna)</option>
+                  </select>
+                  <p class="setting-description">Tipo di interfaccia da utilizzare</p>
+                </div>
+                
+                <div class="setting-item">
                   <label for="setting-theme">Tema</label>
                   <select id="setting-theme" class="form-input">
                     <option value="auto">Automatico (segue sistema)</option>
@@ -517,6 +529,13 @@ export default class SettingsPanel {
                 <h4>Gestione Dati</h4>
                 
                 <div class="setting-actions">
+                  <button class="btn btn-primary" id="test-ui-change-btn">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31L23.31,12L20,8.69Z"/>
+                    </svg>
+                    Testa Cambio UI
+                  </button>
+                  
                   <button class="btn btn-secondary" id="export-settings-btn">
                     <svg viewBox="0 0 24 24" fill="currentColor">
                       <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
@@ -796,6 +815,10 @@ export default class SettingsPanel {
       this.clearAllData();
     });
 
+    modal.querySelector('#test-ui-change-btn')?.addEventListener('click', () => {
+      this.testUIChange();
+    });
+
     // Modal actions
     modal.querySelector('#cancel-settings')?.addEventListener('click', () => {
       hideModal('settings-modal');
@@ -867,6 +890,7 @@ export default class SettingsPanel {
     const fieldMapping = {
       'language': 'setting-language',
       'theme': 'setting-theme',
+      'uiMode': 'setting-uiMode',
       'showWelcomeMessage': 'setting-showWelcomeMessage',
       'enableKeyboardShortcuts': 'setting-enableKeyboardShortcuts',
       'defaultLaunchMode': 'setting-defaultLaunchMode',
@@ -970,6 +994,7 @@ export default class SettingsPanel {
     const fieldMapping = {
       'setting-language': 'language',
       'setting-theme': 'theme',
+      'setting-uiMode': 'uiMode',
       'setting-showWelcomeMessage': 'showWelcomeMessage',
       'setting-enableKeyboardShortcuts': 'enableKeyboardShortcuts',
       'setting-defaultLaunchMode': 'defaultLaunchMode',
@@ -1366,6 +1391,7 @@ export default class SettingsPanel {
     const reloadSettings = [
       'language',
       'theme',
+      'uiMode',
       'enableServiceWorker',
       'cacheStrategy'
     ];
@@ -1391,5 +1417,57 @@ export default class SettingsPanel {
     this.currentSettings[key] = value;
     await StorageService.setSetting(key, value);
     this.applySettings();
+  }
+
+  /**
+   * Testa il cambio di interfaccia
+   */
+  async testUIChange() {
+    try {
+      const currentMode = this.currentSettings.uiMode || 'auto';
+      let newMode;
+      
+      // Cicla tra le modalità
+      switch (currentMode) {
+        case 'auto':
+          newMode = 'material';
+          break;
+        case 'material':
+          newMode = 'vanilla';
+          break;
+        case 'vanilla':
+          newMode = 'auto';
+          break;
+        default:
+          newMode = 'auto';
+      }
+      
+      // Salva nuova modalità
+      await this.setSetting('uiMode', newMode);
+      
+      // Mostra conferma
+      const confirmed = await showConfirmPopup({
+        title: 'Cambio Interfaccia',
+        message: `Passaggio da ${currentMode} a ${newMode}. La pagina verrà ricaricata. Continuare?`,
+        icon: 'info',
+        confirmText: 'Cambia',
+        cancelText: 'Annulla',
+        type: 'default'
+      });
+      
+      if (confirmed) {
+        showToast(`Cambio interfaccia a ${newMode}...`, 'info');
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
+        // Ripristina modalità precedente
+        await this.setSetting('uiMode', currentMode);
+      }
+      
+    } catch (error) {
+      console.error('Errore test cambio UI:', error);
+      showToast('Errore durante il test del cambio interfaccia', 'error');
+    }
   }
 }
