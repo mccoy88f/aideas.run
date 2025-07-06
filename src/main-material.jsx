@@ -128,8 +128,58 @@ function AIdeasApp() {
       console.log('📱 Inizio caricamento apps...');
       const appsData = await StorageService.getAllApps();
       console.log('📱 Apps caricate:', appsData.length, appsData);
-      setApps(appsData);
-      setFilteredApps(appsData);
+      
+      // Se non ci sono app, importa quelle di default
+      if (appsData.length === 0) {
+        console.log('📱 Database vuoto, importazione app di default...');
+        try {
+          // Importa le app di default dal file di configurazione
+          const defaultApps = [
+            {
+              id: 'google',
+              name: 'Google',
+              url: 'https://www.google.com',
+              icon: 'https://www.google.com/favicon.ico',
+              category: 'Search',
+              favorite: true,
+              lastUsed: Date.now()
+            },
+            {
+              id: 'github',
+              name: 'GitHub',
+              url: 'https://github.com',
+              icon: 'https://github.com/favicon.ico',
+              category: 'Development',
+              favorite: true,
+              lastUsed: Date.now()
+            },
+            {
+              id: 'stackoverflow',
+              name: 'Stack Overflow',
+              url: 'https://stackoverflow.com',
+              icon: 'https://stackoverflow.com/favicon.ico',
+              category: 'Development',
+              favorite: false,
+              lastUsed: Date.now()
+            }
+          ];
+          
+          for (const app of defaultApps) {
+            await StorageService.addApp(app);
+          }
+          
+          console.log('📱 App di default importate');
+          const updatedApps = await StorageService.getAllApps();
+          setApps(updatedApps);
+          setFilteredApps(updatedApps);
+        } catch (importError) {
+          console.error('Errore importazione app di default:', importError);
+        }
+      } else {
+        setApps(appsData);
+        setFilteredApps(appsData);
+      }
+      
       console.log('📱 State apps aggiornato');
     } catch (error) {
       console.error('Errore caricamento apps:', error);
@@ -394,7 +444,7 @@ function AIdeasApp() {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', background: theme.palette.background.default }}>
       <Typography variant="h4" sx={{ position: 'absolute', top: 10, left: 10, zIndex: 9999, color: 'red' }}>
-        DEBUG: Material UI Loaded
+        DEBUG: Material UI Loaded - Apps: {apps.length}
       </Typography>
       
       {/* NavigationMaterial */}
