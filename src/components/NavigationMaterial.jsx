@@ -44,6 +44,7 @@ const NavigationMaterial = ({
   onDrawerToggle,
   onSettingsOpen,
   onThemeToggle,
+  onSyncManagerOpen,
   currentView,
   onViewChange,
   favoriteCount = 0,
@@ -221,7 +222,7 @@ const NavigationMaterial = ({
             <ListItemButton
               onClick={() => {
                 if (item.id === 'sync') {
-                  // Gestisci sincronizzazione
+                  onSyncManagerOpen();
                 } else if (item.id === 'help') {
                   // Gestisci aiuto
                 } else if (item.id === 'about') {
@@ -337,6 +338,14 @@ const NavigationMaterial = ({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <IconButton color="inherit">
               <SearchIcon />
+            </IconButton>
+            
+            <IconButton
+              color="inherit"
+              onClick={onSyncManagerOpen}
+              title="Sincronizzazione"
+            >
+              <CloudSyncIcon />
             </IconButton>
             
             <IconButton

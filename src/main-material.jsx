@@ -58,6 +58,7 @@ import AppCardMaterial from './components/AppCardMaterial.jsx';
 import AppImporterMaterial from './components/AppImporterMaterial.jsx';
 import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
+import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
 
 /**
  * Componente principale dell'applicazione AIdeas con Material UI
@@ -84,6 +85,7 @@ function AIdeasApp() {
   const [launchingApp, setLaunchingApp] = React.useState(null);
   const [longPressTimer, setLongPressTimer] = React.useState(null);
   const [longPressApp, setLongPressApp] = React.useState(null);
+  const [syncManagerOpen, setSyncManagerOpen] = React.useState(false);
 
   // Inizializzazione
   React.useEffect(() => {
@@ -640,6 +642,7 @@ function AIdeasApp() {
         drawerOpen={drawerOpen}
         onDrawerToggle={() => setDrawerOpen((open) => !open)}
         onSettingsOpen={() => setSettingsDialogOpen(true)}
+        onSyncManagerOpen={() => setSyncManagerOpen(true)}
         onThemeToggle={handleThemeToggle}
         currentView={currentView}
         onViewChange={handleViewChange}
@@ -1150,6 +1153,12 @@ function AIdeasApp() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* SyncManagerMaterial */}
+      <SyncManagerMaterial
+        open={syncManagerOpen}
+        onClose={() => setSyncManagerOpen(false)}
+      />
     </Box>
   );
 }
