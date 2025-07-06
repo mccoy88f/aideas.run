@@ -41,7 +41,8 @@ import {
   Warning as WarningIcon,
   Info as InfoIcon,
   History as HistoryIcon,
-  Security as SecurityIcon
+  Security as SecurityIcon,
+  Login as LoginIcon
 } from '@mui/icons-material';
 import GitHubService from '../services/GitHubService.js';
 import GoogleDriveService from '../services/GoogleDriveService.js';
@@ -69,6 +70,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
   const [progress, setProgress] = useState({ show: false, value: 0, text: '' });
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [gistId, setGistId] = useState(null);
 
   const [githubService] = useState(new GitHubService());
   const [googleService] = useState(new GoogleDriveService());
@@ -86,6 +88,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
       const provider = await StorageService.getSetting('syncProvider', 'github');
       const lastSync = await StorageService.getSetting('lastSyncTime', null);
       const autoSync = await StorageService.getSetting('autoSyncEnabled', false);
+      const savedGistId = await StorageService.getSetting('githubGistId', null);
 
       setSyncStatus({
         isEnabled,
@@ -94,6 +97,8 @@ export default function SyncManagerMaterial({ open, onClose }) {
         isInProgress: false,
         autoSync
       });
+
+      setGistId(savedGistId);
 
       // Carica credenziali salvate
       await loadCredentials();
@@ -136,6 +141,32 @@ export default function SyncManagerMaterial({ open, onClose }) {
         [field]: value
       }
     }));
+  };
+
+  const authenticateGoogleDrive = async () => {
+    try {
+      setProgress({ show: true, value: 0, text: 'Autenticazione Google Drive...' });
+      
+      const clientId = credentials.googledrive.clientId;
+      if (!clientId) throw new Error('Client ID Google richiesto');
+      
+      googleService.configure(clientId, credentials.googledrive.clientSecret);
+      
+      const result = await googleService.authenticate(true); // Usa popup
+      
+      if (result.success) {
+        setProgress({ show: false, value: 100, text: '' });
+        setSuccess(`Autenticazione Google Drive completata! Benvenuto ${result.user.name}`);
+        return true;
+      } else {
+        throw new Error('Autenticazione fallita');
+      }
+    } catch (error) {
+      console.error('Errore autenticazione Google:', error);
+      setError(`Errore autenticazione Google: ${error.message}`);
+      setProgress({ show: false, value: 0, text: '' });
+      return false;
+    }
   };
 
   const testConnection = async () => {
@@ -257,8 +288,29 @@ export default function SyncManagerMaterial({ open, onClose }) {
     
     if (direction === 'upload' || direction === 'bidirectional') {
       const data = await StorageService.exportAllData();
-      const result = await githubService.uploadSyncData(data);
+      const result = await githubService.uploadSyncData(data, gistId);
+      
+      // Salva Gist ID per future sincronizzazioni
+      if (result.gistId && result.gistId !== gistId) {
+        setGistId(result.gistId);
+        await StorageService.setSetting('githubGistId', result.gistId);
+      }
+      
       return { message: 'Dati caricati su GitHub Gist', gistId: result.gistId };
+    }
+    
+    if (direction === 'download' || direction === 'bidirectional') {
+      if (!gistId) throw new Error('Gist ID non trovato. Esegui prima un upload.');
+      
+      const result = await githubService.downloadSyncData(gistId);
+      
+      // Aggiorna i dati locali con quelli scaricati
+      if (result.data && result.data.data && result.data.data.apps) {
+        await StorageService.importData(result.data);
+        return { message: 'Dati scaricati e aggiornati da GitHub Gist' };
+      } else {
+        throw new Error('Dati non validi nel Gist');
+      }
     }
     
     return { message: 'Sincronizzazione GitHub completata' };
@@ -277,6 +329,18 @@ export default function SyncManagerMaterial({ open, onClose }) {
       const data = await StorageService.exportAllData();
       const result = await googleService.uploadSyncData(data);
       return { message: 'Dati caricati su Google Drive', fileId: result.syncFile.id };
+    }
+
+    if (direction === 'download' || direction === 'bidirectional') {
+      const result = await googleService.downloadSyncData();
+      
+      // Aggiorna i dati locali con quelli scaricati
+      if (result.data && result.data.data && result.data.data.apps) {
+        await StorageService.importData(result.data);
+        return { message: 'Dati scaricati e aggiornati da Google Drive' };
+      } else {
+        throw new Error('Dati non validi su Google Drive');
+      }
     }
 
     return { message: 'Sincronizzazione Google Drive completata' };
@@ -508,6 +572,18 @@ export default function SyncManagerMaterial({ open, onClose }) {
                     helperText="Il token verrà salvato localmente in modo sicuro"
                     sx={{ mb: 2 }}
                   />
+                  
+                  {gistId && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      <Typography variant="body2">
+                        📋 Gist ID configurato: {gistId}
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        I dati verranno sincronizzati con questo Gist specifico
+                      </Typography>
+                    </Alert>
+                  )}
+                  
                   <Button
                     variant="outlined"
                     onClick={testConnection}
@@ -546,14 +622,24 @@ export default function SyncManagerMaterial({ open, onClose }) {
                     </Alert>
                   )}
                   
-                  <Button
-                    variant="outlined"
-                    onClick={testConnection}
-                    disabled={!credentials.googledrive.clientId}
-                    startIcon={<GoogleIcon />}
-                  >
-                    Test Connessione Google Drive
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={authenticateGoogleDrive}
+                      disabled={!credentials.googledrive.clientId}
+                      startIcon={<LoginIcon />}
+                    >
+                      Autentica Google Drive
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={testConnection}
+                      disabled={!credentials.googledrive.clientId}
+                      startIcon={<GoogleIcon />}
+                    >
+                      Test Connessione
+                    </Button>
+                  </Box>
                 </Box>
               )}
 
@@ -586,6 +672,14 @@ export default function SyncManagerMaterial({ open, onClose }) {
               <Typography variant="h6" sx={{ mb: 2 }}>
                 Azioni Sincronizzazione
               </Typography>
+              
+              {syncStatus.provider === 'github' && gistId && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    📋 Sincronizzazione con Gist: {gistId}
+                  </Typography>
+                </Alert>
+              )}
               
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
                 <Button

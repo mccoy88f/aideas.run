@@ -17,7 +17,7 @@ export default class GoogleDriveService {
     
     this.clientId = null;
     this.clientSecret = null;
-    this.redirectUri = window.location.origin + '/auth/google';
+    this.redirectUri = window.location.origin + '/auth/google.html';
     
     this.authenticated = false;
     this.accessToken = null;

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIdeas - Autenticazione Google</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            max-width: 400px;
+        }
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loading">
+            <div class="spinner"></div>
+            <h2>Autenticazione in corso...</h2>
+            <p>Completamento autenticazione Google Drive</p>
+        </div>
+        
+        <div id="error" style="display: none;">
+            <h2>❌ Errore di Autenticazione</h2>
+            <div class="error">
+                <p id="errorMessage"></p>
+            </div>
+            <button onclick="window.close()">Chiudi</button>
+        </div>
+    </div>
+
+    <script>
+        // Gestisce il callback di autenticazione Google OAuth
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
+
+            if (error) {
+                // Errore di autenticazione
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('errorMessage').textContent = 
+                    error === 'access_denied' ? 'Accesso negato dall\'utente' : 
+                    `Errore: ${error}`;
+                return;
+            }
+
+            if (!code) {
+                // Nessun codice di autorizzazione
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('errorMessage').textContent = 
+                    'Codice di autorizzazione mancante';
+                return;
+            }
+
+            // Invia il codice al popup principale
+            try {
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'GOOGLE_AUTH_SUCCESS',
+                        code: code,
+                        state: state
+                    }, window.location.origin);
+                    
+                    // Chiudi il popup dopo un breve delay
+                    setTimeout(() => {
+                        window.close();
+                    }, 1000);
+                } else {
+                    // Se non c'è un popup, reindirizza alla pagina principale
+                    window.location.href = '/?auth=success&code=' + encodeURIComponent(code);
+                }
+            } catch (err) {
+                console.error('Errore invio messaggio:', err);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('errorMessage').textContent = 
+                    'Errore di comunicazione con l\'applicazione principale';
+            }
+        })();
+    </script>
+</body>
+</html> 
