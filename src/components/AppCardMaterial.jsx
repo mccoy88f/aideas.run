@@ -116,6 +116,7 @@ const AppCardMaterial = ({
     <Card
       sx={{
         height: 320, // Altezza fissa per tutte le card
+        width: '100%', // Larghezza fissa al 100% del container
         display: 'flex',
         flexDirection: 'column',
         transition: 'all 0.3s ease',
@@ -135,7 +136,14 @@ const AppCardMaterial = ({
         }
       }}
     >
-      <CardContent sx={{ flexGrow: 1, p: 3, display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ 
+        flexGrow: 1, 
+        p: 3, 
+        display: 'flex', 
+        flexDirection: 'column',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
         {/* Header con avatar e titolo */}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
           <Avatar
@@ -158,7 +166,7 @@ const AppCardMaterial = ({
             )}
           </Avatar>
           
-          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Box sx={{ flexGrow: 1, minWidth: 0, width: '100%' }}>
             <Typography
               variant="h6"
               component="h3"
@@ -167,7 +175,8 @@ const AppCardMaterial = ({
                 mb: 0.5,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                width: '100%'
               }}
             >
               {app.name}

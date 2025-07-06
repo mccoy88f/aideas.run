@@ -643,9 +643,33 @@ function AIdeasApp() {
         {/* Apps con visualizzazione condizionale - Sfrutta tutto lo spazio */}
         {currentViewMode === 'grid' && (
           <Box sx={{ width: '100%' }}>
-            <Grid container spacing={3}>
+            <Grid 
+              container 
+              spacing={3}
+              sx={{
+                justifyContent: 'center',
+                '& .MuiGrid-item': {
+                  display: 'flex',
+                  justifyContent: 'center'
+                }
+              }}
+            >
             {filteredApps.map(app => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={app.id}>
+              <Grid 
+                item 
+                xs={12} 
+                sm={6} 
+                md={4} 
+                lg={3} 
+                xl={2}
+                key={app.id}
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  minWidth: { xs: '100%', sm: '280px', md: '320px', lg: '280px', xl: '240px' },
+                  maxWidth: { xs: '100%', sm: '400px', md: '400px', lg: '350px', xl: '300px' }
+                }}
+              >
                 <AppCardMaterial
                   app={app}
                   onLaunch={handleLaunchApp}
