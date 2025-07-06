@@ -573,6 +573,10 @@ function initializeAIdeasWithMaterialUI() {
         // Svuota il container per permettere a React di renderizzare
         appContainer.innerHTML = '';
         console.log('🧹 Container svuotato per React');
+        
+        // Debug: verifica stile del container
+        console.log('🔍 Debug: Container style dopo pulizia:', appContainer.style.cssText);
+        console.log('🔍 Debug: Container class dopo pulizia:', appContainer.className);
     try {
       console.log('🌳 Creazione React root...');
       // Usa createRoot per React 18+
@@ -590,6 +594,16 @@ function initializeAIdeasWithMaterialUI() {
           <AIdeasApp />
         </ThemeProvider>
       );
+      
+      // Debug: verifica se React si è renderizzato
+      setTimeout(() => {
+        console.log('🔍 Debug: Container dopo render:', appContainer.innerHTML);
+        console.log('🔍 Debug: Container children:', appContainer.children.length);
+        console.log('🔍 Debug: Container visible:', appContainer.offsetHeight > 0);
+        console.log('🔍 Debug: Container computed style:', window.getComputedStyle(appContainer).display);
+        console.log('🔍 Debug: Body height:', document.body.offsetHeight);
+        console.log('🔍 Debug: HTML height:', document.documentElement.offsetHeight);
+      }, 500);
       
       console.log('✅ Material UI renderizzato con successo');
     } catch (error) {
