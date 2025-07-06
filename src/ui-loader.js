@@ -160,6 +160,12 @@ class UILoader {
   async loadMaterialUI() {
     console.log('🎨 Caricamento Material UI...');
     
+    // Controlla se è già stato inizializzato
+    if (window.aideasMaterialUIInitialized) {
+      console.log('⚠️ Material UI già inizializzato, skip');
+      return;
+    }
+    
     // Timeout per evitare blocchi
     this.loadingTimeout = setTimeout(() => {
       throw new Error('Timeout caricamento Material UI');
@@ -175,6 +181,9 @@ class UILoader {
       // Inizializza l'app
       console.log('🚀 Avvio inizializzazione Material UI...');
       initializeAIdeasWithMaterialUI();
+      
+      // Marca come inizializzato
+      window.aideasMaterialUIInitialized = true;
       
       // Cancella timeout
       clearTimeout(this.loadingTimeout);

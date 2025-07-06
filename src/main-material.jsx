@@ -482,6 +482,12 @@ function AIdeasApp() {
 function initializeAIdeasWithMaterialUI() {
   console.log('🎯 Inizializzazione Material UI iniziata...');
   
+  // Controlla se è già stato inizializzato
+  if (window.aideasMaterialUIRoot) {
+    console.log('⚠️ Material UI root già esistente, skip');
+    return;
+  }
+  
   const appContainer = document.getElementById('app');
   console.log('📦 Container app trovato:', !!appContainer);
   
@@ -490,6 +496,9 @@ function initializeAIdeasWithMaterialUI() {
       console.log('🌳 Creazione React root...');
       // Usa createRoot per React 18+
       const root = createRoot(appContainer);
+      
+      // Salva il root per evitare duplicazioni
+      window.aideasMaterialUIRoot = root;
       
       console.log('🎨 Rendering componente Material UI...');
       root.render(
@@ -511,11 +520,4 @@ function initializeAIdeasWithMaterialUI() {
 
 // Esporta per uso esterno (sia ES6 che window)
 export { initializeAIdeasWithMaterialUI };
-window.initializeAIdeasWithMaterialUI = initializeAIdeasWithMaterialUI;
-
-// Auto-inizializzazione se il DOM è pronto
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeAIdeasWithMaterialUI);
-} else {
-  initializeAIdeasWithMaterialUI();
-} 
+window.initializeAIdeasWithMaterialUI = initializeAIdeasWithMaterialUI; 
