@@ -577,10 +577,13 @@ function initializeAIdeasWithMaterialUI() {
   }
   
   const appContainer = document.getElementById('app');
-  console.log('📦 Container app trovato:', !!appContainer);
-  console.log('📦 Container app HTML:', appContainer?.outerHTML);
-  
-  if (appContainer) {
+        console.log('📦 Container app trovato:', !!appContainer);
+      console.log('📦 Container app HTML:', appContainer?.outerHTML);
+      
+      if (appContainer) {
+        // Rimuovi display: none dal container
+        appContainer.style.display = '';
+        console.log('🔧 Display none rimosso dal container');
     try {
       console.log('🌳 Creazione React root...');
       // Usa createRoot per React 18+
