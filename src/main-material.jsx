@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { ThemeProvider } from './theme/ThemeProvider.jsx';
+import { ThemeProvider, useTheme } from './theme/ThemeProvider.jsx';
 import { 
   AppBar, 
   Toolbar, 
@@ -32,7 +32,6 @@ import {
   Avatar,
   LinearProgress,
   Box,
-  useTheme,
   useMediaQuery
 } from '@mui/material';
 import {
@@ -63,7 +62,7 @@ import SettingsMaterial from './components/SettingsMaterial.jsx';
  * Gestisce il layout e la navigazione dell'app
  */
 function AIdeasApp() {
-  const theme = useTheme();
+  const { theme, mode, toggleTheme } = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   const [apps, setApps] = React.useState([]);
@@ -79,7 +78,6 @@ function AIdeasApp() {
   const [selectedApp, setSelectedApp] = React.useState(null);
   const [importerOpen, setImporterOpen] = React.useState(false);
   const [settings, setSettings] = React.useState({});
-  const [mode, setMode] = React.useState('light');
 
   // Inizializzazione
   React.useEffect(() => {
@@ -197,6 +195,7 @@ function AIdeasApp() {
       console.log('⚙️ Impostazioni caricate:', settings);
       setCurrentViewMode(settings.viewMode || 'grid');
       setCurrentSort(settings.sortBy || 'lastUsed');
+      setSettings(settings);
       console.log('⚙️ State impostazioni aggiornato');
     } catch (error) {
       console.error('Errore caricamento impostazioni:', error);
@@ -413,12 +412,19 @@ function AIdeasApp() {
   // Aggiorna impostazioni utente
   const handleSettingsChange = (newSettings) => {
     setSettings(newSettings);
-    // Qui puoi anche salvare su StorageService
+    // Salva le impostazioni su StorageService
+    StorageService.setAllSettings(newSettings);
+    
+    // Se è cambiato il tema, aggiornalo
+    if (newSettings.theme && newSettings.theme !== 'system') {
+      // Il ThemeProvider gestirà automaticamente il cambio
+      console.log('🎨 Tema aggiornato dalle impostazioni:', newSettings.theme);
+    }
   };
 
   // Aggiorna tema
   const handleThemeToggle = () => {
-    setMode((prev) => (prev === 'light' ? 'dark' : 'light'));
+    toggleTheme();
   };
 
   // Aggiorna view

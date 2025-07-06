@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 import { lightTheme, darkTheme } from './materialTheme';
+import StorageService from '../services/StorageService.js';
 
 // Context per il tema
 const ThemeContext = createContext();
@@ -17,38 +18,77 @@ export const useTheme = () => {
 
 // Provider del tema
 export const ThemeProvider = ({ children }) => {
-  const [mode, setMode] = useState(() => {
-    // Recupera il tema salvato nel localStorage
-    const savedMode = localStorage.getItem('aideas-theme');
-    if (savedMode) {
-      return savedMode;
-    }
-    // Fallback al tema del sistema
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
-  });
+  const [mode, setMode] = useState('light'); // Default temporaneo
+
+  // Inizializza il tema dalle impostazioni
+  useEffect(() => {
+    const initializeTheme = async () => {
+      try {
+        const settings = await StorageService.getAllSettings();
+        const savedTheme = settings.theme || 'system';
+        
+        if (savedTheme === 'system') {
+          // Segui preferenza sistema
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            setMode('dark');
+          } else {
+            setMode('light');
+          }
+        } else {
+          setMode(savedTheme);
+        }
+      } catch (error) {
+        console.error('Errore caricamento tema:', error);
+        // Fallback al tema del sistema
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          setMode('dark');
+        } else {
+          setMode('light');
+        }
+      }
+    };
+    
+    initializeTheme();
+  }, []);
 
   const theme = mode === 'light' ? lightTheme : darkTheme;
 
-  const toggleTheme = () => {
+  const toggleTheme = async () => {
     const newMode = mode === 'light' ? 'dark' : 'light';
     setMode(newMode);
-    localStorage.setItem('aideas-theme', newMode);
+    
+    try {
+      const settings = await StorageService.getAllSettings();
+      settings.theme = newMode;
+      await StorageService.setAllSettings(settings);
+    } catch (error) {
+      console.error('Errore salvataggio tema:', error);
+    }
   };
 
-  const setTheme = (newMode) => {
+  const setTheme = async (newMode) => {
     setMode(newMode);
-    localStorage.setItem('aideas-theme', newMode);
+    
+    try {
+      const settings = await StorageService.getAllSettings();
+      settings.theme = newMode;
+      await StorageService.setAllSettings(settings);
+    } catch (error) {
+      console.error('Errore salvataggio tema:', error);
+    }
   };
 
   // Ascolta i cambiamenti del tema del sistema
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e) => {
-      if (!localStorage.getItem('aideas-theme')) {
-        setMode(e.matches ? 'dark' : 'light');
+    const handleChange = async (e) => {
+      try {
+        const settings = await StorageService.getAllSettings();
+        if (settings.theme === 'system') {
+          setMode(e.matches ? 'dark' : 'light');
+        }
+      } catch (error) {
+        console.error('Errore controllo tema sistema:', error);
       }
     };
 
