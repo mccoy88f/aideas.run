@@ -111,14 +111,11 @@ function AIdeasApp() {
       setLoading(false);
       console.log('✅ AIdeas inizializzato con successo');
       
-      // Debug: verifica se il componente si re-renderizza
+      // Forza un re-render dopo un breve delay
       setTimeout(() => {
-        console.log('🔍 Debug: Stato loading dopo 1s:', loading);
-        console.log('🔍 Debug: Apps dopo 1s:', apps.length);
-        console.log('🔍 Debug: Forzatura re-render...');
-        // Forza un re-render
+        console.log('🔄 Forzatura re-render finale...');
         setLoading(false);
-      }, 1000);
+      }, 100);
       
     } catch (error) {
       console.error('❌ Errore inizializzazione AIdeas:', error);
@@ -429,8 +426,7 @@ function AIdeasApp() {
     setCurrentView(view);
   };
 
-  if (loading && apps.length === 0) {
-    console.log('🔄 Rendering loading state...', { loading, appsCount: apps.length });
+  if (loading) {
     return (
       <Box sx={{ 
         display: 'flex', 
@@ -440,29 +436,18 @@ function AIdeasApp() {
       }}>
         <LinearProgress sx={{ width: '50%' }} />
         <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
-          Caricamento... (Loading: {loading.toString()}, Apps: {apps.length})
+          Caricamento...
         </Typography>
       </Box>
     );
   }
 
-  console.log('🎨 Rendering main interface...');
-  console.log('📱 Apps count:', apps.length);
-  console.log('🔍 Filtered apps count:', filteredApps.length);
-  console.log('🎯 Loading state:', loading);
-
   return (
     <Box sx={{ 
       display: 'flex', 
       minHeight: '100vh', 
-      background: theme.palette.background.default,
-      border: '3px solid red',
-      position: 'relative',
-      zIndex: 1
+      background: theme.palette.background.default
     }}>
-      <Typography variant="h4" sx={{ position: 'absolute', top: 10, left: 10, zIndex: 9999, color: 'red', backgroundColor: 'white', padding: 1 }}>
-        DEBUG: Material UI Loaded - Apps: {apps.length} - Loading: {loading.toString()}
-      </Typography>
       
       {/* NavigationMaterial */}
       <NavigationMaterial
@@ -598,11 +583,7 @@ function initializeAIdeasWithMaterialUI() {
       
       console.log('🎨 Rendering componente Material UI...');
       
-      // Debug: verifica stile del container
-      console.log('📦 Container style:', appContainer.style.cssText);
-      console.log('📦 Container computed style:', window.getComputedStyle(appContainer));
-      console.log('📦 Body style:', document.body.style.cssText);
-      console.log('📦 HTML style:', document.documentElement.style.cssText);
+
       
       root.render(
         <ThemeProvider>
