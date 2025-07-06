@@ -111,6 +111,12 @@ function AIdeasApp() {
       setLoading(false);
       console.log('✅ AIdeas inizializzato con successo');
       
+      // Debug: verifica se il componente si re-renderizza
+      setTimeout(() => {
+        console.log('🔍 Debug: Stato loading dopo 1s:', loading);
+        console.log('🔍 Debug: Apps dopo 1s:', apps.length);
+      }, 1000);
+      
     } catch (error) {
       console.error('❌ Errore inizializzazione AIdeas:', error);
       showToast('Errore durante l\'inizializzazione dell\'applicazione', 'error');
@@ -119,9 +125,12 @@ function AIdeasApp() {
 
   const loadApps = async () => {
     try {
+      console.log('📱 Inizio caricamento apps...');
       const appsData = await StorageService.getAllApps();
+      console.log('📱 Apps caricate:', appsData.length, appsData);
       setApps(appsData);
       setFilteredApps(appsData);
+      console.log('📱 State apps aggiornato');
     } catch (error) {
       console.error('Errore caricamento apps:', error);
       showToast('Errore nel caricamento delle applicazioni', 'error');
@@ -130,9 +139,12 @@ function AIdeasApp() {
 
   const loadUserSettings = async () => {
     try {
+      console.log('⚙️ Inizio caricamento impostazioni...');
       const settings = await StorageService.getAllSettings();
+      console.log('⚙️ Impostazioni caricate:', settings);
       setCurrentViewMode(settings.viewMode || 'grid');
       setCurrentSort(settings.sortBy || 'lastUsed');
+      console.log('⚙️ State impostazioni aggiornato');
     } catch (error) {
       console.error('Errore caricamento impostazioni:', error);
     }
@@ -362,6 +374,7 @@ function AIdeasApp() {
   };
 
   if (loading) {
+    console.log('🔄 Rendering loading state...');
     return (
       <Box sx={{ 
         display: 'flex', 
@@ -374,8 +387,16 @@ function AIdeasApp() {
     );
   }
 
+  console.log('🎨 Rendering main interface...');
+  console.log('📱 Apps count:', apps.length);
+  console.log('🔍 Filtered apps count:', filteredApps.length);
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', background: theme.palette.background.default }}>
+      <Typography variant="h4" sx={{ position: 'absolute', top: 10, left: 10, zIndex: 9999, color: 'red' }}>
+        DEBUG: Material UI Loaded
+      </Typography>
+      
       {/* NavigationMaterial */}
       <NavigationMaterial
         drawerOpen={drawerOpen}
