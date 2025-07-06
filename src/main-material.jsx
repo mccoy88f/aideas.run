@@ -115,6 +115,9 @@ function AIdeasApp() {
       setTimeout(() => {
         console.log('🔍 Debug: Stato loading dopo 1s:', loading);
         console.log('🔍 Debug: Apps dopo 1s:', apps.length);
+        console.log('🔍 Debug: Forzatura re-render...');
+        // Forza un re-render
+        setLoading(false);
       }, 1000);
       
     } catch (error) {
@@ -426,8 +429,8 @@ function AIdeasApp() {
     setCurrentView(view);
   };
 
-  if (loading) {
-    console.log('🔄 Rendering loading state...');
+  if (loading && apps.length === 0) {
+    console.log('🔄 Rendering loading state...', { loading, appsCount: apps.length });
     return (
       <Box sx={{ 
         display: 'flex', 
@@ -436,6 +439,9 @@ function AIdeasApp() {
         minHeight: '100vh' 
       }}>
         <LinearProgress sx={{ width: '50%' }} />
+        <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+          Caricamento... (Loading: {loading.toString()}, Apps: {apps.length})
+        </Typography>
       </Box>
     );
   }
@@ -443,6 +449,7 @@ function AIdeasApp() {
   console.log('🎨 Rendering main interface...');
   console.log('📱 Apps count:', apps.length);
   console.log('🔍 Filtered apps count:', filteredApps.length);
+  console.log('🎯 Loading state:', loading);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', background: theme.palette.background.default }}>
