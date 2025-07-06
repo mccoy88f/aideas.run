@@ -75,7 +75,8 @@ export default defineConfig({
       '@utils': '/src/utils',
       '@styles': '/src/styles',
       '@assets': '/public/assets'
-    }
+    },
+    dedupe: ['dexie']
   },
   
   // CSS configuration
@@ -92,6 +93,7 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       'dexie',
+      'dexie/dist/dexie.js',
       'jszip',
       'fuse.js',
       'date-fns',
