@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { ThemeProvider } from './theme/ThemeProvider.jsx';
 import { 
   AppBar, 
@@ -480,7 +480,7 @@ function initializeAIdeasWithMaterialUI() {
   
   if (appContainer) {
     // Usa createRoot per React 18+
-    const root = ReactDOM.createRoot(appContainer);
+    const root = createRoot(appContainer);
     root.render(
       <ThemeProvider>
         <AIdeasApp />
