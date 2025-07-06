@@ -115,7 +115,7 @@ const AppCardMaterial = ({
   return (
     <Card
       sx={{
-        height: 320, // Altezza fissa per tutte le card
+        height: { xs: 280, sm: 300, md: 320 }, // Altezza responsive
         width: '100%', // Larghezza fissa al 100% del container
         display: 'flex',
         flexDirection: 'column',

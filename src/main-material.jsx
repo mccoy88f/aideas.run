@@ -750,14 +750,14 @@ function AIdeasApp() {
           <Box sx={{ width: '100%' }}>
             <Grid 
               container 
-              spacing={3}
+              spacing={{ xs: 2, sm: 3, md: 3, lg: 3 }}
               sx={{
                 justifyContent: 'center',
                 width: '100%',
                 '& .MuiGrid-item': {
                   display: 'flex',
                   justifyContent: 'center',
-                  width: 'auto'
+                  width: '100%'
                 },
                 '& .MuiGrid-root': {
                   width: '100%'
@@ -770,13 +770,13 @@ function AIdeasApp() {
                 xs={12} 
                 sm={6} 
                 md={4} 
-                lg={3} 
-                xl={2}
+                lg={4} 
+                xl={4}
                 key={app.id}
                 sx={{
                   display: 'flex',
                   justifyContent: 'center',
-                  width: { xs: '100%', sm: '320px', md: '360px', lg: '320px', xl: '280px' },
+                  width: '100%',
                   flexShrink: 0
                 }}
               >
