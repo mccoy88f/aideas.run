@@ -190,6 +190,9 @@ class UILoader {
       
       console.log('✅ Material UI caricata con successo');
       
+      // Nascondi il loading screen
+      this.hideLoadingScreen();
+      
     } catch (error) {
       clearTimeout(this.loadingTimeout);
       console.error('❌ Errore durante caricamento Material UI:', error);
@@ -218,6 +221,9 @@ class UILoader {
       
       console.log('✅ Vanilla UI caricata con successo');
       
+      // Nascondi il loading screen
+      this.hideLoadingScreen();
+      
     } catch (error) {
       console.error('❌ Errore caricamento Vanilla UI:', error);
       throw error;
@@ -244,6 +250,21 @@ class UILoader {
       console.error('❌ Errore durante fallback:', error);
       // Ultimo tentativo di caricamento vanilla
       await this.loadVanillaUI();
+    }
+  }
+
+  /**
+   * Nasconde il loading screen
+   */
+  hideLoadingScreen() {
+    try {
+      const loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+        console.log('🎯 Loading screen nascosto');
+      }
+    } catch (error) {
+      console.error('❌ Errore nascondere loading screen:', error);
     }
   }
 
