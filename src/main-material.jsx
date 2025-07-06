@@ -82,6 +82,8 @@ function AIdeasApp() {
   const [settings, setSettings] = React.useState({});
   const [launchModalOpen, setLaunchModalOpen] = React.useState(false);
   const [launchingApp, setLaunchingApp] = React.useState(null);
+  const [longPressTimer, setLongPressTimer] = React.useState(null);
+  const [longPressApp, setLongPressApp] = React.useState(null);
 
   // Inizializzazione
   React.useEffect(() => {
@@ -472,6 +474,11 @@ function AIdeasApp() {
     const updatedSettings = { ...settings, viewMode: newViewMode };
     setSettings(updatedSettings);
     StorageService.setAllSettings(updatedSettings);
+    
+    // Mostra messaggio informativo per modalità compatta
+    if (newViewMode === 'compact') {
+      showToast('Modalità mobile: Click per avviare, tieni premuto per opzioni', 'info');
+    }
   };
 
   // Aggiorna tema
@@ -482,6 +489,22 @@ function AIdeasApp() {
   // Aggiorna view
   const handleViewChange = (view) => {
     setCurrentView(view);
+  };
+
+  const handleLongPressStart = (app) => {
+    const timer = setTimeout(() => {
+      setLongPressApp(app);
+      setSelectedApp(app);
+    }, 500); // 500ms per long press
+    setLongPressTimer(timer);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+    setLongPressApp(null);
   };
 
   if (loading) {
@@ -530,9 +553,20 @@ function AIdeasApp() {
         transition: 'margin-left 0.3s ease'
       }}>
         {/* Search Bar e Controlli */}
-        <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Box sx={{ 
+          mb: 3, 
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: 2,
+          alignItems: 'center'
+        }}>
+          {/* Barra di ricerca centrata */}
           <TextField
-            sx={{ flexGrow: 1, minWidth: 200 }}
+            sx={{ 
+              width: '100%',
+              maxWidth: { xs: '100%', sm: 600, md: 800 },
+              mx: 'auto'
+            }}
             variant="outlined"
             placeholder="Cerca applicazioni..."
             value={searchQuery}
@@ -542,8 +576,8 @@ function AIdeasApp() {
             }}
           />
           
-          {/* Controlli vista */}
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          {/* Controlli vista centrati */}
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
             <IconButton
               onClick={() => handleViewModeChange('grid')}
               color={currentViewMode === 'grid' ? 'primary' : 'default'}
@@ -561,7 +595,7 @@ function AIdeasApp() {
             <IconButton
               onClick={() => handleViewModeChange('compact')}
               color={currentViewMode === 'compact' ? 'primary' : 'default'}
-              title="Vista compatta"
+              title="Vista compatta (mobile) - Click per avviare, tieni premuto per opzioni"
             >
               <ViewListIcon />
             </IconButton>
@@ -654,22 +688,111 @@ function AIdeasApp() {
         )}
 
         {currentViewMode === 'compact' && (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ 
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+            gap: 2,
+            p: 2
+          }}>
             {filteredApps.map(app => (
-              <Chip
+              <Box
                 key={app.id}
-                label={app.name}
-                onClick={() => handleLaunchApp(app.id)}
-                onDelete={() => handleDeleteApp(app.id)}
-                color={app.favorite ? 'secondary' : 'default'}
-                variant={app.favorite ? 'filled' : 'outlined'}
-                sx={{ 
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 1,
+                  p: 1,
+                  borderRadius: 2,
                   cursor: 'pointer',
+                  transition: 'all 0.2s ease',
                   '&:hover': {
-                    backgroundColor: theme.palette.action.hover
-                  }
+                    backgroundColor: theme.palette.action.hover,
+                    transform: 'scale(1.05)'
+                  },
+                  '&:active': {
+                    transform: 'scale(0.95)'
+                  },
+                  ...(longPressApp?.id === app.id && {
+                    backgroundColor: theme.palette.action.selected,
+                    transform: 'scale(0.9)',
+                    boxShadow: theme.shadows[8]
+                  })
                 }}
-              />
+                onClick={() => handleLaunchApp(app.id)}
+                onMouseDown={() => handleLongPressStart(app)}
+                onMouseUp={handleLongPressEnd}
+                onMouseLeave={handleLongPressEnd}
+                onTouchStart={() => handleLongPressStart(app)}
+                onTouchEnd={handleLongPressEnd}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setSelectedApp(app);
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    background: app.favorite 
+                      ? `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`
+                      : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                    fontSize: '1.2rem',
+                    fontWeight: 'bold',
+                    border: app.favorite ? `2px solid ${theme.palette.secondary.main}` : 'none'
+                  }}
+                >
+                  {app.name.charAt(0).toUpperCase()}
+                </Avatar>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    textAlign: 'center',
+                    fontSize: '0.75rem',
+                    lineHeight: 1.2,
+                    maxWidth: '100%',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    color: app.favorite ? theme.palette.secondary.main : 'text.primary',
+                    fontWeight: app.favorite ? 'bold' : 'normal'
+                  }}
+                >
+                  {app.name}
+                </Typography>
+                {app.favorite && (
+                  <FavoriteIcon 
+                    sx={{ 
+                      fontSize: 16, 
+                      color: theme.palette.secondary.main,
+                      position: 'absolute',
+                      top: 4,
+                      right: 4
+                    }} 
+                  />
+                )}
+                {longPressApp?.id === app.id && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(0,0,0,0.1)',
+                      borderRadius: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1
+                    }}
+                  >
+                    <EditIcon sx={{ fontSize: 24, color: 'white' }} />
+                  </Box>
+                )}
+              </Box>
             ))}
           </Box>
         )}
