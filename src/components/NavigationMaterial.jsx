@@ -107,59 +107,6 @@ const NavigationMaterial = ({
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Header del drawer */}
-      <Box sx={{ 
-        p: 3, 
-        background: mode === 'dark' ? theme.palette.primary.dark : theme.palette.primary.main,
-        color: theme.palette.primary.contrastText
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Avatar
-            sx={{
-              width: 48,
-              height: 48,
-              mr: 2,
-              background: mode === 'dark' ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(10px)'
-            }}
-          >
-            <AppsIcon />
-          </Avatar>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              AIdeas
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8 }}>
-              Run your AIdeas
-            </Typography>
-          </Box>
-        </Box>
-        
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Chip
-            label={`${totalApps} app`}
-            size="small"
-            sx={{ 
-              background: mode === 'dark' ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.2)',
-              color: theme.palette.primary.contrastText,
-              '& .MuiChip-label': { color: theme.palette.primary.contrastText }
-            }}
-          />
-          {favoriteCount > 0 && (
-            <Chip
-              icon={<FavoriteIcon />}
-              label={favoriteCount}
-              size="small"
-              sx={{ 
-                background: mode === 'dark' ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.2)',
-                color: theme.palette.primary.contrastText,
-                '& .MuiChip-label': { color: theme.palette.primary.contrastText }
-              }}
-            />
-          )}
-        </Box>
-      </Box>
-
       {/* Lista principale */}
       <List sx={{ flexGrow: 1, py: 0 }}>
         {navigationItems.map((item) => (
@@ -317,20 +264,6 @@ const NavigationMaterial = ({
           >
             AIdeas
           </Typography>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
-            <Typography
-              variant="h6"
-              component="div"
-              sx={{
-                color: theme.palette.primary.main,
-                fontWeight: 700,
-                ml: 2
-              }}
-            >
-              AIdeas
-            </Typography>
-          </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <IconButton color="inherit">
