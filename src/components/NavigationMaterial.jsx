@@ -306,6 +306,17 @@ const NavigationMaterial = ({
           >
             <MenuIcon />
           </IconButton>
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{
+              color: theme.palette.primary.main,
+              fontWeight: 700,
+              ml: 2
+            }}
+          >
+            AIdeas
+          </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
             <Typography

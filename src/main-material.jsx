@@ -670,15 +670,16 @@ function AIdeasApp() {
       {/* Main Content */}
       <Box component="main" sx={{ 
         flexGrow: 1, 
-        mt: !settings.bottomBar ? { xs: '56px', sm: '64px' } : 0,
-        mb: settings.bottomBar ? { xs: '56px', sm: '64px' } : 0,
+        mt: !settings.bottomBar ? 0 : 0,
+        mb: settings.bottomBar ? 0 : 0,
         ml: { sm: drawerOpen ? '280px' : 0 },
         transition: 'margin-left 0.3s ease',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        minHeight: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' },
-        width: { sm: drawerOpen ? 'calc(100vw - 280px)' : '100vw' }
+        minHeight: '100vh',
+        width: { sm: drawerOpen ? 'calc(100vw - 280px)' : '100vw' },
+        p: 0
       }}>
         {/* Container centrale con padding */}
         <Box sx={{ 
