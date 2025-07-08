@@ -288,6 +288,7 @@ const NavigationMaterial = ({
         sx={{
           background: theme.palette.background.paper,
           backdropFilter: 'blur(20px)',
+          borderRadius: 0,
           borderBottom: !bottomBar ? `1px solid ${theme.palette.divider}` : undefined,
           borderTop: bottomBar ? `1px solid ${theme.palette.divider}` : undefined,
           zIndex: theme.zIndex.drawer + 1,
@@ -307,34 +308,16 @@ const NavigationMaterial = ({
           </IconButton>
 
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
-            {/* Mostra solo su desktop: icona e nome */}
-            <AppsIcon 
-              sx={{ 
-                mr: 1, 
-                color: theme.palette.primary.main,
-                display: { xs: 'none', sm: 'inline-flex' }
-              }} 
-            />
             <Typography
               variant="h6"
               component="div"
               sx={{
                 color: theme.palette.primary.main,
-                fontWeight: 700
+                fontWeight: 700,
+                ml: 2
               }}
             >
               AIdeas
-            </Typography>
-            {/* Mostra solo su desktop: sottotitolo */}
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                ml: 1, 
-                opacity: 0.7,
-                display: { xs: 'none', sm: 'block' }
-              }}
-            >
-              Gestore App
             </Typography>
           </Box>
 
@@ -382,6 +365,7 @@ const NavigationMaterial = ({
             width: drawerWidth,
             background: theme.palette.background.paper,
             backdropFilter: 'blur(20px)',
+            borderRadius: 0,
             borderRight: `1px solid ${theme.palette.divider}`,
             mt: !bottomBar ? '56px' : 0,
             mb: bottomBar ? '56px' : 0,
@@ -404,6 +388,7 @@ const NavigationMaterial = ({
             width: drawerOpen ? drawerWidth : 0,
             background: theme.palette.background.paper,
             backdropFilter: 'blur(20px)',
+            borderRadius: 0,
             borderRight: `1px solid ${theme.palette.divider}`,
             boxSizing: 'border-box',
             mt: !bottomBar ? '64px' : 0,
