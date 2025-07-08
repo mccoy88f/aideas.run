@@ -652,6 +652,66 @@ export default class GoogleDriveService {
   }
 
   /**
+   * Aggiorna file esistente su Google Drive
+   * @param {string} fileId - ID del file da aggiornare
+   * @param {string|Blob} content - Nuovo contenuto
+   * @param {string} mimeType - MIME type
+   * @returns {Promise<Object>} File aggiornato
+   */
+  async updateFile(fileId, content, mimeType) {
+    try {
+      // Per file di testo, usa l'endpoint semplice
+      if (typeof content === 'string') {
+        const response = await this.makeRequest(`/files/${fileId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            content: content
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Errore aggiornamento file');
+        }
+
+        return await response.json();
+      } else {
+        // Per file binari, usa multipart upload
+        const boundary = '----WebKitFormBoundary' + Math.random().toString(16).substr(2);
+        const formData = new FormData();
+        
+        // Aggiungi metadati
+        formData.append('metadata', new Blob([JSON.stringify({})], {
+          type: 'application/json'
+        }));
+        
+        // Aggiungi contenuto file
+        formData.append('file', content);
+
+        const response = await this.makeRequest(`/files/${fileId}?uploadType=multipart`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': `multipart/related; boundary=${boundary}`
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('Errore aggiornamento file');
+        }
+
+        return await response.json();
+      }
+
+    } catch (error) {
+      console.error('Errore aggiornamento file:', error);
+      throw error;
+    }
+  }
+
+  /**
    * SYNC INTEGRATION
    */
 
@@ -674,27 +734,55 @@ export default class GoogleDriveService {
         checksum: await this.generateChecksum(syncData)
       };
 
-      // Upload file sync principale
-      const syncFile = await this.uploadFile(
-        'aideas-sync.json',
-        syncContent,
-        'application/json',
-        this.aideasFolder.id,
-        {
-          description: 'AIdeas Sync Data - Apps and Settings'
-        }
-      );
+      // Cerca file sync esistenti
+      const existingSyncFiles = await this.listFiles(this.aideasFolder.id, {
+        nameContains: 'aideas-sync.json'
+      });
 
-      // Upload metadati
-      const metaFile = await this.uploadFile(
-        'aideas-meta.json',
-        JSON.stringify(metadata, null, 2),
-        'application/json',
-        this.aideasFolder.id,
-        {
-          description: 'AIdeas Sync Metadata'
-        }
-      );
+      let syncFile;
+      if (existingSyncFiles.length > 0) {
+        // Aggiorna file esistente
+        const existingFile = existingSyncFiles[0];
+        syncFile = await this.updateFile(existingFile.id, syncContent, 'application/json');
+        console.log('✅ File sync aggiornato:', syncFile.name);
+      } else {
+        // Crea nuovo file
+        syncFile = await this.uploadFile(
+          'aideas-sync.json',
+          syncContent,
+          'application/json',
+          this.aideasFolder.id,
+          {
+            description: 'AIdeas Sync Data - Apps and Settings'
+          }
+        );
+        console.log('✅ Nuovo file sync creato:', syncFile.name);
+      }
+
+      // Cerca file metadati esistenti
+      const existingMetaFiles = await this.listFiles(this.aideasFolder.id, {
+        nameContains: 'aideas-meta.json'
+      });
+
+      let metaFile;
+      if (existingMetaFiles.length > 0) {
+        // Aggiorna file metadati esistente
+        const existingMetaFile = existingMetaFiles[0];
+        metaFile = await this.updateFile(existingMetaFile.id, JSON.stringify(metadata, null, 2), 'application/json');
+        console.log('✅ File metadati aggiornato:', metaFile.name);
+      } else {
+        // Crea nuovo file metadati
+        metaFile = await this.uploadFile(
+          'aideas-meta.json',
+          JSON.stringify(metadata, null, 2),
+          'application/json',
+          this.aideasFolder.id,
+          {
+            description: 'AIdeas Sync Metadata'
+          }
+        );
+        console.log('✅ Nuovo file metadati creato:', metaFile.name);
+      }
 
       return {
         success: true,
