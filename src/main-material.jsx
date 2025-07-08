@@ -785,31 +785,61 @@ function AIdeasApp() {
           py: 2,
           borderRadius: 2
         }}>
-          {/* Barra di ricerca fissa e centrata */}
-          <TextField
-            sx={{ 
-              width: '100%',
-              maxWidth: 600,
-              minWidth: 300,
-              backgroundColor: 'background.paper',
-              borderRadius: 2,
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 2
-              },
-              '& .MuiFormControl-root': {
-                width: '100%',
-                maxWidth: 600,
-                minWidth: 300
-              }
-            }}
-            variant="outlined"
-            placeholder="Cerca applicazioni..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
-            }}
-          />
+          {/* Barra di ricerca fissa e centrata con pulsante + integrato */}
+          <Box sx={{
+            width: '100%',
+            maxWidth: 600,
+            minWidth: 300,
+            backgroundColor: 'background.paper',
+            borderRadius: 2,
+            display: 'flex',
+            alignItems: 'center',
+            boxShadow: 1,
+            mb: 2
+          }}>
+            <Box sx={{ pl: 2, pr: 1, display: 'flex', alignItems: 'center' }}>
+              <SearchIcon sx={{ color: 'text.secondary' }} />
+            </Box>
+            <TextField
+              variant="outlined"
+              placeholder="Cerca applicazioni..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              fullWidth
+              InputProps={{
+                sx: {
+                  border: 'none',
+                  boxShadow: 'none',
+                  background: 'transparent',
+                  '& fieldset': { border: 'none' },
+                  fontSize: '1rem',
+                  px: 0
+                }
+              }}
+              sx={{
+                flex: 1,
+                background: 'transparent',
+                minWidth: 0
+              }}
+            />
+            <Box sx={{ pr: 2, pl: 1, display: 'flex', alignItems: 'center' }}>
+              <IconButton
+                aria-label="Aggiungi app"
+                onClick={() => setImporterOpen(true)}
+                sx={{
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                  color: 'white',
+                  '&:hover': {
+                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+                    boxShadow: theme.shadows[4]
+                  },
+                  boxShadow: theme.shadows[2]
+                }}
+              >
+                <AddIcon />
+              </IconButton>
+            </Box>
+          </Box>
           
           {/* Controlli vista centrati e fissi */}
           <Box sx={{ 
@@ -1108,28 +1138,6 @@ function AIdeasApp() {
         open={syncManagerOpen}
         onClose={() => setSyncManagerOpen(false)}
       />
-
-      {/* Floating Action Button */}
-      <Fab
-        color="primary"
-        aria-label="Aggiungi app"
-        onClick={() => setImporterOpen(true)}
-        sx={{
-          position: 'fixed',
-          right: 24,
-          bottom: settings.bottomBar ? 'auto' : 24,
-          top: settings.bottomBar ? 24 : 'auto',
-          zIndex: theme.zIndex.fab,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-          '&:hover': {
-            background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-            transform: 'scale(1.05)'
-          },
-          boxShadow: theme.shadows[8]
-        }}
-      >
-        <AddIcon />
-      </Fab>
 
       {/* AppImporterMaterial come modale di importazione */}
       <AppImporterMaterial
