@@ -270,7 +270,7 @@ function AIdeasApp() {
 
   const loadUserSettings = async () => {
     try {
-      const settingsData = await StorageService.getSettings();
+      const settingsData = await StorageService.getAllSettings();
       setSettings(settingsData);
       console.log('⚙️ Impostazioni caricate:', settingsData);
     } catch (error) {
