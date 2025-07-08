@@ -102,10 +102,16 @@ const SettingsMaterial = ({
       description: 'Gestione notifiche e avvisi'
     },
     {
-      id: 'sync',
-      title: 'Sincronizzazione',
+      id: 'backup',
+      title: 'Backup/Ripristino',
+      icon: <StorageIcon />,
+      description: 'Backup e ripristino locale'
+    },
+    {
+      id: 'cloudsync',
+      title: 'Cloud Sync',
       icon: <SyncIcon />,
-      description: 'Backup e sincronizzazione dati'
+      description: 'Sincronizzazione cloud'
     },
     {
       id: 'security',
@@ -218,6 +224,33 @@ const SettingsMaterial = ({
     } catch (error) {
       console.error('Errore reset impostazioni:', error);
       showToast('Errore durante il reset', 'error');
+    }
+  };
+
+  const handleProviderChange = async (newProvider) => {
+    setProvider(newProvider);
+    
+    // Se la sincronizzazione è abilitata, gestisci l'autenticazione
+    if (isEnabled) {
+      try {
+        if (newProvider === 'github') {
+          // Per GitHub Gist, mostra istruzioni per inserire il codice
+          const gistCode = prompt('Inserisci il codice Gist per la sincronizzazione:');
+          if (gistCode) {
+            // Salva il codice Gist
+            await StorageService.setSetting('githubGistCode', gistCode);
+            showToast('Codice Gist salvato', 'success');
+          }
+        } else if (newProvider === 'googledrive') {
+          // Per Google Drive, mostra link per il login
+          const loginUrl = 'https://accounts.google.com/o/oauth2/auth?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&scope=https://www.googleapis.com/auth/drive.file&response_type=code';
+          window.open(loginUrl, '_blank');
+          showToast('Apri il link per autenticarti con Google Drive', 'info');
+        }
+      } catch (error) {
+        console.error('Errore configurazione provider:', error);
+        showToast('Errore durante la configurazione del provider', 'error');
+      }
     }
   };
 
@@ -477,71 +510,101 @@ const SettingsMaterial = ({
     </Box>
   );
 
-  const renderSyncSettings = () => (
+  const renderBackupSettings = () => (
     <Box sx={{ space: 3 }}>
       <Typography variant="h6" gutterBottom>
-        Sincronizzazione e Backup
+        Backup & Ripristino Locale
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Salva i tuoi dati localmente per backup e ripristino
       </Typography>
       
       <Grid container spacing={3}>
-        {/* Backup & Ripristino Locale */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
-              Backup & Ripristino Locale
+              Esporta Dati
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Salva i tuoi dati localmente per backup e ripristino
+              Scarica una copia di tutti i tuoi dati
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Button
-                variant="outlined"
-                startIcon={<CloudDownloadIcon />}
-                onClick={handleExportData}
-                fullWidth
-              >
-                Esporta Dati
-              </Button>
-              <input
-                accept=".json"
-                style={{ display: 'none' }}
-                id="import-data-input"
-                type="file"
-                onChange={handleImportData}
-              />
-              <label htmlFor="import-data-input">
-                <Button
-                  variant="outlined"
-                  startIcon={<CloudUploadIcon />}
-                  component="span"
-                  fullWidth
-                >
-                  Importa Dati
-                </Button>
-              </label>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<RestoreIcon />}
-                onClick={handleResetSettings}
-                fullWidth
-              >
-                Reset Impostazioni
-              </Button>
-            </Box>
+            <Button
+              variant="outlined"
+              startIcon={<CloudDownloadIcon />}
+              onClick={handleExportData}
+              fullWidth
+            >
+              Esporta Dati
+            </Button>
           </Paper>
         </Grid>
         
-        {/* Sincronizzazione Cloud */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
-              Sincronizzazione Cloud
+              Importa Dati
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Sincronizza i tuoi dati con servizi cloud
+              Ripristina i dati da un backup
             </Typography>
-            
+            <input
+              accept=".json"
+              style={{ display: 'none' }}
+              id="import-data-input"
+              type="file"
+              onChange={handleImportData}
+            />
+            <label htmlFor="import-data-input">
+              <Button
+                variant="outlined"
+                startIcon={<CloudUploadIcon />}
+                component="span"
+                fullWidth
+              >
+                Importa Dati
+              </Button>
+            </label>
+          </Paper>
+        </Grid>
+        
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom color="error">
+              Reset Impostazioni
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Ripristina tutte le impostazioni ai valori predefiniti
+            </Typography>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<RestoreIcon />}
+              onClick={handleResetSettings}
+              fullWidth
+            >
+              Reset Impostazioni
+            </Button>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+
+  const renderCloudSyncSettings = () => (
+    <Box sx={{ space: 3 }}>
+      <Typography variant="h6" gutterBottom>
+        Sincronizzazione Cloud
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Sincronizza i tuoi dati con servizi cloud
+      </Typography>
+      
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Configurazione
+            </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <FormControlLabel
                 control={<Switch checked={isEnabled} onChange={e => setIsEnabled(e.target.checked)} />}
@@ -552,7 +615,7 @@ const SettingsMaterial = ({
                 select
                 label="Provider"
                 value={provider}
-                onChange={e => setProvider(e.target.value)}
+                onChange={e => handleProviderChange(e.target.value)}
                 fullWidth
                 disabled={!isEnabled}
               >
@@ -569,7 +632,16 @@ const SettingsMaterial = ({
                 fullWidth
                 disabled={!isEnabled}
               />
-              
+            </Box>
+          </Paper>
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Stato Sincronizzazione
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <Chip 
                   label={`Ultimo sync: ${lastSync ? new Date(lastSync).toLocaleString() : 'N/A'}`} 
@@ -643,8 +715,10 @@ const SettingsMaterial = ({
         return renderAppearanceSettings();
       case 'notifications':
         return renderNotificationSettings();
-      case 'sync':
-        return renderSyncSettings();
+      case 'backup':
+        return renderBackupSettings();
+      case 'cloudsync':
+        return renderCloudSyncSettings();
       case 'security':
         return renderSecuritySettings();
       default:
@@ -746,7 +820,8 @@ const SettingsMaterial = ({
                       {section.id === 'general' && renderGeneralSettings()}
                       {section.id === 'appearance' && renderAppearanceSettings()}
                       {section.id === 'notifications' && renderNotificationSettings()}
-                      {section.id === 'sync' && renderSyncSettings()}
+                      {section.id === 'backup' && renderBackupSettings()}
+                      {section.id === 'cloudsync' && renderCloudSyncSettings()}
                       {section.id === 'security' && renderSecuritySettings()}
                     </AccordionDetails>
                   </Accordion>

@@ -43,6 +43,42 @@ export const APP_TYPES = {
   PWA: 'pwa'
 };
 
+// Set di emoji predefinite per app senza icona
+export const DEFAULT_APP_EMOJIS = [
+  '🚀', '⚡', '🎯', '💡', '🔧', '📱', '💻', '🌐', '🎮', '📚',
+  '🎨', '🎵', '📷', '📹', '🎬', '📺', '📻', '🎙️', '🎤', '🎧',
+  '🏠', '🏢', '🏪', '🏨', '🏥', '🏫', '🏛️', '⛪', '🕌', '🕍',
+  '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐',
+  '🍕', '🍔', '🍟', '🌭', '🍿', '🧂', '🥨', '🥯', '🥖', '🧀',
+  '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸',
+  '🎪', '🎭', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷',
+  '🌍', '🌎', '🌏', '🌐', '🗺️', '🗾', '🧭', '🏔️', '⛰️', '🌋',
+  '💎', '🔮', '🎁', '🎈', '🎉', '🎊', '🎋', '🎍', '🎎', '🎏',
+  '🔮', '🧿', '⚗️', '🔭', '📡', '💻', '🖥️', '🖨️', '⌨️', '🖱️',
+  '📱', '📲', '💾', '💿', '📀', '🎥', '📺', '📻', '📷', '📹'
+];
+
+// Funzione per ottenere un'emoji casuale
+export const getRandomEmoji = () => {
+  return DEFAULT_APP_EMOJIS[Math.floor(Math.random() * DEFAULT_APP_EMOJIS.length)];
+};
+
+// Funzione per ottenere un'emoji basata sulla categoria
+export const getEmojiByCategory = (category) => {
+  const categoryEmojis = {
+    'produttività': ['⚡', '🚀', '💡', '🔧', '📊', '📈', '✅', '🎯'],
+    'intrattenimento': ['🎮', '🎬', '🎵', '🎨', '🎪', '🎭', '🎤', '🎧'],
+    'sviluppo': ['💻', '🔧', '⚙️', '🔨', '📱', '🌐', '🚀', '⚡'],
+    'social': ['👥', '💬', '📱', '🌐', '📞', '📧', '💌', '📢'],
+    'utility': ['🔧', '⚙️', '🛠️', '📋', '📝', '📌', '📍', '🔍'],
+    'altro': ['❓', '💭', '💡', '🎯', '⭐', '💫', '✨', '🌟']
+  };
+  
+  const categoryLower = category?.toLowerCase() || 'altro';
+  const emojis = categoryEmojis[categoryLower] || categoryEmojis['altro'];
+  return emojis[Math.floor(Math.random() * emojis.length)];
+};
+
 // Categorie predefinite
 export const CATEGORIES = {
   PRODUCTIVITY: 'productivity',

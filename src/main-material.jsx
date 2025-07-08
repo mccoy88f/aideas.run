@@ -59,6 +59,7 @@ import AppImporterMaterial from './components/AppImporterMaterial.jsx';
 import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
+import EmojiSelector from './components/EmojiSelector.jsx';
 import GoogleDriveService from './services/GoogleDriveService.js';
 import GitHubService from './services/GitHubService.js';
 
@@ -90,6 +91,7 @@ function AIdeasApp() {
   const [syncManagerOpen, setSyncManagerOpen] = React.useState(false);
   const [userInfo, setUserInfo] = React.useState(null);
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [emojiSelectorOpen, setEmojiSelectorOpen] = React.useState(false);
 
   // Inizializzazione
   React.useEffect(() => {
@@ -1231,6 +1233,36 @@ function AIdeasApp() {
               {/* Cambio icona */}
               <Box sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Icona</Typography>
+                
+                {/* Mostra icona corrente */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Box sx={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: 2, 
+                    border: '1px solid #ccc',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.5rem',
+                    bgcolor: 'background.paper'
+                  }}>
+                    {selectedApp.icon}
+                  </Box>
+                  
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => setEmojiSelectorOpen(true)}
+                  >
+                    Cambia Emoji
+                  </Button>
+                </Box>
+                
+                {/* Upload file immagine */}
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                  Oppure carica un'immagine:
+                </Typography>
                 <input
                   type="file"
                   accept="image/*,image/svg+xml"
@@ -1246,9 +1278,6 @@ function AIdeasApp() {
                     }
                   }}
                 />
-                {selectedApp.icon && (
-                  <img src={selectedApp.icon} alt="Icona app" style={{ width: 48, height: 48, borderRadius: 8, border: '1px solid #ccc' }} />
-                )}
               </Box>
               {/* Modalità apertura */}
               <TextField
@@ -1334,6 +1363,18 @@ function AIdeasApp() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* EmojiSelector */}
+      <EmojiSelector
+        open={emojiSelectorOpen}
+        onClose={() => setEmojiSelectorOpen(false)}
+        onSelect={(emoji) => {
+          setSelectedApp({ ...selectedApp, icon: emoji });
+          setEmojiSelectorOpen(false);
+        }}
+        currentEmoji={selectedApp?.icon}
+        category={selectedApp?.category}
+      />
     </Box>
   );
 }

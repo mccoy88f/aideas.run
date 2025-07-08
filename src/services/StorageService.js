@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { getEmojiByCategory } from '../utils/constants.js';
 
 /**
  * AIdeas Storage Service - Gestione IndexedDB con Dexie.js
@@ -58,6 +59,13 @@ class StorageService {
   // Installa una nuova app
   async installApp(appData) {
     try {
+      // Assegna automaticamente un'emoji se non c'è icona
+      let icon = appData.icon;
+      if (!icon) {
+        icon = getEmojiByCategory(appData.category);
+        console.log(`🎨 Assegnata emoji automatica per ${appData.name}: ${icon}`);
+      }
+
       const app = {
         name: appData.name,
         description: appData.description || '',
@@ -66,7 +74,7 @@ class StorageService {
         url: appData.url || null,
         type: appData.type, // 'zip', 'url', 'github', 'pwa', 'html'
         githubUrl: appData.githubUrl || null,
-        icon: appData.icon || null,
+        icon: icon,
         manifest: appData.manifest || {},
         permissions: appData.permissions || [],
         tags: appData.tags || [],

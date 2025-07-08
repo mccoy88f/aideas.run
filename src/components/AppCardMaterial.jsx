@@ -56,8 +56,29 @@ const AppCardMaterial = ({
       .slice(0, 2);
   };
 
+  const isEmoji = (icon) => {
+    // Controlla se l'icona è un'emoji (carattere Unicode)
+    return icon && icon.length === 2 && icon.charCodeAt(0) > 255;
+  };
+
   const getAppIcon = (app) => {
     if (app.icon) {
+      // Se è un'emoji (carattere Unicode)
+      if (app.icon.length === 2 && app.icon.charCodeAt(0) > 255) {
+        return (
+          <div style={{ 
+            width: '100%', 
+            height: '100%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            fontSize: '2rem'
+          }}>
+            {app.icon}
+          </div>
+        );
+      }
+      
       // Se è un'icona custom (base64, URL, etc.)
       if (app.icon.startsWith('data:') || app.icon.startsWith('http')) {
         return (
@@ -151,7 +172,7 @@ const AppCardMaterial = ({
               width: 56,
               height: 56,
               mr: 2,
-              background: app.icon ? 'transparent' : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+              background: app.icon && !isEmoji(app.icon) ? 'transparent' : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
               fontSize: '1.2rem',
               fontWeight: 600,
               boxShadow: `0 4px 12px ${theme.palette.primary.main}33`,
