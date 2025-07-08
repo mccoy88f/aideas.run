@@ -519,7 +519,9 @@ export default function SyncManagerMaterial({ open, onClose }) {
               />
               {lastSync && (
                 <Chip 
-                  label={`Ultimo sync: ${lastSync.toLocaleDateString()}`}
+                  label={`Ultimo sync: ${
+                    (typeof lastSync === 'string' ? new Date(lastSync) : lastSync).toLocaleDateString()
+                  }`}
                   variant="outlined"
                 />
               )}
