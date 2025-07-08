@@ -53,6 +53,7 @@ import {
   CloudUpload as CloudUploadIcon,
   CloudDownload as CloudDownloadIcon
 } from '@mui/icons-material';
+import { useSyncStatus } from '../utils/useSyncStatus.js';
 
 /**
  * Componente Settings Material UI con aspetto glossy
@@ -211,6 +212,10 @@ const SettingsMaterial = ({
       showToast('Errore durante il reset', 'error');
     }
   };
+
+  const {
+    isEnabled, provider, isInProgress, lastSync, nextSync, error, intervalMinutes, syncHistory, setProvider, setIsEnabled, setIntervalMinutes, manualSync
+  } = useSyncStatus();
 
   const renderGeneralSettings = () => (
     <Box sx={{ space: 3 }}>
@@ -502,26 +507,45 @@ const SettingsMaterial = ({
         
         <Grid item xs={12}>
           <FormControlLabel
-            control={
-              <Switch
-                checked={localSettings.autoBackup || false}
-                onChange={(e) => handleSettingChange('autoBackup', e.target.checked)}
-              />
-            }
-            label="Backup automatico"
+            control={<Switch checked={isEnabled} onChange={e => setIsEnabled(e.target.checked)} />}
+            label="Sincronizzazione Cloud"
           />
         </Grid>
         
         <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={localSettings.cloudSync || false}
-                onChange={(e) => handleSettingChange('cloudSync', e.target.checked)}
-              />
-            }
-            label="Sincronizzazione cloud (Beta)"
+          <TextField
+            select
+            label="Provider"
+            value={provider}
+            onChange={e => setProvider(e.target.value)}
+            sx={{ width: 200, ml: 2 }}
+          >
+            <MenuItem value="github">GitHub Gist</MenuItem>
+            <MenuItem value="googledrive">Google Drive</MenuItem>
+          </TextField>
+        </Grid>
+        
+        <Grid item xs={12}>
+          <TextField
+            label="Intervallo (minuti)"
+            type="number"
+            value={intervalMinutes}
+            onChange={e => setIntervalMinutes(Number(e.target.value))}
+            inputProps={{ min: 1, max: 60 }}
+            sx={{ width: 120, ml: 2 }}
           />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <Chip label={`Ultimo sync: ${lastSync ? new Date(lastSync).toLocaleString() : 'N/A'}`} variant="outlined" sx={{ ml: 2 }} />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <Chip label={`Prossimo sync: ${nextSync ? nextSync.toLocaleTimeString() : 'N/A'}`} variant="outlined" sx={{ ml: 2 }} />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <Button onClick={manualSync} disabled={isInProgress} startIcon={<SyncIcon />}>Sincronizza ora</Button>
         </Grid>
       </Grid>
     </Box>

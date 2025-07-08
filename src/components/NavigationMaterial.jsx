@@ -35,6 +35,7 @@ import {
   Info as InfoIcon,
   Help as HelpIcon
 } from '@mui/icons-material';
+import { useSyncStatus } from '../utils/useSyncStatus.js';
 
 /**
  * Componente di navigazione Material UI con drawer e app bar
@@ -56,6 +57,7 @@ const NavigationMaterial = ({
   isAuthenticated = false
 }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { isEnabled, isInProgress, error } = useSyncStatus();
 
   const navigationItems = [
     {
@@ -309,9 +311,9 @@ const NavigationMaterial = ({
             <IconButton
               color="inherit"
               onClick={onSyncManagerOpen}
-              title="Sincronizzazione"
+              title={isInProgress ? 'Sincronizzazione in corso' : (isEnabled ? 'Sincronizzazione attiva' : 'Sincronizzazione disattivata')}
             >
-              <CloudSyncIcon />
+              <CloudSyncIcon sx={{ color: isInProgress ? 'gold' : (isEnabled ? 'green' : 'red') }} />
             </IconButton>
             
             <IconButton

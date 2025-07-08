@@ -48,16 +48,9 @@ import GitHubService from '../services/GitHubService.js';
 import GoogleDriveService from '../services/GoogleDriveService.js';
 import StorageService from '../services/StorageService.js';
 import { useTheme } from '@mui/material/styles';
+import { useSyncStatus } from '../utils/useSyncStatus.js';
 
 export default function SyncManagerMaterial({ open, onClose }) {
-  const [syncStatus, setSyncStatus] = useState({
-    isEnabled: false,
-    provider: 'github',
-    lastSync: null,
-    isInProgress: false,
-    autoSync: false
-  });
-
   const [setupMode, setSetupMode] = useState(false);
   const [credentials, setCredentials] = useState({
     github: { token: '' },
@@ -67,9 +60,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
     }
   });
 
-  const [syncHistory, setSyncHistory] = useState([]);
   const [progress, setProgress] = useState({ show: false, value: 0, text: '' });
-  const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [gistId, setGistId] = useState(null);
 
@@ -77,6 +68,10 @@ export default function SyncManagerMaterial({ open, onClose }) {
   const [googleService] = useState(new GoogleDriveService());
 
   const theme = useTheme();
+
+  const {
+    isEnabled, provider, isInProgress, lastSync, nextSync, error, intervalMinutes, syncHistory, setProvider, setIsEnabled, setIntervalMinutes, manualSync
+  } = useSyncStatus();
 
   useEffect(() => {
     if (open) {
@@ -514,23 +509,32 @@ export default function SyncManagerMaterial({ open, onClose }) {
             
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
               <Chip 
-                label={syncStatus.isEnabled ? 'Abilitata' : 'Disabilitata'}
-                color={syncStatus.isEnabled ? 'success' : 'default'}
-                icon={syncStatus.isEnabled ? <CheckIcon /> : <WarningIcon />}
+                label={isEnabled ? 'Abilitata' : 'Disabilitata'}
+                color={isEnabled ? 'success' : 'default'}
+                icon={isEnabled ? <CheckIcon /> : <WarningIcon />}
               />
               <Chip 
-                label={syncStatus.provider === 'github' ? 'GitHub Gist' : 'Google Drive'}
-                icon={syncStatus.provider === 'github' ? <GitHubIcon /> : <GoogleIcon />}
+                label={provider === 'github' ? 'GitHub Gist' : 'Google Drive'}
+                icon={provider === 'github' ? <GitHubIcon /> : <GoogleIcon />}
               />
-              {syncStatus.lastSync && (
+              {lastSync && (
                 <Chip 
-                  label={`Ultimo sync: ${syncStatus.lastSync.toLocaleDateString()}`}
+                  label={`Ultimo sync: ${lastSync.toLocaleDateString()}`}
                   variant="outlined"
                 />
               )}
+              <Chip label={`Prossimo sync: ${nextSync ? nextSync.toLocaleTimeString() : 'N/A'}`} variant="outlined" />
+              <TextField
+                label="Intervallo (minuti)"
+                type="number"
+                value={intervalMinutes}
+                onChange={e => setIntervalMinutes(Number(e.target.value))}
+                inputProps={{ min: 1, max: 60 }}
+                sx={{ width: 120, ml: 2 }}
+              />
             </Box>
 
-            {!syncStatus.isEnabled && (
+            {!isEnabled && (
               <Button
                 variant="contained"
                 startIcon={<SettingsIcon />}
@@ -556,7 +560,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
                   Scegli Provider
                 </Typography>
                 <RadioGroup
-                  value={syncStatus.provider}
+                  value={provider}
                   onChange={handleProviderChange}
                   row
                 >
@@ -584,7 +588,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
               </FormControl>
 
               {/* Configurazione GitHub */}
-              {syncStatus.provider === 'github' && (
+              {provider === 'github' && (
                 <Box>
                   <Typography variant="subtitle1" sx={{ mb: 2 }}>
                     Configurazione GitHub
@@ -636,7 +640,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
               )}
 
               {/* Configurazione Google Drive */}
-              {syncStatus.provider === 'googledrive' && (
+              {provider === 'googledrive' && (
                 <Box>
                   <Typography variant="subtitle1" sx={{ mb: 2 }}>
                     Configurazione Google Drive
@@ -688,8 +692,8 @@ export default function SyncManagerMaterial({ open, onClose }) {
                   variant="contained"
                   onClick={enableSync}
                   disabled={
-                    (syncStatus.provider === 'github' && !credentials.github.token) ||
-                    (syncStatus.provider === 'googledrive' && !credentials.googledrive.clientId)
+                    (provider === 'github' && !credentials.github.token) ||
+                    (provider === 'googledrive' && !credentials.googledrive.clientId)
                   }
                 >
                   Abilita Sincronizzazione
@@ -706,14 +710,14 @@ export default function SyncManagerMaterial({ open, onClose }) {
         )}
 
         {/* Azioni Sincronizzazione */}
-        {syncStatus.isEnabled && (
+        {isEnabled && (
           <Card sx={{ mb: 3, background: theme.palette.background.default, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2 }}>
                 Azioni Sincronizzazione
               </Typography>
               
-              {syncStatus.provider === 'github' && gistId && (
+              {provider === 'github' && gistId && (
                 <Alert severity="info" sx={{ mb: 2 }}>
                   <Typography variant="body2">
                     📋 Sincronizzazione con Gist: {gistId}
@@ -726,7 +730,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
                   variant="contained"
                   startIcon={<SyncIcon />}
                   onClick={() => performSync('bidirectional')}
-                  disabled={syncStatus.isInProgress}
+                  disabled={isInProgress}
                 >
                   Sincronizza Ora
                 </Button>
@@ -734,7 +738,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
                   variant="outlined"
                   startIcon={<UploadIcon />}
                   onClick={() => performSync('upload')}
-                  disabled={syncStatus.isInProgress}
+                  disabled={isInProgress}
                 >
                   Solo Upload
                 </Button>
@@ -742,7 +746,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
                   variant="outlined"
                   startIcon={<DownloadIcon />}
                   onClick={() => performSync('download')}
-                  disabled={syncStatus.isInProgress}
+                  disabled={isInProgress}
                 >
                   Solo Download
                 </Button>
