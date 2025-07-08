@@ -265,7 +265,7 @@ const NavigationMaterial = ({
             AIdeas
           </Typography>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>
             <IconButton color="inherit">
               <SearchIcon />
             </IconButton>
@@ -332,8 +332,8 @@ const NavigationMaterial = ({
             borderRadius: 0,
             borderRight: `1px solid ${theme.palette.divider}`,
             boxSizing: 'border-box',
-            top: 0,
-            height: '100vh',
+            top: !bottomBar ? { xs: '56px', sm: '64px' } : 0,
+            height: !bottomBar ? { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' } : '100vh',
             transition: 'width 0.3s ease',
             overflow: 'hidden'
           }
