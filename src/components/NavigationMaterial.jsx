@@ -50,7 +50,8 @@ const NavigationMaterial = ({
   favoriteCount = 0,
   totalApps = 0,
   theme,
-  mode
+  mode,
+  bottomBar = false
 }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -287,9 +288,12 @@ const NavigationMaterial = ({
         sx={{
           background: theme.palette.background.paper,
           backdropFilter: 'blur(20px)',
-          borderBottom: `1px solid ${theme.palette.divider}`,
+          borderBottom: !bottomBar ? `1px solid ${theme.palette.divider}` : undefined,
+          borderTop: bottomBar ? `1px solid ${theme.palette.divider}` : undefined,
           zIndex: theme.zIndex.drawer + 1,
-          color: theme.palette.text.primary
+          color: theme.palette.text.primary,
+          top: bottomBar ? 'auto' : 0,
+          bottom: bottomBar ? 0 : 'auto',
         }}
       >
         <Toolbar>
@@ -302,11 +306,13 @@ const NavigationMaterial = ({
             <MenuIcon />
           </IconButton>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
+            {/* Mostra solo su desktop: icona e nome */}
             <AppsIcon 
               sx={{ 
                 mr: 1, 
-                color: theme.palette.primary.main
+                color: theme.palette.primary.main,
+                display: { xs: 'none', sm: 'inline-flex' }
               }} 
             />
             <Typography
@@ -319,12 +325,13 @@ const NavigationMaterial = ({
             >
               AIdeas
             </Typography>
+            {/* Mostra solo su desktop: sottotitolo */}
             <Typography 
               variant="body2" 
               sx={{ 
                 ml: 1, 
                 opacity: 0.7,
-                display: { xs: 'block', sm: 'none' }
+                display: { xs: 'none', sm: 'block' }
               }}
             >
               Gestore App
@@ -376,8 +383,11 @@ const NavigationMaterial = ({
             background: theme.palette.background.paper,
             backdropFilter: 'blur(20px)',
             borderRight: `1px solid ${theme.palette.divider}`,
-            mt: '56px',
-            height: 'calc(100vh - 56px)'
+            mt: !bottomBar ? '56px' : 0,
+            mb: bottomBar ? '56px' : 0,
+            height: !bottomBar ? 'calc(100vh - 56px)' : 'calc(100vh - 56px)',
+            top: !bottomBar ? '56px' : 'auto',
+            bottom: bottomBar ? '56px' : 'auto',
           }
         }}
       >
@@ -396,7 +406,10 @@ const NavigationMaterial = ({
             backdropFilter: 'blur(20px)',
             borderRight: `1px solid ${theme.palette.divider}`,
             boxSizing: 'border-box',
-            mt: '64px',
+            mt: !bottomBar ? '64px' : 0,
+            mb: bottomBar ? '64px' : 0,
+            top: !bottomBar ? '64px' : 'auto',
+            bottom: bottomBar ? '64px' : 'auto',
             transition: 'width 0.3s ease',
             overflow: 'hidden'
           }

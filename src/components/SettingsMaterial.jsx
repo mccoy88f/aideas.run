@@ -375,6 +375,18 @@ const SettingsMaterial = ({
             label="Modalità debug"
           />
         </Grid>
+        
+        <Grid item xs={12}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={localSettings.bottomBar || false}
+                onChange={(e) => handleSettingChange('bottomBar', e.target.checked)}
+              />
+            }
+            label={localSettings.bottomBar ? 'Barra in basso' : 'Barra in alto'}
+          />
+        </Grid>
       </Grid>
     </Box>
   );

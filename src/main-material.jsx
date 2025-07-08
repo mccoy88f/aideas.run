@@ -129,6 +129,20 @@ function AIdeasApp() {
     return () => document.removeEventListener('keydown', handleKeyboardShortcuts);
   }, []);
 
+  React.useEffect(() => {
+    // Gestione posizione toast in base a bottomBar
+    const toastContainer = document.getElementById('toast-container');
+    if (toastContainer) {
+      if (settings.bottomBar) {
+        toastContainer.classList.remove('material-ui-toast-bottom-left');
+        toastContainer.classList.add('material-ui-toast-top-left');
+      } else {
+        toastContainer.classList.remove('material-ui-toast-top-left');
+        toastContainer.classList.add('material-ui-toast-bottom-left');
+      }
+    }
+  }, [settings.bottomBar]);
+
   const initializeApp = async () => {
     try {
       console.log('🚀 Inizializzazione AIdeas con Material UI...');
@@ -650,12 +664,14 @@ function AIdeasApp() {
         totalApps={apps.length}
         theme={theme}
         mode={mode}
+        bottomBar={settings.bottomBar || false}
       />
 
       {/* Main Content */}
       <Box component="main" sx={{ 
         flexGrow: 1, 
-        mt: { xs: '56px', sm: '64px' }, 
+        mt: !settings.bottomBar ? { xs: '56px', sm: '64px' } : 0,
+        mb: settings.bottomBar ? { xs: '56px', sm: '64px' } : 0,
         ml: { sm: drawerOpen ? '280px' : 0 },
         transition: 'margin-left 0.3s ease',
         display: 'flex',
@@ -1189,6 +1205,11 @@ function initializeAIdeasWithMaterialUI() {
     appContainer.removeAttribute('aria-hidden');
     console.log('🧹 Container svuotato per React');
         
+    // Posiziona i toast in basso a sinistra per Material UI
+    const toastContainer = document.getElementById('toast-container');
+    if (toastContainer) {
+      toastContainer.classList.add('material-ui-toast-bottom-left');
+    }
 
     try {
       console.log('🌳 Creazione React root...');
