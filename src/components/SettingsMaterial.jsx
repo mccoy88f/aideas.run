@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StorageService from '../services/StorageService.js';
 import GoogleDriveService from '../services/GoogleDriveService.js';
 import { showToast } from '../utils/helpers.js';
@@ -82,6 +82,12 @@ const SettingsMaterial = ({
     isEnabled, provider, isInProgress, lastSync, nextSync, error, intervalMinutes, syncHistory,
     setProvider, setIsEnabled, setIntervalMinutes, manualSync
   } = useSyncStatus();
+
+  // Stato per informazioni utente
+  const [userInfo, setUserInfo] = useState({
+    github: null,
+    googledrive: null
+  });
 
   const sections = [
     {
@@ -228,8 +234,46 @@ const SettingsMaterial = ({
     }
   };
 
+  // Carica informazioni utente
+  const loadUserInfo = async () => {
+    try {
+      // Carica info GitHub
+      const githubToken = await StorageService.getSetting('githubToken');
+      if (githubToken) {
+        const githubService = new GitHubService();
+        const testResult = await githubService.testConnection();
+        if (testResult.success && testResult.user) {
+          setUserInfo(prev => ({
+            ...prev,
+            github: testResult.user
+          }));
+        }
+      }
+
+      // Carica info Google Drive
+      const googleService = new GoogleDriveService();
+      if (await googleService.isAuthenticated()) {
+        const userInfo = await googleService.getUserInfo();
+        setUserInfo(prev => ({
+          ...prev,
+          googledrive: userInfo
+        }));
+      }
+    } catch (error) {
+      console.error('Errore caricamento info utente:', error);
+    }
+  };
+
+  // Carica info utente all'apertura
+  useEffect(() => {
+    if (open) {
+      loadUserInfo();
+    }
+  }, [open]);
+
   const handleProviderChange = async (newProvider) => {
     setProvider(newProvider);
+    setHasChanges(true); // Marca come modificato
     
     // Se la sincronizzazione è abilitata, gestisci l'autenticazione
     if (isEnabled) {
@@ -621,7 +665,15 @@ const SettingsMaterial = ({
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <FormControlLabel
-                control={<Switch checked={isEnabled} onChange={e => setIsEnabled(e.target.checked)} />}
+                control={
+                  <Switch 
+                    checked={isEnabled} 
+                    onChange={e => {
+                      setIsEnabled(e.target.checked);
+                      setHasChanges(true);
+                    }} 
+                  />
+                }
                 label="Abilita sincronizzazione cloud"
               />
               
@@ -641,7 +693,10 @@ const SettingsMaterial = ({
                 label="Intervallo (minuti)"
                 type="number"
                 value={intervalMinutes}
-                onChange={e => setIntervalMinutes(Number(e.target.value))}
+                onChange={e => {
+                  setIntervalMinutes(Number(e.target.value));
+                  setHasChanges(true);
+                }}
                 inputProps={{ min: 1, max: 60 }}
                 fullWidth
                 disabled={!isEnabled}
@@ -667,17 +722,78 @@ const SettingsMaterial = ({
               Stato Sincronizzazione
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              
+              {/* Informazioni utente */}
+              {isEnabled && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {provider === 'github' && userInfo.github && (
+                    <Alert severity="success" sx={{ mb: 1 }}>
+                      <Typography variant="body2">
+                        ✅ Connesso come: <strong>{userInfo.github.login}</strong>
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        {userInfo.github.name || userInfo.github.login}
+                      </Typography>
+                    </Alert>
+                  )}
+                  
+                  {provider === 'googledrive' && userInfo.googledrive && (
+                    <Alert severity="success" sx={{ mb: 1 }}>
+                      <Typography variant="body2">
+                        ✅ Connesso come: <strong>{userInfo.googledrive.emailAddress}</strong>
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        {userInfo.googledrive.displayName}
+                      </Typography>
+                    </Alert>
+                  )}
+                  
+                  {provider === 'github' && !userInfo.github && (
+                    <Alert severity="warning" sx={{ mb: 1 }}>
+                      <Typography variant="body2">
+                        ⚠️ Non autenticato con GitHub
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        Inserisci il token GitHub per sincronizzare
+                      </Typography>
+                    </Alert>
+                  )}
+                  
+                  {provider === 'googledrive' && !userInfo.googledrive && (
+                    <Alert severity="warning" sx={{ mb: 1 }}>
+                      <Typography variant="body2">
+                        ⚠️ Non autenticato con Google Drive
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        Completa l'autenticazione OAuth
+                      </Typography>
+                    </Alert>
+                  )}
+                </Box>
+              )}
+              
+              {/* Stato sincronizzazione */}
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <Chip 
                   label={`Ultimo sync: ${lastSync ? new Date(lastSync).toLocaleString() : 'N/A'}`} 
                   variant="outlined" 
                   size="small"
+                  color={lastSync ? "success" : "default"}
                 />
                 <Chip 
                   label={`Prossimo sync: ${nextSync ? nextSync.toLocaleTimeString() : 'N/A'}`} 
                   variant="outlined" 
                   size="small"
+                  color={nextSync ? "info" : "default"}
                 />
+                {error && (
+                  <Chip 
+                    label={`Errore: ${error}`} 
+                    variant="outlined" 
+                    size="small"
+                    color="error"
+                  />
+                )}
               </Box>
               
               <Button 
@@ -687,7 +803,7 @@ const SettingsMaterial = ({
                 variant="contained"
                 fullWidth
               >
-                Sincronizza ora
+                {isInProgress ? 'Sincronizzando...' : 'Sincronizza ora'}
               </Button>
             </Box>
           </Paper>
