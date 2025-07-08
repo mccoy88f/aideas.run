@@ -268,7 +268,7 @@ const AppCardMaterial = ({
         sx={{ 
           justifyContent: 'space-between', 
           p: 2, 
-          pt: 0,
+          pt: 2,
           borderTop: `1px solid ${theme.palette.divider}`
         }}
       >
