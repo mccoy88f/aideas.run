@@ -60,6 +60,7 @@ import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
 import GoogleDriveService from './services/GoogleDriveService.js';
+import GitHubService from './services/GitHubService.js';
 
 /**
  * Componente principale dell'applicazione AIdeas con Material UI
@@ -87,6 +88,8 @@ function AIdeasApp() {
   const [longPressTimer, setLongPressTimer] = React.useState(null);
   const [longPressApp, setLongPressApp] = React.useState(null);
   const [syncManagerOpen, setSyncManagerOpen] = React.useState(false);
+  const [userInfo, setUserInfo] = React.useState(null);
+  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
 
   // Inizializzazione
   React.useEffect(() => {
@@ -180,6 +183,7 @@ function AIdeasApp() {
       // Carica impostazioni
       console.log('⚙️ Caricamento impostazioni...');
       await loadUserSettings();
+      await loadUserInfo();
       
       console.log('🎯 Impostazione loading a false...');
       setLoading(false);
@@ -266,15 +270,45 @@ function AIdeasApp() {
 
   const loadUserSettings = async () => {
     try {
-      console.log('⚙️ Inizio caricamento impostazioni...');
-      const settings = await StorageService.getAllSettings();
-      console.log('⚙️ Impostazioni caricate:', settings);
-      setCurrentViewMode(settings.viewMode || 'grid');
-      setCurrentSort(settings.sortBy || 'lastUsed');
-      setSettings(settings);
-      console.log('⚙️ State impostazioni aggiornato');
+      const settingsData = await StorageService.getSettings();
+      setSettings(settingsData);
+      console.log('⚙️ Impostazioni caricate:', settingsData);
     } catch (error) {
       console.error('Errore caricamento impostazioni:', error);
+    }
+  };
+
+  const loadUserInfo = async () => {
+    try {
+      // Controlla se la sincronizzazione è abilitata
+      const syncEnabled = await StorageService.getSetting('syncEnabled', false);
+      const syncProvider = await StorageService.getSetting('syncProvider', 'github');
+      
+      if (syncEnabled) {
+        if (syncProvider === 'googledrive') {
+          const googleService = new GoogleDriveService();
+          googleService.configure(import.meta.env.VITE_GOOGLE_CLIENT_ID, import.meta.env.VITE_GOOGLE_CLIENT_SECRET);
+          
+          const authenticated = await googleService.isAuthenticated();
+          if (authenticated) {
+            const user = await googleService.getUserInfo();
+            setUserInfo(user);
+            setIsAuthenticated(true);
+            console.log('👤 Utente Google Drive caricato:', user);
+          }
+        } else if (syncProvider === 'github') {
+          const githubService = new GitHubService();
+          const authenticated = await githubService.isAuthenticated();
+          if (authenticated) {
+            const user = await githubService.getUserInfo();
+            setUserInfo(user);
+            setIsAuthenticated(true);
+            console.log('👤 Utente GitHub caricato:', user);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Errore caricamento info utente:', error);
     }
   };
 
@@ -658,6 +692,9 @@ function AIdeasApp() {
       const result = await googleService.handleAuthCallback(code, state);
       showToast('Autenticazione Google completata!', 'success');
       
+      // Carica le informazioni dell'utente
+      await loadUserInfo();
+      
       // Aggiorna lo stato se necessario
       if (syncManagerOpen) {
         // Ricarica lo stato del sync manager
@@ -706,6 +743,8 @@ function AIdeasApp() {
         theme={theme}
         mode={mode}
         bottomBar={settings.bottomBar || false}
+        userInfo={userInfo}
+        isAuthenticated={isAuthenticated}
       />
 
       {/* Main Content */}
@@ -1064,16 +1103,29 @@ function AIdeasApp() {
         </Box> {/* Chiusura del container centrale */}
       </Box> {/* Chiusura del main content */}
 
+      {/* SyncManagerMaterial */}
+      <SyncManagerMaterial
+        open={syncManagerOpen}
+        onClose={() => setSyncManagerOpen(false)}
+      />
+
       {/* Floating Action Button */}
       <Fab
         color="primary"
-        aria-label="add"
+        aria-label="Aggiungi app"
         onClick={() => setImporterOpen(true)}
         sx={{
           position: 'fixed',
-          bottom: 16,
-          right: 16,
-          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)'
+          right: 24,
+          bottom: settings.bottomBar ? 'auto' : 24,
+          top: settings.bottomBar ? 24 : 'auto',
+          zIndex: theme.zIndex.fab,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+          '&:hover': {
+            background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+            transform: 'scale(1.05)'
+          },
+          boxShadow: theme.shadows[8]
         }}
       >
         <AddIcon />
@@ -1211,12 +1263,6 @@ function AIdeasApp() {
           </DialogContent>
         </Dialog>
       )}
-
-      {/* SyncManagerMaterial */}
-      <SyncManagerMaterial
-        open={syncManagerOpen}
-        onClose={() => setSyncManagerOpen(false)}
-      />
     </Box>
   );
 }

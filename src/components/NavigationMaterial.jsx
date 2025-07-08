@@ -51,7 +51,9 @@ const NavigationMaterial = ({
   totalApps = 0,
   theme,
   mode,
-  bottomBar = false
+  bottomBar = false,
+  userInfo = null,
+  isAuthenticated = false
 }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -205,6 +207,41 @@ const NavigationMaterial = ({
 
       {/* Footer del drawer */}
       <Box sx={{ p: 2, borderTop: '1px solid rgba(0, 0, 0, 0.08)' }}>
+        {isAuthenticated && userInfo ? (
+          // Se autenticato, mostra info utente
+          <Box sx={{ mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <Avatar
+                src={userInfo.picture}
+                sx={{ width: 32, height: 32 }}
+              >
+                {userInfo.name ? userInfo.name.charAt(0).toUpperCase() : <PersonIcon />}
+              </Avatar>
+              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                  {userInfo.name || userInfo.email}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {userInfo.email}
+                </Typography>
+              </Box>
+            </Box>
+            <Chip
+              label="Sincronizzato"
+              size="small"
+              color="success"
+              sx={{ height: 20, fontSize: '0.7rem' }}
+            />
+          </Box>
+        ) : (
+          // Se non autenticato, mostra solo versione
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" color="text.secondary">
+              Non sincronizzato
+            </Typography>
+          </Box>
+        )}
+        
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography variant="caption" color="text.secondary">
             v1.0.0
