@@ -779,7 +779,7 @@ function AIdeasApp() {
           alignItems: 'center',
           width: '100%',
           position: 'sticky',
-          top: 0,
+          top: settings.bottomBar ? 0 : { xs: '56px', sm: '64px' },
           zIndex: 10,
           backgroundColor: 'background.default',
           py: 2,
@@ -1155,6 +1155,11 @@ function AIdeasApp() {
         onExport={() => {}}
         onImport={() => {}}
         onReset={() => {}}
+        defaultOpenMode={settings.defaultOpenMode || 'modal'}
+        onDefaultOpenModeChange={mode => {
+          setSettings({ ...settings, defaultOpenMode: mode });
+          StorageService.setAllSettings({ ...settings, defaultOpenMode: mode });
+        }}
       />
 
       {/* Modale per modificare app */}
@@ -1200,6 +1205,41 @@ function AIdeasApp() {
                 onChange={(e) => setSelectedApp({...selectedApp, url: e.target.value})}
                 sx={{ mb: 2 }}
               />
+              {/* Cambio icona */}
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Icona</Typography>
+                <input
+                  type="file"
+                  accept="image/*,image/svg+xml"
+                  style={{ display: 'block', marginBottom: 8 }}
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        setSelectedApp({ ...selectedApp, icon: ev.target.result });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                {selectedApp.icon && (
+                  <img src={selectedApp.icon} alt="Icona app" style={{ width: 48, height: 48, borderRadius: 8, border: '1px solid #ccc' }} />
+                )}
+              </Box>
+              {/* Modalità apertura */}
+              <TextField
+                select
+                fullWidth
+                label="Modalità di apertura"
+                value={selectedApp.openMode || 'modal'}
+                onChange={e => setSelectedApp({ ...selectedApp, openMode: e.target.value })}
+                sx={{ mb: 2 }}
+                SelectProps={{ native: true }}
+              >
+                <option value="modal">Modale (in-app)</option>
+                <option value="window">Nuova finestra/tab</option>
+              </TextField>
             </Box>
           </DialogContent>
           <DialogActions>

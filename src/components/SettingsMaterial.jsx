@@ -65,7 +65,9 @@ const SettingsMaterial = ({
   onSettingsChange,
   onExport,
   onImport,
-  onReset
+  onReset,
+  defaultOpenMode,
+  onDefaultOpenModeChange
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -708,6 +710,24 @@ const SettingsMaterial = ({
               renderSectionContent()
             )}
           </Box>
+        </Box>
+
+        {/* Sezione modalità apertura di default */}
+        <Box sx={{ mt: 3, mb: 2 }}>
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Modalità di apertura predefinita per nuove app
+          </Typography>
+          <TextField
+            select
+            fullWidth
+            label="Modalità di apertura"
+            value={defaultOpenMode || 'modal'}
+            onChange={e => onDefaultOpenModeChange(e.target.value)}
+            SelectProps={{ native: true }}
+          >
+            <option value="modal">Modale (in-app)</option>
+            <option value="window">Nuova finestra/tab</option>
+          </TextField>
         </Box>
       </DialogContent>
 

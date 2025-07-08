@@ -318,22 +318,6 @@ const AppCardMaterial = ({
             </IconButton>
           </Tooltip>
 
-          {showMenu && (
-            <Tooltip title="Altre opzioni">
-              <IconButton
-                size="small"
-                onClick={(e) => onShowMenu(app.id, e.currentTarget)}
-                sx={{
-                  '&:hover': {
-                    transform: 'scale(1.1)'
-                  }
-                }}
-              >
-                <MoreVertIcon />
-              </IconButton>
-            </Tooltip>
-          )}
-
           <Tooltip title="Elimina">
             <IconButton
               size="small"

@@ -71,7 +71,8 @@ class StorageService {
         permissions: appData.permissions || [],
         tags: appData.tags || [],
         metadata: appData.metadata || {},
-        content: appData.content || null // Aggiungi campo per contenuto HTML
+        content: appData.content || null, // Aggiungi campo per contenuto HTML
+        openMode: appData.openMode || (window?.appSettings?.defaultOpenMode || 'modal') // Nuovo campo
       };
 
       const appId = await this.db.apps.add(app);
