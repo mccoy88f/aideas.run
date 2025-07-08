@@ -654,7 +654,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
                         ✅ Credenziali Google Drive pre-configurate
                       </Typography>
                       <Typography variant="caption" display="block">
-                        Client ID configurato tramite variabili d'ambiente
+                        Client ID: {credentials.googledrive.clientId.substring(0, 10)}...
                       </Typography>
                     </Alert>
                   ) : (
@@ -663,7 +663,10 @@ export default function SyncManagerMaterial({ open, onClose }) {
                         ⚠️ Credenziali Google Drive non configurate
                       </Typography>
                       <Typography variant="caption" display="block">
-                        Configura VITE_GOOGLE_CLIENT_ID nelle variabili d'ambiente
+                        VITE_GOOGLE_CLIENT_ID non trovato. Controlla le variabili d'ambiente.
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        Debug: {import.meta.env.VITE_GOOGLE_CLIENT_ID ? 'Presente' : 'Mancante'}
                       </Typography>
                     </Alert>
                   )}

@@ -242,9 +242,23 @@ const SettingsMaterial = ({
             showToast('Codice Gist salvato', 'success');
           }
         } else if (newProvider === 'googledrive') {
-          // Google Drive è temporaneamente disabilitato
-          showToast('Google Drive è temporaneamente non disponibile. Usa GitHub Gist.', 'warning');
-          setProvider('github'); // Torna a GitHub
+          // Per Google Drive, avvia il processo di autenticazione
+          try {
+            const googleService = new GoogleDriveService();
+            const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+            
+            if (!clientId) {
+              showToast('Client ID Google non configurato. Contatta l\'amministratore.', 'error');
+              return;
+            }
+            
+            googleService.configure(clientId);
+            await googleService.authenticate();
+            showToast('Autenticazione Google avviata. Completa il processo nel browser.', 'info');
+          } catch (error) {
+            console.error('Errore autenticazione Google:', error);
+            showToast('Errore avvio autenticazione Google: ' + error.message, 'error');
+          }
         }
       } catch (error) {
         console.error('Errore configurazione provider:', error);
@@ -619,7 +633,7 @@ const SettingsMaterial = ({
                 disabled={!isEnabled}
               >
                 <MenuItem value="github">GitHub Gist</MenuItem>
-                <MenuItem value="googledrive" disabled>Google Drive (Temporaneamente disabilitato)</MenuItem>
+                <MenuItem value="googledrive">Google Drive</MenuItem>
               </TextField>
               
               <TextField
@@ -635,10 +649,10 @@ const SettingsMaterial = ({
               {provider === 'googledrive' && (
                 <Alert severity="info" sx={{ mt: 2 }}>
                   <Typography variant="body2">
-                    ⚠️ Google Drive è temporaneamente disabilitato per problemi di configurazione OAuth.
+                    🔐 Google Drive richiede autenticazione OAuth per la sincronizzazione.
                   </Typography>
                   <Typography variant="caption" display="block">
-                    Usa GitHub Gist per la sincronizzazione cloud.
+                    Clicca su "Salva" per avviare il processo di autenticazione.
                   </Typography>
                 </Alert>
               )}
