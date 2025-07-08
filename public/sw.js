@@ -26,6 +26,18 @@ if (!self.location.hostname.includes('localhost') && !self.location.hostname.inc
   STATIC_RESOURCES.push('__CSS_FILE__');
 }
 
+// Funzione per pulire URL da parametri di revisione
+function cleanUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    // Rimuovi parametri di revisione Workbox
+    urlObj.searchParams.delete('__WB_REVISION__');
+    return urlObj.toString();
+  } catch (e) {
+    return url;
+  }
+}
+
 // Risorse da aggiornare in background
 const RUNTIME_RESOURCES = [
   'https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.4/dexie.min.js',
@@ -58,8 +70,9 @@ self.addEventListener('install', (event) => {
         console.log('📦 Pre-caching static resources');
         for (const url of STATIC_RESOURCES) {
           try {
-            await cache.add(url);
-            console.log('✅ Cached:', url);
+            const cleanResourceUrl = cleanUrl(url);
+            await cache.add(cleanResourceUrl);
+            console.log('✅ Cached:', cleanResourceUrl);
           } catch (err) {
             console.error('❌ Errore caching:', url, err);
           }

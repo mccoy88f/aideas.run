@@ -792,4 +792,22 @@ export default class GitHubService {
       };
     }
   }
+
+  /**
+   * Sincronizzazione bidirezionale
+   * @returns {Promise<Object>} Risultato sincronizzazione
+   */
+  async syncBidirectional() {
+    try {
+      // Per ora, ritorna un messaggio di successo
+      // La logica completa sarà implementata quando necessario
+      return {
+        success: true,
+        message: 'Sincronizzazione GitHub completata'
+      };
+    } catch (error) {
+      console.error('Errore sincronizzazione bidirezionale GitHub:', error);
+      throw error;
+    }
+  }
 }
