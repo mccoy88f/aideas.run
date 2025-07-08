@@ -227,6 +227,41 @@ export default function SyncManagerMaterial({ open, onClose }) {
 
       // Aggiungi alla cronologia
       addToHistory('enabled', 'Sincronizzazione abilitata');
+
+      // Se è Google Drive, prova a scaricare dati esistenti
+      if (syncStatus.provider === 'googledrive') {
+        try {
+          setProgress({ show: true, value: 0, text: 'Controllo dati esistenti su Google Drive...' });
+          
+          // Controlla se ci sono dati locali
+          const localApps = await StorageService.getAllApps();
+          const hasLocalData = localApps && localApps.length > 0;
+          
+          if (!hasLocalData) {
+            setProgress({ show: true, value: 30, text: 'Scaricamento dati da Google Drive...' });
+            
+            const result = await googleService.downloadSyncData();
+            
+            if (result.data && result.data.data && result.data.data.apps) {
+              await StorageService.importData(result.data);
+              setProgress({ show: false, value: 100, text: '' });
+              setSuccess('Sincronizzazione abilitata e dati scaricati da Google Drive!');
+              addToHistory('sync', 'Dati scaricati automaticamente da Google Drive');
+            } else {
+              setProgress({ show: false, value: 100, text: '' });
+              setSuccess('Sincronizzazione abilitata! Nessun dato trovato su Google Drive.');
+            }
+          } else {
+            setProgress({ show: false, value: 100, text: '' });
+            setSuccess('Sincronizzazione abilitata! Dati locali già presenti.');
+          }
+        } catch (downloadError) {
+          console.warn('Errore download automatico:', downloadError);
+          setProgress({ show: false, value: 100, text: '' });
+          setSuccess('Sincronizzazione abilitata! Errore nel download automatico dei dati.');
+        }
+      }
+
     } catch (error) {
       console.error('Errore abilitazione sync:', error);
       setError(`Errore abilitazione: ${error.message}`);
