@@ -109,8 +109,8 @@ const NavigationMaterial = ({
       {/* Header del drawer */}
       <Box sx={{ 
         p: 3, 
-        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-        color: 'white'
+        background: mode === 'dark' ? theme.palette.primary.dark : theme.palette.primary.main,
+        color: theme.palette.primary.contrastText
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
           <Avatar
@@ -118,7 +118,7 @@ const NavigationMaterial = ({
               width: 48,
               height: 48,
               mr: 2,
-              background: 'rgba(255, 255, 255, 0.2)',
+              background: mode === 'dark' ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.2)',
               backdropFilter: 'blur(10px)'
             }}
           >
@@ -139,9 +139,9 @@ const NavigationMaterial = ({
             label={`${totalApps} app`}
             size="small"
             sx={{ 
-              background: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              '& .MuiChip-label': { color: 'white' }
+              background: mode === 'dark' ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.2)',
+              color: theme.palette.primary.contrastText,
+              '& .MuiChip-label': { color: theme.palette.primary.contrastText }
             }}
           />
           {favoriteCount > 0 && (
@@ -150,9 +150,9 @@ const NavigationMaterial = ({
               label={favoriteCount}
               size="small"
               sx={{ 
-                background: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                '& .MuiChip-label': { color: 'white' }
+                background: mode === 'dark' ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.2)',
+                color: theme.palette.primary.contrastText,
+                '& .MuiChip-label': { color: theme.palette.primary.contrastText }
               }}
             />
           )}
@@ -285,15 +285,11 @@ const NavigationMaterial = ({
         position="fixed"
         elevation={0}
         sx={{
-          background: mode === 'dark' 
-            ? 'rgba(15, 23, 42, 0.9)' 
-            : 'rgba(255, 255, 255, 0.95)',
+          background: theme.palette.background.paper,
           backdropFilter: 'blur(20px)',
-          borderBottom: mode === 'dark' 
-            ? '1px solid rgba(255, 255, 255, 0.08)' 
-            : '1px solid rgba(0, 0, 0, 0.08)',
+          borderBottom: `1px solid ${theme.palette.divider}`,
           zIndex: theme.zIndex.drawer + 1,
-          color: mode === 'dark' ? '#f8fafc' : '#1e293b'
+          color: theme.palette.text.primary
         }}
       >
         <Toolbar>
@@ -377,11 +373,11 @@ const NavigationMaterial = ({
           display: { xs: 'block', sm: 'none' },
           '& .MuiDrawer-paper': {
             width: drawerWidth,
-            background: 'rgba(255, 255, 255, 0.95)',
+            background: theme.palette.background.paper,
             backdropFilter: 'blur(20px)',
-            borderRight: '1px solid rgba(0, 0, 0, 0.08)',
-            mt: '56px', // Margine superiore per l'AppBar su mobile
-            height: 'calc(100vh - 56px)' // Altezza corretta su mobile
+            borderRight: `1px solid ${theme.palette.divider}`,
+            mt: '56px',
+            height: 'calc(100vh - 56px)'
           }
         }}
       >
@@ -396,11 +392,11 @@ const NavigationMaterial = ({
           display: { xs: 'none', sm: 'block' },
           '& .MuiDrawer-paper': {
             width: drawerOpen ? drawerWidth : 0,
-            background: 'rgba(255, 255, 255, 0.95)',
+            background: theme.palette.background.paper,
             backdropFilter: 'blur(20px)',
-            borderRight: '1px solid rgba(0, 0, 0, 0.08)',
+            borderRight: `1px solid ${theme.palette.divider}`,
             boxSizing: 'border-box',
-            mt: '64px', // Margine superiore per l'AppBar
+            mt: '64px',
             transition: 'width 0.3s ease',
             overflow: 'hidden'
           }

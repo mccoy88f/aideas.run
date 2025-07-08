@@ -47,6 +47,7 @@ import {
 import GitHubService from '../services/GitHubService.js';
 import GoogleDriveService from '../services/GoogleDriveService.js';
 import StorageService from '../services/StorageService.js';
+import { useTheme } from '@mui/material/styles';
 
 export default function SyncManagerMaterial({ open, onClose }) {
   const [syncStatus, setSyncStatus] = useState({
@@ -74,6 +75,8 @@ export default function SyncManagerMaterial({ open, onClose }) {
 
   const [githubService] = useState(new GitHubService());
   const [googleService] = useState(new GoogleDriveService());
+
+  const theme = useTheme();
 
   useEffect(() => {
     if (open) {
@@ -428,7 +431,9 @@ export default function SyncManagerMaterial({ open, onClose }) {
       PaperProps={{
         sx: {
           minHeight: '600px',
-          maxHeight: '90vh'
+          maxHeight: '90vh',
+          background: theme.palette.background.paper,
+          color: theme.palette.text.primary
         }
       }}
     >
@@ -465,7 +470,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
         )}
 
         {/* Stato Sincronizzazione */}
-        <Card sx={{ mb: 3 }}>
+        <Card sx={{ mb: 3, background: theme.palette.background.default, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <SecurityIcon />
@@ -505,7 +510,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
 
         {/* Setup Sincronizzazione */}
         {setupMode && (
-          <Card sx={{ mb: 3 }}>
+          <Card sx={{ mb: 3, background: theme.palette.background.default, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2 }}>
                 Configura Sincronizzazione
@@ -667,7 +672,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
 
         {/* Azioni Sincronizzazione */}
         {syncStatus.isEnabled && (
-          <Card sx={{ mb: 3 }}>
+          <Card sx={{ mb: 3, background: theme.palette.background.default, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2 }}>
                 Azioni Sincronizzazione
@@ -736,7 +741,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
         )}
 
         {/* Cronologia Sincronizzazioni */}
-        <Card>
+        <Card sx={{ background: theme.palette.background.default, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <HistoryIcon />

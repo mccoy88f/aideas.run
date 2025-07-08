@@ -120,9 +120,9 @@ const AppCardMaterial = ({
         display: 'flex',
         flexDirection: 'column',
         transition: 'all 0.3s ease',
-        background: 'rgba(255, 255, 255, 0.95)',
+        background: theme.palette.background.paper,
         backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
+        border: `1px solid ${theme.palette.divider}`,
         '&:hover': {
           transform: 'translateY(-4px)',
           boxShadow: theme.shadows[8],
@@ -154,7 +154,7 @@ const AppCardMaterial = ({
               background: app.icon ? 'transparent' : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
               fontSize: '1.2rem',
               fontWeight: 600,
-              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+              boxShadow: `0 4px 12px ${theme.palette.primary.main}33`,
               position: 'relative'
             }}
           >
@@ -269,7 +269,7 @@ const AppCardMaterial = ({
           justifyContent: 'space-between', 
           p: 2, 
           pt: 0,
-          borderTop: '1px solid rgba(0, 0, 0, 0.08)'
+          borderTop: `1px solid ${theme.palette.divider}`
         }}
       >
         <Button
@@ -278,9 +278,9 @@ const AppCardMaterial = ({
           onClick={() => onLaunch(app.id)}
           size="small"
           sx={{
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
             '&:hover': {
-              background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)'
+              background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
             }
           }}
         >

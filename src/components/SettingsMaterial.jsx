@@ -578,7 +578,7 @@ const SettingsMaterial = ({
       PaperProps={{
         sx: {
           borderRadius: isMobile ? 0 : 3,
-          background: 'rgba(255, 255, 255, 0.95)',
+          background: theme.palette.background.paper,
           backdropFilter: 'blur(20px)'
         }
       }}
@@ -604,7 +604,7 @@ const SettingsMaterial = ({
         <Box sx={{ display: 'flex', height: '60vh' }}>
           {/* Sidebar per desktop */}
           {!isMobile && (
-            <Box sx={{ width: 240, borderRight: '1px solid rgba(0, 0, 0, 0.08)', pr: 2 }}>
+            <Box sx={{ width: 240, borderRight: `1px solid ${theme.palette.divider}`, pr: 2, background: theme.palette.background.default }}>
               <List>
                 {sections.map((section) => (
                   <ListItem
@@ -616,17 +616,17 @@ const SettingsMaterial = ({
                       borderRadius: 1,
                       mb: 0.5,
                       '&.Mui-selected': {
-                        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                        color: 'white',
+                        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                        color: theme.palette.primary.contrastText,
                         '&:hover': {
-                          background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)'
+                          background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
                         }
                       }
                     }}
                   >
                     <ListItemIcon
                       sx={{
-                        color: activeSection === section.id ? 'white' : 'inherit',
+                        color: activeSection === section.id ? theme.palette.primary.contrastText : 'inherit',
                         minWidth: 40
                       }}
                     >

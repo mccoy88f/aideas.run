@@ -296,7 +296,9 @@ const AppImporterMaterial = ({
                   sx={{
                     p: 3,
                     cursor: 'pointer',
-                    border: importType === type.id ? `2px solid ${theme.palette[type.color].main}` : '2px solid transparent',
+                    border: importType === type.id ? `2px solid ${theme.palette[type.color].main}` : `2px solid ${theme.palette.divider}`,
+                    background: theme.palette.background.default,
+                    color: theme.palette.text.primary,
                     transition: 'all 0.2s ease',
                     '&:hover': {
                       transform: 'translateY(-2px)',
@@ -582,8 +584,7 @@ const AppImporterMaterial = ({
       fullScreen={isMobile}
       PaperProps={{
         sx: {
-          borderRadius: isMobile ? 0 : 3,
-          background: 'rgba(255, 255, 255, 0.95)',
+          background: theme.palette.background.paper,
           backdropFilter: 'blur(20px)'
         }
       }}
