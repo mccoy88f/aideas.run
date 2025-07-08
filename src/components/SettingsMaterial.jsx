@@ -242,10 +242,9 @@ const SettingsMaterial = ({
             showToast('Codice Gist salvato', 'success');
           }
         } else if (newProvider === 'googledrive') {
-          // Per Google Drive, mostra link per il login
-          const loginUrl = 'https://accounts.google.com/o/oauth2/auth?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&scope=https://www.googleapis.com/auth/drive.file&response_type=code';
-          window.open(loginUrl, '_blank');
-          showToast('Apri il link per autenticarti con Google Drive', 'info');
+          // Google Drive è temporaneamente disabilitato
+          showToast('Google Drive è temporaneamente non disponibile. Usa GitHub Gist.', 'warning');
+          setProvider('github'); // Torna a GitHub
         }
       } catch (error) {
         console.error('Errore configurazione provider:', error);
@@ -620,7 +619,7 @@ const SettingsMaterial = ({
                 disabled={!isEnabled}
               >
                 <MenuItem value="github">GitHub Gist</MenuItem>
-                <MenuItem value="googledrive">Google Drive</MenuItem>
+                <MenuItem value="googledrive" disabled>Google Drive (Temporaneamente disabilitato)</MenuItem>
               </TextField>
               
               <TextField
@@ -632,6 +631,17 @@ const SettingsMaterial = ({
                 fullWidth
                 disabled={!isEnabled}
               />
+              
+              {provider === 'googledrive' && (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  <Typography variant="body2">
+                    ⚠️ Google Drive è temporaneamente disabilitato per problemi di configurazione OAuth.
+                  </Typography>
+                  <Typography variant="caption" display="block">
+                    Usa GitHub Gist per la sincronizzazione cloud.
+                  </Typography>
+                </Alert>
+              )}
             </Box>
           </Paper>
         </Grid>
