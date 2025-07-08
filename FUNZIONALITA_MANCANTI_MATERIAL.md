@@ -1,5 +1,7 @@
 # Funzionalità Mancanti in Material UI
 
+⚠️ **Nota:** L'interfaccia Vanilla UI è stata rimossa. Tutte le funzionalità sono ora disponibili solo tramite Material UI. Questo documento resta come storico delle differenze precedenti.
+
 Questo documento elenca le funzionalità presenti in Vanilla UI ma non ancora implementate in Material UI.
 
 ## 🚨 Funzionalità Critiche Mancanti

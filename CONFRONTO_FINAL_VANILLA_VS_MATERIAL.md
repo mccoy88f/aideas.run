@@ -1,5 +1,7 @@
 # 📊 Confronto Finale: Vanilla UI vs Material UI
 
+⚠️ **Nota:** Dalla versione corrente, l'interfaccia Vanilla UI è stata completamente rimossa dal progetto. Tutte le funzionalità sono ora disponibili esclusivamente tramite Material UI.
+
 ## 🎯 Stato Attuale
 
 Dopo l'implementazione delle funzionalità mancanti, Material UI è ora **quasi paritario** con Vanilla UI in termini di funzionalità core.
