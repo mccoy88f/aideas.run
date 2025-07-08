@@ -55,7 +55,7 @@ export default class GoogleDriveService {
    * @param {boolean} usePopup - Usa popup invece di redirect
    * @returns {Promise<Object>} Risultato autenticazione
    */
-  async authenticate(usePopup = true) {
+  async authenticate(usePopup = false) {
     try {
       if (!this.clientId) {
         throw new Error('Client ID Google non configurato');
@@ -465,18 +465,19 @@ export default class GoogleDriveService {
   }
 
   /**
-   * Carica un file su Drive
-   * @param {string} filename - Nome file
+   * Upload file su Google Drive
+   * @param {string} name - Nome file
    * @param {string|Blob} content - Contenuto file
    * @param {string} mimeType - MIME type
    * @param {string} parentId - ID cartella parent
    * @param {Object} metadata - Metadati aggiuntivi
    * @returns {Promise<Object>} File caricato
    */
-  async uploadFile(filename, content, mimeType, parentId = null, metadata = {}) {
+  async uploadFile(name, content, mimeType, parentId = null, metadata = {}) {
     try {
       const fileMetadata = {
-        name: filename,
+        name,
+        mimeType,
         ...metadata
       };
 
@@ -484,101 +485,54 @@ export default class GoogleDriveService {
         fileMetadata.parents = [parentId];
       }
 
-      // Prepare multipart upload
-      const delimiter = '-------314159265358979323846';
-      const close_delim = `\r\n--${delimiter}--`;
-
-      let body = `--${delimiter}\r\n`;
-      body += 'Content-Type: application/json\r\n\r\n';
-      body += JSON.stringify(fileMetadata) + '\r\n';
-      body += `--${delimiter}\r\n`;
-      body += `Content-Type: ${mimeType}\r\n\r\n`;
-
+      // Per file di testo, usa l'endpoint semplice
       if (typeof content === 'string') {
-        body += content;
+        const response = await this.makeRequest('/files', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...fileMetadata,
+            content: content
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Errore upload file');
+        }
+
+        return await response.json();
       } else {
-        // Per Blob, usa FormData approach diverso
-        return await this.uploadFileBlob(filename, content, mimeType, parentId, metadata);
+        // Per file binari, usa multipart upload
+        const boundary = '----WebKitFormBoundary' + Math.random().toString(16).substr(2);
+        const formData = new FormData();
+        
+        // Aggiungi metadati
+        formData.append('metadata', new Blob([JSON.stringify(fileMetadata)], {
+          type: 'application/json'
+        }));
+        
+        // Aggiungi contenuto file
+        formData.append('file', content, name);
+
+        const response = await this.makeRequest(`/files?uploadType=multipart`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': `multipart/related; boundary=${boundary}`
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('Errore upload file');
+        }
+
+        return await response.json();
       }
-
-      body += close_delim;
-
-      const response = await this.makeRequest('/upload/files?uploadType=multipart', {
-        method: 'POST',
-        headers: {
-          'Content-Type': `multipart/related; boundary="${delimiter}"`
-        },
-        body: body
-      });
-
-      if (!response.ok) {
-        throw new Error('Errore upload file');
-      }
-
-      const file = await response.json();
-      console.log('✅ File caricato:', file.name);
-      return file;
 
     } catch (error) {
       console.error('Errore upload file:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Carica un file Blob su Drive
-   * @param {string} filename - Nome file
-   * @param {Blob} blob - Contenuto blob
-   * @param {string} mimeType - MIME type
-   * @param {string} parentId - ID cartella parent
-   * @param {Object} metadata - Metadati aggiuntivi
-   * @returns {Promise<Object>} File caricato
-   */
-  async uploadFileBlob(filename, blob, mimeType, parentId = null, metadata = {}) {
-    try {
-      const fileMetadata = {
-        name: filename,
-        ...metadata
-      };
-
-      if (parentId) {
-        fileMetadata.parents = [parentId];
-      }
-
-      // Prima crea il file con metadati
-      const metadataResponse = await this.makeRequest('/files', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(fileMetadata)
-      });
-
-      if (!metadataResponse.ok) {
-        throw new Error('Errore creazione metadati file');
-      }
-
-      const file = await metadataResponse.json();
-
-      // Poi carica il contenuto
-      const uploadResponse = await this.makeRequest(`/upload/files/${file.id}?uploadType=media`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': mimeType
-        },
-        body: blob
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Errore upload contenuto file');
-      }
-
-      const updatedFile = await uploadResponse.json();
-      console.log('✅ File blob caricato:', updatedFile.name);
-      return updatedFile;
-
-    } catch (error) {
-      console.error('Errore upload blob:', error);
       throw error;
     }
   }

@@ -59,6 +59,7 @@ import AppImporterMaterial from './components/AppImporterMaterial.jsx';
 import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
+import GoogleDriveService from './services/GoogleDriveService.js';
 
 /**
  * Componente principale dell'applicazione AIdeas con Material UI
@@ -142,6 +143,27 @@ function AIdeasApp() {
       }
     }
   }, [settings.bottomBar]);
+
+  React.useEffect(() => {
+    // Gestione callback autenticazione Google
+    const urlParams = new URLSearchParams(window.location.search);
+    const authCode = urlParams.get('code');
+    const authState = urlParams.get('state');
+    const authError = urlParams.get('error');
+    
+    if (authCode && authState) {
+      // Gestisci callback autenticazione Google
+      handleGoogleAuthCallback(authCode, authState);
+    } else if (authError) {
+      console.error('Errore autenticazione Google:', authError);
+      showToast('Errore autenticazione Google', 'error');
+    }
+    
+    // Pulisci URL
+    if (authCode || authError) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   const initializeApp = async () => {
     try {
@@ -626,6 +648,25 @@ function AIdeasApp() {
       setLongPressTimer(null);
     }
     setLongPressApp(null);
+  };
+
+  const handleGoogleAuthCallback = async (code, state) => {
+    try {
+      const googleService = new GoogleDriveService();
+      googleService.configure(import.meta.env.VITE_GOOGLE_CLIENT_ID, import.meta.env.VITE_GOOGLE_CLIENT_SECRET);
+      
+      const result = await googleService.handleAuthCallback(code, state);
+      showToast('Autenticazione Google completata!', 'success');
+      
+      // Aggiorna lo stato se necessario
+      if (syncManagerOpen) {
+        // Ricarica lo stato del sync manager
+        // Questo verrà gestito dal componente stesso
+      }
+    } catch (error) {
+      console.error('Errore callback Google:', error);
+      showToast('Errore autenticazione Google: ' + error.message, 'error');
+    }
   };
 
   if (loading) {
