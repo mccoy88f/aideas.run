@@ -311,11 +311,8 @@ const NavigationMaterial = ({
             backdropFilter: 'blur(20px)',
             borderRadius: 0,
             borderRight: `1px solid ${theme.palette.divider}`,
-            mt: !bottomBar ? '56px' : 0,
-            mb: bottomBar ? '56px' : 0,
-            height: !bottomBar ? 'calc(100vh - 56px)' : 'calc(100vh - 56px)',
-            top: !bottomBar ? '56px' : 'auto',
-            bottom: bottomBar ? '56px' : 'auto',
+            top: 0,
+            height: '100vh',
           }
         }}
       >
@@ -335,10 +332,8 @@ const NavigationMaterial = ({
             borderRadius: 0,
             borderRight: `1px solid ${theme.palette.divider}`,
             boxSizing: 'border-box',
-            mt: !bottomBar ? '64px' : 0,
-            mb: bottomBar ? '64px' : 0,
-            top: !bottomBar ? '64px' : 'auto',
-            bottom: bottomBar ? '64px' : 'auto',
+            top: 0,
+            height: '100vh',
             transition: 'width 0.3s ease',
             overflow: 'hidden'
           }

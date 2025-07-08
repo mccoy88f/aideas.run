@@ -670,8 +670,8 @@ function AIdeasApp() {
       {/* Main Content */}
       <Box component="main" sx={{ 
         flexGrow: 1, 
-        mt: !settings.bottomBar ? 0 : 0,
-        mb: settings.bottomBar ? 0 : 0,
+        mt: !settings.bottomBar ? { xs: '56px', sm: '64px' } : 0,
+        mb: settings.bottomBar ? { xs: '56px', sm: '64px' } : 0,
         ml: { sm: drawerOpen ? '280px' : 0 },
         transition: 'margin-left 0.3s ease',
         display: 'flex',
