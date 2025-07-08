@@ -785,17 +785,33 @@ function AIdeasApp() {
           py: 2,
           borderRadius: 2
         }}>
-          {/* Barra di ricerca fissa e centrata con pulsante + integrato */}
+          {/* Barra di ricerca fissa e centrata con pulsante + integrato - GLOSSY/TRASLUCIDA */}
           <Box sx={{
             width: '100%',
             maxWidth: 600,
             minWidth: 300,
-            backgroundColor: 'background.paper',
+            background: theme.palette.mode === 'dark' 
+              ? 'rgba(255, 255, 255, 0.05)' 
+              : 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(20px)',
             borderRadius: 2,
             display: 'flex',
             alignItems: 'center',
-            boxShadow: 1,
-            mb: 2
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 8px 32px rgba(0, 0, 0, 0.3)'
+              : '0 8px 32px rgba(0, 0, 0, 0.1)',
+            border: theme.palette.mode === 'dark'
+              ? '1px solid rgba(255, 255, 255, 0.1)'
+              : '1px solid rgba(255, 255, 255, 0.2)',
+            mb: 2,
+            '&:hover': {
+              background: theme.palette.mode === 'dark'
+                ? 'rgba(255, 255, 255, 0.08)'
+                : 'rgba(255, 255, 255, 0.15)',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 12px 40px rgba(0, 0, 0, 0.4)'
+                : '0 12px 40px rgba(0, 0, 0, 0.15)'
+            }
           }}>
             <Box sx={{ pl: 2, pr: 1, display: 'flex', alignItems: 'center' }}>
               <SearchIcon sx={{ color: 'text.secondary' }} />
@@ -813,7 +829,14 @@ function AIdeasApp() {
                   background: 'transparent',
                   '& fieldset': { border: 'none' },
                   fontSize: '1rem',
-                  px: 0
+                  px: 0,
+                  '& input': {
+                    color: 'text.primary',
+                    '&::placeholder': {
+                      color: 'text.secondary',
+                      opacity: 0.7
+                    }
+                  }
                 }
               }}
               sx={{

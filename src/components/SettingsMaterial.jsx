@@ -76,6 +76,12 @@ const SettingsMaterial = ({
   const [activeSection, setActiveSection] = useState('general');
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Hook per lo stato di sincronizzazione
+  const {
+    isEnabled, provider, isInProgress, lastSync, nextSync, error, intervalMinutes, syncHistory,
+    setProvider, setIsEnabled, setIntervalMinutes, manualSync
+  } = useSyncStatus();
+
   const sections = [
     {
       id: 'general',
@@ -215,9 +221,7 @@ const SettingsMaterial = ({
     }
   };
 
-  const {
-    isEnabled, provider, isInProgress, lastSync, nextSync, error, intervalMinutes, syncHistory, setProvider, setIsEnabled, setIntervalMinutes, manualSync
-  } = useSyncStatus();
+
 
   const renderGeneralSettings = () => (
     <Box sx={{ space: 3 }}>
@@ -275,6 +279,23 @@ const SettingsMaterial = ({
             }
             label="Avvia all'avvio del sistema"
           />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <Typography variant="subtitle1" gutterBottom>
+            Modalità di apertura predefinita per nuove app
+          </Typography>
+          <TextField
+            select
+            fullWidth
+            label="Modalità di apertura"
+            value={defaultOpenMode || 'modal'}
+            onChange={e => onDefaultOpenModeChange(e.target.value)}
+            SelectProps={{ native: true }}
+          >
+            <option value="modal">Modale (in-app)</option>
+            <option value="window">Nuova finestra/tab</option>
+          </TextField>
         </Grid>
       </Grid>
     </Box>
@@ -463,19 +484,21 @@ const SettingsMaterial = ({
       </Typography>
       
       <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Backup Locale
+        {/* Backup & Ripristino Locale */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Backup & Ripristino Locale
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Salva i tuoi dati localmente per backup e ripristino
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Button
                 variant="outlined"
                 startIcon={<CloudDownloadIcon />}
                 onClick={handleExportData}
+                fullWidth
               >
                 Esporta Dati
               </Button>
@@ -491,6 +514,7 @@ const SettingsMaterial = ({
                   variant="outlined"
                   startIcon={<CloudUploadIcon />}
                   component="span"
+                  fullWidth
                 >
                   Importa Dati
                 </Button>
@@ -500,6 +524,7 @@ const SettingsMaterial = ({
                 color="error"
                 startIcon={<RestoreIcon />}
                 onClick={handleResetSettings}
+                fullWidth
               >
                 Reset Impostazioni
               </Button>
@@ -507,47 +532,68 @@ const SettingsMaterial = ({
           </Paper>
         </Grid>
         
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={<Switch checked={isEnabled} onChange={e => setIsEnabled(e.target.checked)} />}
-            label="Sincronizzazione Cloud"
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <TextField
-            select
-            label="Provider"
-            value={provider}
-            onChange={e => setProvider(e.target.value)}
-            sx={{ width: 200, ml: 2 }}
-          >
-            <MenuItem value="github">GitHub Gist</MenuItem>
-            <MenuItem value="googledrive">Google Drive</MenuItem>
-          </TextField>
-        </Grid>
-        
-        <Grid item xs={12}>
-          <TextField
-            label="Intervallo (minuti)"
-            type="number"
-            value={intervalMinutes}
-            onChange={e => setIntervalMinutes(Number(e.target.value))}
-            inputProps={{ min: 1, max: 60 }}
-            sx={{ width: 120, ml: 2 }}
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <Chip label={`Ultimo sync: ${lastSync ? new Date(lastSync).toLocaleString() : 'N/A'}`} variant="outlined" sx={{ ml: 2 }} />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <Chip label={`Prossimo sync: ${nextSync ? nextSync.toLocaleTimeString() : 'N/A'}`} variant="outlined" sx={{ ml: 2 }} />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <Button onClick={manualSync} disabled={isInProgress} startIcon={<SyncIcon />}>Sincronizza ora</Button>
+        {/* Sincronizzazione Cloud */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Sincronizzazione Cloud
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Sincronizza i tuoi dati con servizi cloud
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <FormControlLabel
+                control={<Switch checked={isEnabled} onChange={e => setIsEnabled(e.target.checked)} />}
+                label="Abilita sincronizzazione cloud"
+              />
+              
+              <TextField
+                select
+                label="Provider"
+                value={provider}
+                onChange={e => setProvider(e.target.value)}
+                fullWidth
+                disabled={!isEnabled}
+              >
+                <MenuItem value="github">GitHub Gist</MenuItem>
+                <MenuItem value="googledrive">Google Drive</MenuItem>
+              </TextField>
+              
+              <TextField
+                label="Intervallo (minuti)"
+                type="number"
+                value={intervalMinutes}
+                onChange={e => setIntervalMinutes(Number(e.target.value))}
+                inputProps={{ min: 1, max: 60 }}
+                fullWidth
+                disabled={!isEnabled}
+              />
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Chip 
+                  label={`Ultimo sync: ${lastSync ? new Date(lastSync).toLocaleString() : 'N/A'}`} 
+                  variant="outlined" 
+                  size="small"
+                />
+                <Chip 
+                  label={`Prossimo sync: ${nextSync ? nextSync.toLocaleTimeString() : 'N/A'}`} 
+                  variant="outlined" 
+                  size="small"
+                />
+              </Box>
+              
+              <Button 
+                onClick={manualSync} 
+                disabled={isInProgress || !isEnabled} 
+                startIcon={<SyncIcon />}
+                variant="contained"
+                fullWidth
+              >
+                Sincronizza ora
+              </Button>
+            </Box>
+          </Paper>
         </Grid>
       </Grid>
     </Box>
@@ -712,37 +758,7 @@ const SettingsMaterial = ({
           </Box>
         </Box>
 
-        {/* Sezione modalità apertura di default */}
-        <Box sx={{ mt: 3, mb: 2 }}>
-          <Typography variant="subtitle1" sx={{ mb: 1 }}>
-            Modalità di apertura predefinita per nuove app
-          </Typography>
-          <TextField
-            select
-            fullWidth
-            label="Modalità di apertura"
-            value={defaultOpenMode || 'modal'}
-            onChange={e => onDefaultOpenModeChange(e.target.value)}
-            SelectProps={{ native: true }}
-          >
-            <option value="modal">Modale (in-app)</option>
-            <option value="window">Nuova finestra/tab</option>
-          </TextField>
-        </Box>
 
-        {/* Sezione Backup & Ripristino locale */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>Backup & Ripristino Locale</Typography>
-          {/* Qui i controlli per backup/ripristino locale */}
-          {/* ... */}
-        </Box>
-
-        {/* Sezione Sincronizzazione Cloud */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>Sincronizzazione Cloud</Typography>
-          {/* Qui tutte le opzioni di sync cloud: switch, provider, intervallo, stato, log, pulsante sync ora */}
-          {/* ... */}
-        </Box>
       </DialogContent>
 
       <DialogActions sx={{ p: 3, pt: 2 }}>
