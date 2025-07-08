@@ -16,7 +16,13 @@ import {
   useMediaQuery,
   Avatar,
   Chip,
-  Badge
+  Badge,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
+  Button
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -57,7 +63,8 @@ const NavigationMaterial = ({
   isAuthenticated = false
 }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { isEnabled, isInProgress, error } = useSyncStatus();
+  const { isEnabled, isInProgress, error, nextSync, manualSync } = useSyncStatus();
+  const [syncStatusDialogOpen, setSyncStatusDialogOpen] = React.useState(false);
 
   const navigationItems = [
     {
@@ -89,12 +96,6 @@ const NavigationMaterial = ({
   ];
 
   const secondaryItems = [
-    {
-      id: 'sync',
-      label: 'Sincronizzazione',
-      icon: <CloudSyncIcon />,
-      badge: 'Beta'
-    },
     {
       id: 'help',
       label: 'Aiuto',
@@ -207,9 +208,7 @@ const NavigationMaterial = ({
           <ListItem key={item.id} disablePadding>
             <ListItemButton
               onClick={() => {
-                if (item.id === 'sync') {
-                  onSyncManagerOpen();
-                } else if (item.id === 'help') {
+                if (item.id === 'help') {
                   // Gestisci aiuto
                 } else if (item.id === 'about') {
                   // Gestisci informazioni
@@ -228,14 +227,6 @@ const NavigationMaterial = ({
                 {item.icon}
               </ListItemIcon>
               <ListItemText primary={item.label} />
-              {item.badge && (
-                <Chip
-                  label={item.badge}
-                  size="small"
-                  color="secondary"
-                  sx={{ height: 20, fontSize: '0.7rem' }}
-                />
-              )}
             </ListItemButton>
           </ListItem>
         ))}
@@ -310,7 +301,7 @@ const NavigationMaterial = ({
             
             <IconButton
               color="inherit"
-              onClick={onSyncManagerOpen}
+              onClick={() => setSyncStatusDialogOpen(true)}
               title={isInProgress ? 'Sincronizzazione in corso' : (isEnabled ? 'Sincronizzazione attiva' : 'Sincronizzazione disattivata')}
             >
               <CloudSyncIcon sx={{ color: isInProgress ? 'gold' : (isEnabled ? 'green' : 'red') }} />
@@ -380,6 +371,20 @@ const NavigationMaterial = ({
         {drawerContent}
       </Drawer>
 
+      <Dialog open={syncStatusDialogOpen} onClose={() => setSyncStatusDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Stato sincronizzazione</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Chip label={isInProgress ? 'In corso...' : (isEnabled ? 'Attiva' : 'Disattivata')} color={isInProgress ? 'warning' : (isEnabled ? 'success' : 'error')} />
+            {error && <Alert severity="error">{error}</Alert>}
+            <Typography variant="body2">Prossimo sync: {nextSync ? nextSync.toLocaleTimeString() : 'N/A'}</Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={manualSync} disabled={!isEnabled || isInProgress} variant="contained">Sincronizza ora</Button>
+          <Button onClick={() => setSyncStatusDialogOpen(false)}>Chiudi</Button>
+        </DialogActions>
+      </Dialog>
 
     </>
   );

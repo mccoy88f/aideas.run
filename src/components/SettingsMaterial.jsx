@@ -729,6 +729,20 @@ const SettingsMaterial = ({
             <option value="window">Nuova finestra/tab</option>
           </TextField>
         </Box>
+
+        {/* Sezione Backup & Ripristino locale */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Backup & Ripristino Locale</Typography>
+          {/* Qui i controlli per backup/ripristino locale */}
+          {/* ... */}
+        </Box>
+
+        {/* Sezione Sincronizzazione Cloud */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Sincronizzazione Cloud</Typography>
+          {/* Qui tutte le opzioni di sync cloud: switch, provider, intervallo, stato, log, pulsante sync ora */}
+          {/* ... */}
+        </Box>
       </DialogContent>
 
       <DialogActions sx={{ p: 3, pt: 2 }}>
