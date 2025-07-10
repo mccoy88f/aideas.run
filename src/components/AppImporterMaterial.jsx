@@ -261,15 +261,124 @@ const AppImporterMaterial = ({
     }));
   };
 
-  const handleFileUpload = (event, type) => {
+  const handleFileUpload = async (event, type) => {
     const file = event.target.files[0];
     if (file) {
       if (type === 'html') {
         setUploadedFile(file);
+        
+        // Leggi automaticamente i metadati dal file HTML
+        try {
+          const content = await file.text();
+          const metadata = extractHtmlMetadata(content);
+          
+          // Aggiorna i campi del form con i metadati trovati
+          if (metadata.title) {
+            handleInputChange('name', metadata.title);
+          }
+          if (metadata.description) {
+            handleInputChange('description', metadata.description);
+          }
+          if (metadata.icon) {
+            setCustomIcon(metadata.icon);
+          }
+          if (metadata.keywords) {
+            const tags = metadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag);
+            setFormData(prev => ({
+              ...prev,
+              tags: tags
+            }));
+          }
+          
+        } catch (error) {
+          console.warn('Errore nella lettura metadati HTML:', error);
+        }
+        
       } else if (type === 'zip') {
         setUploadedZip(file);
       }
     }
+  };
+
+  // Funzione per estrarre metadati da HTML
+  const extractHtmlMetadata = (htmlContent) => {
+    const metadata = {};
+    
+    // Estrai il titolo
+    const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      metadata.title = titleMatch[1].trim();
+    }
+    
+    // Estrai la descrizione
+    const descMatch = htmlContent.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+    if (descMatch) {
+      metadata.description = descMatch[1].trim();
+    }
+    
+    // Estrai le keywords
+    const keywordsMatch = htmlContent.match(/<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i);
+    if (keywordsMatch) {
+      metadata.keywords = keywordsMatch[1].trim();
+    }
+    
+    // Estrai l'autore
+    const authorMatch = htmlContent.match(/<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i);
+    if (authorMatch) {
+      metadata.author = authorMatch[1].trim();
+    }
+    
+    // Estrai l'icona/favicon
+    const iconMatch = htmlContent.match(/<link[^>]*rel=["'](?:icon|shortcut icon)["'][^>]*href=["']([^"']+)["']/i);
+    if (iconMatch) {
+      const iconUrl = iconMatch[1].trim();
+      if (iconUrl.startsWith('data:')) {
+        metadata.icon = iconUrl;
+      } else if (iconUrl.startsWith('http')) {
+        metadata.icon = iconUrl;
+      } else {
+        // Per icone relative, cerca di estrarre il contenuto inline
+        metadata.icon = extractInlineIcon(htmlContent, iconUrl);
+      }
+    }
+    
+    // Estrai anche apple-touch-icon
+    const appleIconMatch = htmlContent.match(/<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i);
+    if (appleIconMatch && !metadata.icon) {
+      const iconUrl = appleIconMatch[1].trim();
+      if (iconUrl.startsWith('data:') || iconUrl.startsWith('http')) {
+        metadata.icon = iconUrl;
+      } else {
+        metadata.icon = extractInlineIcon(htmlContent, iconUrl);
+      }
+    }
+    
+    // Se non troviamo icone specifiche, cerca SVG inline
+    if (!metadata.icon) {
+      const svgMatch = htmlContent.match(/<svg[^>]*>.*?<\/svg>/is);
+      if (svgMatch) {
+        metadata.icon = `data:image/svg+xml;base64,${btoa(svgMatch[0])}`;
+      }
+    }
+    
+    return metadata;
+  };
+
+  // Funzione per estrarre icone inline dal file HTML
+  const extractInlineIcon = (htmlContent, iconPath) => {
+    // Cerca il contenuto dell'icona nel file HTML
+    const iconFileName = iconPath.split('/').pop();
+    const iconMatch = htmlContent.match(new RegExp(`<link[^>]*href=["'][^"']*${iconFileName}["'][^>]*>`));
+    
+    if (iconMatch) {
+      // Se l'icona è definita inline, estrai il contenuto
+      const dataMatch = htmlContent.match(/data:image\/[^;]+;base64,[^"']+/);
+      if (dataMatch) {
+        return dataMatch[0];
+      }
+    }
+    
+    return null;
   };
 
   const handleIconUpload = (event) => {
