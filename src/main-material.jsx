@@ -48,7 +48,9 @@ import {
   Menu as MenuIcon,
   Close as CloseIcon,
   List as ListIcon,
-  ViewList as ViewListIcon
+  ViewList as ViewListIcon,
+  GetApp as GetAppIcon,
+  OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 
 import StorageService from './services/StorageService.js';
@@ -59,9 +61,11 @@ import AppImporterMaterial from './components/AppImporterMaterial.jsx';
 import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
+import PWAExporterMaterial from './components/PWAExporterMaterial.jsx';
 import EmojiSelector from './components/EmojiSelector.jsx';
 import GoogleDriveService from './services/GoogleDriveService.js';
 import GitHubService from './services/GitHubService.js';
+import AppRouteService from './services/AppRouteService.js';
 
 /**
  * Componente principale dell'applicazione AIdeas con Material UI
@@ -94,6 +98,7 @@ function AIdeasApp() {
   const [emojiSelectorOpen, setEmojiSelectorOpen] = React.useState(false);
   const [iconSelectorOpen, setIconSelectorOpen] = React.useState(false);
   const [faviconUrl, setFaviconUrl] = React.useState('');
+  const [pwaExporterOpen, setPwaExporterOpen] = React.useState(false);
 
   // Inizializzazione
   React.useEffect(() => {
@@ -179,6 +184,10 @@ function AIdeasApp() {
       // Inizializza debug
       console.log('🔧 Inizializzazione ErrorTracker...');
       ErrorTracker.init();
+      
+      // Inizializza servizio routing app
+      console.log('🛣️ Inizializzazione AppRouteService...');
+      new AppRouteService();
       
       // Carica apps
       console.log('📱 Caricamento apps...');
@@ -473,6 +482,17 @@ function AIdeasApp() {
     } catch (error) {
       console.error('Errore eliminazione app:', error);
       showToast('Errore nell\'eliminazione dell\'applicazione', 'error');
+    }
+  };
+
+  const handleOpenAsPWA = async (appId) => {
+    try {
+      const appRouteService = new AppRouteService();
+      await appRouteService.openAppAsPWA(appId);
+      showToast('App aperta come PWA standalone', 'success');
+    } catch (error) {
+      console.error('Errore apertura PWA:', error);
+      showToast('Errore nell\'apertura dell\'app come PWA', 'error');
     }
   };
 
@@ -926,14 +946,29 @@ function AIdeasApp() {
       </CardContent>
       
       <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
-        <Button
-          variant="contained"
-          startIcon={<LaunchIcon />}
-          onClick={() => handleLaunchApp(app.id)}
-          size="small"
-        >
-          Avvia
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            variant="contained"
+            startIcon={<LaunchIcon />}
+            onClick={() => handleLaunchApp(app.id)}
+            size="small"
+          >
+            Avvia
+          </Button>
+          
+          {/* Pulsante "Apri come PWA" - solo per app non-URL */}
+          {app.type !== 'url' && (
+            <Button
+              variant="outlined"
+              startIcon={<OpenInNewIcon />}
+              onClick={() => handleOpenAsPWA(app.id)}
+              size="small"
+              title="Apri come PWA standalone"
+            >
+              PWA
+            </Button>
+          )}
+        </Box>
         
         <Box>
           <IconButton
@@ -1217,6 +1252,13 @@ function AIdeasApp() {
               title="Vista compatta (mobile) - Click per avviare, tieni premuto per opzioni"
             >
               <ViewListIcon />
+            </IconButton>
+            <IconButton
+              onClick={() => setPwaExporterOpen(true)}
+              color="default"
+              title="Esporta app come PWA"
+            >
+              <GetAppIcon />
             </IconButton>
           </Box>
         </Box>
@@ -2011,6 +2053,13 @@ function AIdeasApp() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* PWA Exporter Dialog */}
+      <PWAExporterMaterial
+        open={pwaExporterOpen}
+        onClose={() => setPwaExporterOpen(false)}
+        apps={apps}
+      />
     </Box>
   );
 }
