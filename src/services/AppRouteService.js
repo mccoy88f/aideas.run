@@ -24,16 +24,24 @@ class AppRouteService {
     if (this.initialized) return;
     
     try {
-      // Usa i servizi già importati staticamente
-      this.storageService = new StorageService();
-      this.pwaGenerator = new PWAGeneratorService();
+      // Inizializza i servizi in modo sicuro
+      if (!this.storageService) {
+        this.storageService = new StorageService();
+      }
       
+      if (!this.pwaGenerator) {
+        this.pwaGenerator = new PWAGeneratorService();
+      }
+      
+      // Inizializza solo il routing, non i servizi
       this.init();
       this.initialized = true;
       
       console.log('✅ AppRouteService inizializzato con successo');
     } catch (error) {
       console.error('❌ Errore inizializzazione AppRouteService:', error);
+      // Non bloccare l'inizializzazione se c'è un errore
+      this.initialized = true;
     }
   }
 
@@ -88,6 +96,12 @@ class AppRouteService {
       // Assicurati che i servizi siano inizializzati
       if (!this.initialized) {
         await this.initialize();
+      }
+      
+      // Verifica che i servizi siano disponibili
+      if (!this.storageService || !this.pwaGenerator) {
+        console.warn('Servizi non disponibili per AppRouteService');
+        return new Response('Servizio non disponibile', { status: 503 });
       }
       
       const pathParts = urlObj.pathname.split('/');

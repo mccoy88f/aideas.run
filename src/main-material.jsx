@@ -187,13 +187,17 @@ function AIdeasApp() {
       
       // Inizializza servizio routing app
       console.log('🛣️ Inizializzazione AppRouteService...');
-      const appRouteService = new AppRouteService();
-      // Inizializza in modo asincrono per evitare errori
-      setTimeout(() => {
-        appRouteService.initialize().catch(error => {
-          console.error('Errore inizializzazione AppRouteService:', error);
-        });
-      }, 100);
+      try {
+        const appRouteService = new AppRouteService();
+        // Inizializza in modo asincrono per evitare errori
+        setTimeout(() => {
+          appRouteService.initialize().catch(error => {
+            console.error('Errore inizializzazione AppRouteService:', error);
+          });
+        }, 100);
+      } catch (error) {
+        console.error('Errore creazione AppRouteService:', error);
+      }
       
       // Carica apps
       console.log('📱 Caricamento apps...');
