@@ -12,7 +12,23 @@ class PWAGeneratorService {
       return PWAGeneratorService.instance;
     }
     PWAGeneratorService.instance = this;
-    this.storageService = new StorageService();
+    this.storageService = null;
+    this.initialized = false;
+  }
+
+  /**
+   * Inizializza il servizio in modo lazy
+   */
+  async initialize() {
+    if (this.initialized) return;
+    
+    try {
+      this.storageService = new StorageService();
+      this.initialized = true;
+      console.log('✅ PWAGeneratorService inizializzato con successo');
+    } catch (error) {
+      console.error('❌ Errore inizializzazione PWAGeneratorService:', error);
+    }
   }
 
   /**
@@ -22,6 +38,11 @@ class PWAGeneratorService {
    */
   async generatePWAForApp(appId, appData) {
     try {
+      // Assicurati che il servizio sia inizializzato
+      if (!this.initialized) {
+        await this.initialize();
+      }
+      
       console.log(`🚀 Generazione PWA automatica per app ${appId}: ${appData.name}`);
       
       // Genera il manifest PWA
@@ -322,6 +343,11 @@ self.addEventListener('message', (event) => {
    */
   async savePWAFiles(appId, files) {
     try {
+      // Assicurati che il servizio sia inizializzato
+      if (!this.initialized) {
+        await this.initialize();
+      }
+      
       // Salva manifest.json
       await this.storageService.db.appFiles.add({
         appId,
@@ -360,6 +386,11 @@ self.addEventListener('message', (event) => {
    */
   async getPWAFiles(appId) {
     try {
+      // Assicurati che il servizio sia inizializzato
+      if (!this.initialized) {
+        await this.initialize();
+      }
+      
       const files = await this.storageService.db.appFiles
         .where('appId')
         .equals(appId)
@@ -387,6 +418,11 @@ self.addEventListener('message', (event) => {
    */
   async hasPWAFiles(appId) {
     try {
+      // Assicurati che il servizio sia inizializzato
+      if (!this.initialized) {
+        await this.initialize();
+      }
+      
       const files = await this.storageService.db.appFiles
         .where('appId')
         .equals(appId)

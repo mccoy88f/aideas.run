@@ -197,6 +197,54 @@ class AppRouteService {
   }
 
   /**
+   * Installa un'app come PWA sul dispositivo
+   */
+  async installAppAsPWA(appId) {
+    try {
+      // Assicurati che i servizi siano inizializzati
+      if (!this.initialized) {
+        await this.initialize();
+      }
+      
+      const app = await this.storageService.getApp(appId);
+      if (!app) {
+        console.error('App non trovata:', appId);
+        return;
+      }
+      
+      // Verifica se l'app ha i file PWA
+      const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
+      if (!hasPWA) {
+        // Genera i file PWA
+        await this.pwaGenerator.generatePWAForApp(appId, app);
+      }
+      
+      // Apri l'app in una nuova finestra per triggerare l'installazione
+      const appUrl = `${window.location.origin}/app/${appId}/`;
+      const newWindow = window.open(appUrl, `install-${appId}`, 
+        'width=1200,height=800,scrollbars=yes,resizable=yes');
+      
+      if (!newWindow) {
+        // Fallback: apri in nuova tab
+        window.open(appUrl, '_blank');
+      }
+      
+      // Mostra istruzioni per l'installazione
+      setTimeout(() => {
+        if (newWindow && !newWindow.closed) {
+          newWindow.postMessage({
+            type: 'SHOW_INSTALL_PROMPT',
+            appName: app.name
+          }, '*');
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Errore installazione app PWA:', error);
+    }
+  }
+
+  /**
    * Ottieni l'URL PWA per un'app
    */
   getAppPWAUrl(appId) {

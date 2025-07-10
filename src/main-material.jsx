@@ -49,7 +49,8 @@ import {
   Close as CloseIcon,
   List as ListIcon,
     ViewList as ViewListIcon,
-  OpenInNew as OpenInNewIcon
+  OpenInNew as OpenInNewIcon,
+  InstallMobile as InstallMobileIcon
 } from '@mui/icons-material';
 
 import StorageService from './services/StorageService.js';
@@ -499,6 +500,18 @@ function AIdeasApp() {
     } catch (error) {
       console.error('Errore apertura PWA:', error);
       showToast('Errore nell\'apertura dell\'app come PWA', 'error');
+    }
+  };
+
+  const handleInstallAsPWA = async (appId) => {
+    try {
+      // Usa l'istanza singleton di AppRouteService
+      const appRouteService = AppRouteService.instance || new AppRouteService();
+      await appRouteService.installAppAsPWA(appId);
+      showToast('App installata come PWA sul dispositivo', 'success');
+    } catch (error) {
+      console.error('Errore installazione PWA:', error);
+      showToast('Errore nell\'installazione dell\'app come PWA', 'error');
     }
   };
 
@@ -972,6 +985,19 @@ function AIdeasApp() {
               title="Apri come PWA standalone"
             >
               PWA
+            </Button>
+          )}
+          
+          {/* Pulsante "Installa come PWA" - solo per app non-URL */}
+          {app.type !== 'url' && (
+            <Button
+              variant="outlined"
+              startIcon={<InstallMobileIcon />}
+              onClick={() => handleInstallAsPWA(app.id)}
+              size="small"
+              title="Installa come PWA sul dispositivo"
+            >
+              Installa
             </Button>
           )}
         </Box>
