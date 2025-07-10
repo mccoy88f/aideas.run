@@ -618,18 +618,137 @@ function AIdeasApp() {
       permissions: manifest?.permissions || []
     };
 
-    // Cerca icona nei file se non specificata nel manifest
+    // Cerca il file index.html per estrarre i metadati
+    const indexHtmlFile = files.find(f => 
+      f.filename.toLowerCase() === 'index.html' || 
+      f.filename.toLowerCase().endsWith('/index.html')
+    );
+
+    if (indexHtmlFile) {
+      console.log('📄 Trovato index.html, estraggo metadati...');
+      const htmlMetadata = extractHtmlMetadataFromZip(indexHtmlFile.content);
+      
+      // Sovrascrivi i metadati con quelli trovati nell'HTML
+      if (htmlMetadata.title && !manifest?.name) {
+        metadata.name = htmlMetadata.title;
+      }
+      if (htmlMetadata.description && !manifest?.description) {
+        metadata.description = htmlMetadata.description;
+      }
+      if (htmlMetadata.keywords && !manifest?.tags?.length) {
+        metadata.tags = htmlMetadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag);
+      }
+      if (htmlMetadata.icon && !manifest?.icon) {
+        metadata.icon = htmlMetadata.icon;
+      }
+      
+      // Imposta il contenuto HTML per l'avvio dell'app
+      metadata.content = indexHtmlFile.content;
+      metadata.type = 'html';
+      
+      console.log('✅ Metadati estratti da index.html:', {
+        name: metadata.name,
+        description: metadata.description,
+        tags: metadata.tags,
+        hasIcon: !!metadata.icon,
+        hasContent: !!metadata.content
+      });
+    }
+
+    // Cerca icona nei file se non specificata nel manifest o nell'HTML
     if (!metadata.icon) {
       const iconFile = files.find(f => 
-        f.filename.match(/^(icon|logo|app-icon)\.(png|jpg|jpeg|svg)$/i)
+        f.filename.match(/^(icon|logo|app-icon|favicon)\.(png|jpg|jpeg|svg|ico)$/i)
       );
       if (iconFile) {
         const blob = new Blob([iconFile.content], { type: iconFile.mimeType });
         metadata.icon = URL.createObjectURL(blob);
+        console.log('🎨 Icona trovata nei file:', iconFile.filename);
       }
     }
 
     return metadata;
+  };
+
+  // Funzione per estrarre metadati da HTML (simile a quella in AppImporterMaterial)
+  const extractHtmlMetadataFromZip = (htmlContent) => {
+    const metadata = {};
+    
+    // Estrai il titolo
+    const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      metadata.title = titleMatch[1].trim();
+    }
+    
+    // Estrai la descrizione
+    const descMatch = htmlContent.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+    if (descMatch) {
+      metadata.description = descMatch[1].trim();
+    }
+    
+    // Estrai le keywords
+    const keywordsMatch = htmlContent.match(/<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i);
+    if (keywordsMatch) {
+      metadata.keywords = keywordsMatch[1].trim();
+    }
+    
+    // Estrai l'autore
+    const authorMatch = htmlContent.match(/<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i);
+    if (authorMatch) {
+      metadata.author = authorMatch[1].trim();
+    }
+    
+    // Estrai l'icona/favicon
+    const iconMatch = htmlContent.match(/<link[^>]*rel=["'](?:icon|shortcut icon)["'][^>]*href=["']([^"']+)["']/i);
+    if (iconMatch) {
+      const iconUrl = iconMatch[1].trim();
+      if (iconUrl.startsWith('data:')) {
+        metadata.icon = iconUrl;
+      } else if (iconUrl.startsWith('http')) {
+        metadata.icon = iconUrl;
+      } else {
+        // Per icone relative, cerca di estrarre il contenuto inline
+        metadata.icon = extractInlineIconFromZip(htmlContent, iconUrl);
+      }
+    }
+    
+    // Estrai anche apple-touch-icon
+    const appleIconMatch = htmlContent.match(/<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i);
+    if (appleIconMatch && !metadata.icon) {
+      const iconUrl = appleIconMatch[1].trim();
+      if (iconUrl.startsWith('data:') || iconUrl.startsWith('http')) {
+        metadata.icon = iconUrl;
+      } else {
+        metadata.icon = extractInlineIconFromZip(htmlContent, iconUrl);
+      }
+    }
+    
+    // Se non troviamo icone specifiche, cerca SVG inline
+    if (!metadata.icon) {
+      const svgMatch = htmlContent.match(/<svg[^>]*>.*?<\/svg>/is);
+      if (svgMatch) {
+        metadata.icon = `data:image/svg+xml;base64,${btoa(svgMatch[0])}`;
+      }
+    }
+    
+    return metadata;
+  };
+
+  // Funzione per estrarre icone inline dal file HTML nello ZIP
+  const extractInlineIconFromZip = (htmlContent, iconPath) => {
+    // Cerca il contenuto dell'icona nel file HTML
+    const iconFileName = iconPath.split('/').pop();
+    const iconMatch = htmlContent.match(new RegExp(`<link[^>]*href=["'][^"']*${iconFileName}["'][^>]*>`));
+    
+    if (iconMatch) {
+      // Se l'icona è definita inline, estrai il contenuto
+      const dataMatch = htmlContent.match(/data:image\/[^;]+;base64,[^"']+/);
+      if (dataMatch) {
+        return dataMatch[0];
+      }
+    }
+    
+    return null;
   };
 
   const renderAppCard = (app) => (
