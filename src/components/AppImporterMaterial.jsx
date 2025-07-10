@@ -297,6 +297,84 @@ const AppImporterMaterial = ({
         
       } else if (type === 'zip') {
         setUploadedZip(file);
+        
+        // Leggi automaticamente i metadati dal file ZIP
+        try {
+          console.log('📦 Processando file ZIP per metadati...');
+          
+          // Importa JSZip dinamicamente
+          const JSZip = (await import('jszip')).default;
+          const zip = new JSZip();
+          
+          // Leggi il contenuto del ZIP
+          const contents = await zip.loadAsync(file);
+          
+          // Estrai tutti i file
+          const files = [];
+          let manifest = null;
+          
+          for (const [filename, fileObj] of Object.entries(contents.files)) {
+            if (fileObj.dir) continue;
+            
+            const content = await fileObj.async('text');
+            const fileData = {
+              filename,
+              content,
+              size: content.length,
+              mimeType: getMimeType(filename)
+            };
+            
+            files.push(fileData);
+            
+            // Cerca manifest AIdeas
+            if (filename === 'aideas.json') {
+              try {
+                manifest = JSON.parse(content);
+              } catch (e) {
+                console.warn('Manifest aideas.json non valido:', e);
+              }
+            }
+          }
+          
+          // Cerca il file index.html per estrarre i metadati
+          const indexHtmlFile = files.find(f => 
+            f.filename.toLowerCase() === 'index.html' || 
+            f.filename.toLowerCase().endsWith('/index.html')
+          );
+
+          if (indexHtmlFile) {
+            console.log('📄 Trovato index.html nel ZIP, estraggo metadati...');
+            const htmlMetadata = extractHtmlMetadataFromZip(indexHtmlFile.content);
+            
+            // Aggiorna i campi del form con i metadati trovati
+            if (htmlMetadata.title) {
+              handleInputChange('name', htmlMetadata.title);
+            }
+            if (htmlMetadata.description) {
+              handleInputChange('description', htmlMetadata.description);
+            }
+            if (htmlMetadata.icon) {
+              setCustomIcon(htmlMetadata.icon);
+            }
+            if (htmlMetadata.keywords) {
+              const tags = htmlMetadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag);
+              setFormData(prev => ({
+                ...prev,
+                tags: tags
+              }));
+            }
+            
+            console.log('✅ Metadati estratti dal ZIP:', {
+              title: htmlMetadata.title,
+              description: htmlMetadata.description,
+              hasIcon: !!htmlMetadata.icon,
+              tags: htmlMetadata.keywords
+            });
+          }
+          
+        } catch (error) {
+          console.warn('Errore nella lettura metadati ZIP:', error);
+        }
       }
     }
   };
@@ -367,6 +445,107 @@ const AppImporterMaterial = ({
 
   // Funzione per estrarre icone inline dal file HTML
   const extractInlineIcon = (htmlContent, iconPath) => {
+    // Cerca il contenuto dell'icona nel file HTML
+    const iconFileName = iconPath.split('/').pop();
+    const iconMatch = htmlContent.match(new RegExp(`<link[^>]*href=["'][^"']*${iconFileName}["'][^>]*>`));
+    
+    if (iconMatch) {
+      // Se l'icona è definita inline, estrai il contenuto
+      const dataMatch = htmlContent.match(/data:image\/[^;]+;base64,[^"']+/);
+      if (dataMatch) {
+        return dataMatch[0];
+      }
+    }
+    
+    return null;
+  };
+
+  // Funzione per ottenere MIME type da filename
+  const getMimeType = (filename) => {
+    const ext = filename.split('.').pop().toLowerCase();
+    const mimeTypes = {
+      'html': 'text/html',
+      'css': 'text/css',
+      'js': 'application/javascript',
+      'json': 'application/json',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'svg': 'image/svg+xml',
+      'ico': 'image/x-icon',
+      'txt': 'text/plain',
+      'md': 'text/markdown'
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
+  };
+
+  // Funzione per estrarre metadati da HTML nei file ZIP
+  const extractHtmlMetadataFromZip = (htmlContent) => {
+    const metadata = {};
+    
+    // Estrai il titolo
+    const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      metadata.title = titleMatch[1].trim();
+    }
+    
+    // Estrai la descrizione
+    const descMatch = htmlContent.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+    if (descMatch) {
+      metadata.description = descMatch[1].trim();
+    }
+    
+    // Estrai le keywords
+    const keywordsMatch = htmlContent.match(/<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i);
+    if (keywordsMatch) {
+      metadata.keywords = keywordsMatch[1].trim();
+    }
+    
+    // Estrai l'autore
+    const authorMatch = htmlContent.match(/<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i);
+    if (authorMatch) {
+      metadata.author = authorMatch[1].trim();
+    }
+    
+    // Estrai l'icona/favicon
+    const iconMatch = htmlContent.match(/<link[^>]*rel=["'](?:icon|shortcut icon)["'][^>]*href=["']([^"']+)["']/i);
+    if (iconMatch) {
+      const iconUrl = iconMatch[1].trim();
+      if (iconUrl.startsWith('data:')) {
+        metadata.icon = iconUrl;
+      } else if (iconUrl.startsWith('http')) {
+        metadata.icon = iconUrl;
+      } else {
+        // Per icone relative, cerca di estrarre il contenuto inline
+        metadata.icon = extractInlineIconFromZip(htmlContent, iconUrl);
+      }
+    }
+    
+    // Estrai anche apple-touch-icon
+    const appleIconMatch = htmlContent.match(/<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i);
+    if (appleIconMatch && !metadata.icon) {
+      const iconUrl = appleIconMatch[1].trim();
+      if (iconUrl.startsWith('data:') || iconUrl.startsWith('http')) {
+        metadata.icon = iconUrl;
+      } else {
+        metadata.icon = extractInlineIconFromZip(htmlContent, iconUrl);
+      }
+    }
+    
+    // Se non troviamo icone specifiche, cerca SVG inline
+    if (!metadata.icon) {
+      const svgMatch = htmlContent.match(/<svg[^>]*>.*?<\/svg>/is);
+      if (svgMatch) {
+        metadata.icon = `data:image/svg+xml;base64,${btoa(svgMatch[0])}`;
+      }
+    }
+    
+    return metadata;
+  };
+
+  // Funzione per estrarre icone inline dal file HTML nello ZIP
+  const extractInlineIconFromZip = (htmlContent, iconPath) => {
     // Cerca il contenuto dell'icona nel file HTML
     const iconFileName = iconPath.split('/').pop();
     const iconMatch = htmlContent.match(new RegExp(`<link[^>]*href=["'][^"']*${iconFileName}["'][^>]*>`));
