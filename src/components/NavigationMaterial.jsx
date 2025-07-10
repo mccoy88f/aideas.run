@@ -39,7 +39,8 @@ import {
   History as HistoryIcon,
   CloudSync as CloudSyncIcon,
   Info as InfoIcon,
-  Help as HelpIcon
+  Help as HelpIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
 
@@ -65,6 +66,26 @@ const NavigationMaterial = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { isEnabled, isInProgress, error, nextSync, manualSync } = useSyncStatus();
   const [syncStatusDialogOpen, setSyncStatusDialogOpen] = React.useState(false);
+  const [aboutDialogOpen, setAboutDialogOpen] = React.useState(false);
+
+  // Handler per il pulsante aiuto
+  const handleHelpClick = () => {
+    window.open('https://github.com/mccoy88f/aideas.run/wiki', '_blank');
+  };
+
+  // Handler per il pulsante informazioni
+  const handleAboutClick = () => {
+    setAboutDialogOpen(true);
+  };
+
+  // Data dell'ultima build
+  const buildDate = new Date().toLocaleDateString('it-IT', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 
   const navigationItems = [
     {
@@ -209,9 +230,9 @@ const NavigationMaterial = ({
             <ListItemButton
               onClick={() => {
                 if (item.id === 'help') {
-                  // Gestisci aiuto
+                  handleHelpClick();
                 } else if (item.id === 'about') {
-                  // Gestisci informazioni
+                  handleAboutClick();
                 }
               }}
               sx={{
@@ -383,6 +404,51 @@ const NavigationMaterial = ({
         <DialogActions>
           <Button onClick={manualSync} disabled={!isEnabled || isInProgress} variant="contained">Sincronizza ora</Button>
           <Button onClick={() => setSyncStatusDialogOpen(false)}>Chiudi</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={aboutDialogOpen} onClose={() => setAboutDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar
+              sx={{
+                width: 48,
+                height: 48,
+                bgcolor: 'primary.main',
+                fontSize: '1.5rem',
+                fontWeight: 'bold'
+              }}
+            >
+              AI
+            </Avatar>
+            <Box>
+              <Typography variant="h6" component="div">
+                AIdeas
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                v1.0.0
+              </Typography>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Ultima build: {buildDate}
+            </Typography>
+            <Divider />
+            <Typography variant="body2">
+              Creato da <strong>Antonello Migliorelli</strong>
+            </Typography>
+            <Typography variant="body2">
+              Link: <a href="https://github.com/mccoy88f/aideas.run" target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none' }}>
+                https://github.com/mccoy88f/aideas.run
+              </a>
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAboutDialogOpen(false)}>Chiudi</Button>
         </DialogActions>
       </Dialog>
 
