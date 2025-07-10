@@ -349,7 +349,8 @@ a:hover {
 /* Header */
 .app-header {
   height: var(--header-height);
-  background-color: var(--color-bg-surface);
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--color-gray-200);
   box-shadow: var(--shadow-sm);
   position: sticky;
@@ -2720,6 +2721,27 @@ select:focus-visible {
   padding-top: var(--space-2);
 }
 
+/* Responsive per card actions su mobile */
+@media (max-width: 600px) {
+  .app-card-actions {
+    flex-direction: row;
+    gap: var(--space-2);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .app-card-actions .MuiButton-root {
+    min-width: 120px;
+    flex: 0 0 auto;
+  }
+  
+  .app-card-actions .MuiBox-root {
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    flex: 1 1 auto;
+  }
+}
+
 @media (max-width: 600px) {
   .app-card-body {
     gap: var(--space-2);
@@ -3221,4 +3243,74 @@ select:focus-visible {
 .material-ui-toast-top-left .toast {
   margin-bottom: 12px;
   pointer-events: auto;
+}
+
+/* ===== APP CARD RESPONSIVE FIXES ===== */
+/* Fix per card su mobile - assicura che i pulsanti non vengano tagliati */
+@media (max-width: 768px) {
+  .MuiCard-root {
+    min-height: 320px !important;
+    height: auto !important;
+  }
+  
+  .MuiCardContent-root {
+    padding: 24px !important; /* Ripristino padding originale */
+    min-height: 0;
+    flex: 1;
+  }
+  
+  .MuiCardActions-root {
+    padding: 16px 24px !important; /* Ripristino padding originale */
+    min-height: 56px !important; /* Altezza minima per evitare tagli */
+    flex-shrink: 0 !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.12) !important;
+  }
+  
+  /* Assicura che i pulsanti abbiano spazio sufficiente */
+  .MuiCardActions-root .MuiButton-root {
+    min-width: 120px !important; /* Ripristino larghezza originale */
+    height: 36px !important; /* Ripristino altezza originale */
+  }
+  
+  .MuiCardActions-root .MuiIconButton-root {
+    width: 36px !important; /* Ripristino dimensione originale */
+    height: 36px !important;
+  }
+}
+
+/* Fix per schermi molto piccoli */
+@media (max-width: 480px) {
+  .MuiCard-root {
+    min-height: 320px !important;
+  }
+  
+  .MuiCardActions-root {
+    padding: 16px 24px !important; /* Mantieni padding originale */
+    min-height: 56px !important; /* Mantieni altezza minima */
+  }
+  
+  .MuiCardActions-root .MuiButton-root {
+    min-width: 120px !important; /* Mantieni larghezza originale */
+    height: 36px !important; /* Mantieni altezza originale */
+  }
+  
+  .MuiCardActions-root .MuiIconButton-root {
+    width: 36px !important; /* Mantieni dimensione originale */
+    height: 36px !important;
+  }
+}
+
+/* Assicura che il layout della griglia sia ottimale */
+@media (max-width: 768px) {
+  .apps-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important;
+    gap: 16px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .apps-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+    gap: 12px !important;
+  }
 }

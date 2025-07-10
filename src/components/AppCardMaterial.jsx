@@ -16,9 +16,7 @@ import {
   Launch as LaunchIcon,
   Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  MoreVert as MoreVertIcon
+  Edit as EditIcon
 } from '@mui/icons-material';
 
 /**
@@ -136,7 +134,9 @@ const AppCardMaterial = ({
   return (
     <Card
       sx={{
-        height: { xs: 280, sm: 300, md: 320 }, // Altezza responsive
+        // Altezza responsive migliorata per evitare tagli
+        minHeight: { xs: 320, sm: 340, md: 360 },
+        height: 'auto', // Altezza automatica invece di fissa
         width: '100%', // Larghezza fissa al 100% del container
         display: 'flex',
         flexDirection: 'column',
@@ -159,32 +159,35 @@ const AppCardMaterial = ({
     >
       <CardContent sx={{ 
         flexGrow: 1, 
-        p: 3, 
+        p: 3, // Ripristino padding originale
         display: 'flex', 
         flexDirection: 'column',
         width: '100%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        // Assicura che il contenuto non occupi troppo spazio
+        minHeight: 0
       }}>
         {/* Header con avatar e titolo */}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
           <Avatar
             sx={{
-              width: 56,
+              width: 56, // Ripristino dimensione originale
               height: 56,
               mr: 2,
               background: app.icon && !isEmoji(app.icon) ? 'transparent' : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-              fontSize: '1.2rem',
+              fontSize: '1.2rem', // Ripristino dimensione originale
               fontWeight: 600,
               boxShadow: `0 4px 12px ${theme.palette.primary.main}33`,
-              position: 'relative'
+              position: 'relative',
+              cursor: 'pointer', // Aggiungi cursore pointer per indicare che è cliccabile
+              '&:hover': {
+                transform: 'scale(1.05)',
+                transition: 'transform 0.2s ease'
+              }
             }}
+            onClick={() => onLaunch(app.id)} // L'icona avvia sempre l'app
           >
             {getAppIcon(app)}
-            {!app.icon && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                {getInitials(app.name)}
-              </div>
-            )}
           </Avatar>
           
           <Box sx={{ flexGrow: 1, minWidth: 0, width: '100%' }}>
@@ -198,6 +201,7 @@ const AppCardMaterial = ({
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
                 width: '100%'
+                // Ripristino dimensione originale
               }}
             >
               {app.name}
@@ -210,9 +214,10 @@ const AppCardMaterial = ({
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 display: '-webkit-box',
-                WebkitLineClamp: 2,
+                WebkitLineClamp: 2, // Ripristino numero righe originale
                 WebkitBoxOrient: 'vertical',
                 lineHeight: 1.4
+                // Ripristino dimensione originale
               }}
             >
               {app.description || 'Nessuna descrizione'}
@@ -268,7 +273,12 @@ const AppCardMaterial = ({
         <Box sx={{ flexGrow: 1 }} />
         
         {/* Informazioni aggiuntive */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          mt: 'auto'
+        }}>
           {app.lastUsed && (
             <Typography variant="caption" color="text.secondary">
               Ultimo uso: {formatLastUsed(app.lastUsed)}
@@ -288,9 +298,17 @@ const AppCardMaterial = ({
         className="app-card-actions"
         sx={{ 
           justifyContent: 'space-between', 
-          p: 2, 
+          p: 2, // Ripristino padding originale
           pt: 2,
-          borderTop: `1px solid ${theme.palette.divider}`
+          borderTop: `1px solid ${theme.palette.divider}`,
+          // Layout responsive migliorato
+          flexDirection: { xs: 'row', sm: 'row' },
+          gap: { xs: 1, sm: 0 },
+          alignItems: { xs: 'center', sm: 'center' },
+          flexWrap: { xs: 'nowrap', sm: 'nowrap' }, // Evita wrap su mobile
+          // Assicura che i pulsanti non vengano tagliati
+          minHeight: { xs: 48, sm: 56 }, // Altezza minima per i pulsanti
+          flexShrink: 0 // Impedisce il ridimensionamento
         }}
       >
         <Button
@@ -302,13 +320,23 @@ const AppCardMaterial = ({
             background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
             '&:hover': {
               background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
-            }
+            },
+            // Dimensione appropriata per mobile
+            minWidth: { xs: '120px', sm: 'auto' }, // Ripristino larghezza originale
+            flex: { xs: '0 0 auto', sm: '0 0 auto' }
+            // Ripristino dimensioni originali
           }}
         >
           Avvia
         </Button>
 
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 0.5, // Ripristino gap originale
+          justifyContent: { xs: 'flex-end', sm: 'flex-end' },
+          flexWrap: 'nowrap',
+          flex: { xs: '1 1 auto', sm: '0 0 auto' }
+        }}>
           <Tooltip title={app.favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}>
             <IconButton
               size="small"
@@ -318,6 +346,7 @@ const AppCardMaterial = ({
                 '&:hover': {
                   transform: 'scale(1.1)'
                 }
+                // Ripristino dimensioni originali
               }}
             >
               {app.favorite ? <FavoriteIcon /> : <FavoriteBorderIcon />}
@@ -333,24 +362,10 @@ const AppCardMaterial = ({
                   transform: 'scale(1.1)',
                   color: theme.palette.primary.main
                 }
+                // Ripristino dimensioni originali
               }}
             >
               <EditIcon />
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip title="Elimina">
-            <IconButton
-              size="small"
-              color="error"
-              onClick={() => onDelete(app.id)}
-              sx={{
-                '&:hover': {
-                  transform: 'scale(1.1)'
-                }
-              }}
-            >
-              <DeleteIcon />
             </IconButton>
           </Tooltip>
         </Box>

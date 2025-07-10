@@ -59,6 +59,8 @@ const AppImporterMaterial = ({
   const [githubUrl, setGithubUrl] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadedZip, setUploadedZip] = useState(null);
+  const [customIcon, setCustomIcon] = useState(null);
+  const [iconSelectorOpen, setIconSelectorOpen] = useState(false);
 
   const steps = [
     {
@@ -184,6 +186,7 @@ const AppImporterMaterial = ({
     setGithubUrl('');
     setUploadedFile(null);
     setUploadedZip(null);
+    setCustomIcon(null);
     setError('');
   };
 
@@ -193,6 +196,11 @@ const AppImporterMaterial = ({
     
     try {
       let appData = { ...formData };
+      
+      // Aggiungi icona personalizzata se specificata
+      if (customIcon) {
+        appData.icon = customIcon;
+      }
       
       // Gestisci i diversi tipi di importazione
       switch (importType) {
@@ -255,28 +263,30 @@ const AppImporterMaterial = ({
 
   const handleFileUpload = (event, type) => {
     const file = event.target.files[0];
-    if (!file) return;
+    if (file) {
+      if (type === 'html') {
+        setUploadedFile(file);
+      } else if (type === 'zip') {
+        setUploadedZip(file);
+      }
+    }
+  };
 
-    if (type === 'html') {
-      if (!file.name.endsWith('.html')) {
-        setError('Devi caricare un file HTML');
+  const handleIconUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validazione dimensione file (2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        setError('File icona troppo grande. Dimensione massima: 2MB');
         return;
       }
       
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setHtmlContent(e.target.result);
-        setUploadedFile(file);
-        setError('');
+      reader.onload = (ev) => {
+        setCustomIcon(ev.target.result);
+        setError(''); // Pulisci errori precedenti
       };
-      reader.readAsText(file);
-    } else if (type === 'zip') {
-      if (!file.name.endsWith('.zip')) {
-        setError('Devi caricare un file ZIP');
-        return;
-      }
-      setUploadedZip(file);
-      setError('');
+      reader.readAsDataURL(file);
     }
   };
 
@@ -284,12 +294,16 @@ const AppImporterMaterial = ({
     switch (activeStep) {
       case 0:
         return (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Scegli il metodo di importazione più adatto alle tue esigenze
             </Typography>
             
-            <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))' }}>
+            <Box sx={{ 
+              display: 'grid', 
+              gap: 2, 
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))'
+            }}>
               {importTypes.map((type) => (
                 <Paper
                   key={type.id}
@@ -334,12 +348,15 @@ const AppImporterMaterial = ({
 
       case 1:
         return (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Inserisci i dettagli dell'applicazione
             </Typography>
             
-            <Box sx={{ display: 'grid', gap: 3 }}>
+            <Box sx={{ 
+              display: 'grid', 
+              gap: 2
+            }}>
               <TextField
                 label="Nome applicazione *"
                 value={formData.name}
@@ -460,18 +477,82 @@ const AppImporterMaterial = ({
               
               <TextField
                 select
-                label="Categoria"
+                label=""
                 value={formData.category}
                 onChange={(e) => handleInputChange('category', e.target.value)}
                 fullWidth
                 variant="outlined"
+                placeholder="Categoria"
+                SelectProps={{ native: true }}
               >
+                <option value="" disabled>
+                  Categoria
+                </option>
                 {categories.map((category) => (
                   <option key={category} value={category}>
                     {category}
                   </option>
                 ))}
               </TextField>
+              
+              {/* Icona personalizzata */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Icona personalizzata (opzionale)
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                  Se non specificata, verrà utilizzato il favicon del sito o un'emoji generata automaticamente
+                </Typography>
+                
+                {/* Mostra icona corrente */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Box sx={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: 2, 
+                    border: '1px solid #ccc',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.5rem',
+                    bgcolor: 'background.paper',
+                    overflow: 'hidden'
+                  }}>
+                    {customIcon && (customIcon.startsWith('data:') || customIcon.startsWith('http')) ? (
+                      <img 
+                        src={customIcon} 
+                        alt="Icona app" 
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'cover' 
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <Box sx={{ 
+                      display: customIcon && (customIcon.startsWith('data:') || customIcon.startsWith('http')) ? 'none' : 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '100%',
+                      height: '100%'
+                    }}>
+                      {customIcon || '📱'}
+                    </Box>
+                  </Box>
+                  
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => setIconSelectorOpen(true)}
+                  >
+                    Cambia Icona
+                  </Button>
+                </Box>
+              </Box>
               
               <Box>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -506,12 +587,15 @@ const AppImporterMaterial = ({
 
       case 2:
         return (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Rivedi i dettagli prima di importare
             </Typography>
             
-            <Paper sx={{ p: 3, mb: 3 }}>
+            <Paper sx={{ 
+              p: 3, 
+              mb: 2
+            }}>
               <Box sx={{ display: 'grid', gap: 2 }}>
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary">
@@ -565,6 +649,46 @@ const AppImporterMaterial = ({
                     </Box>
                   </Box>
                 )}
+                
+                {customIcon && (
+                  <Box>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Icona personalizzata
+                    </Typography>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 2, 
+                      mt: 1 
+                    }}>
+                      <Box sx={{ 
+                        width: 48, 
+                        height: 48, 
+                        borderRadius: 1,
+                        border: '2px solid',
+                        borderColor: 'success.main',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        backgroundColor: 'background.paper'
+                      }}>
+                        <img 
+                          src={customIcon} 
+                          alt="Icona personalizzata" 
+                          style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: 'cover' 
+                          }} 
+                        />
+                      </Box>
+                      <Typography variant="body2" color="success.main">
+                        ✓ Icona personalizzata selezionata
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
               </Box>
             </Paper>
           </Box>
@@ -585,7 +709,11 @@ const AppImporterMaterial = ({
       PaperProps={{
         sx: {
           background: theme.palette.background.paper,
-          backdropFilter: 'blur(20px)'
+          backdropFilter: 'blur(20px)',
+          maxHeight: isMobile ? '100vh' : '85vh',
+          height: isMobile ? '100vh' : 'auto',
+          display: 'flex',
+          flexDirection: 'column'
         }
       }}
     >
@@ -600,7 +728,12 @@ const AppImporterMaterial = ({
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ pb: 0 }}>
+      <DialogContent sx={{ 
+        pb: 0, 
+        overflow: 'auto',
+        flex: 1,
+        minHeight: 0
+      }}>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -627,7 +760,12 @@ const AppImporterMaterial = ({
         {renderStepContent()}
       </DialogContent>
 
-      <DialogActions sx={{ p: 3, pt: 2 }}>
+      <DialogActions sx={{ 
+        p: 3, 
+        pt: 2,
+        flexShrink: 0,
+        borderTop: `1px solid ${theme.palette.divider}`
+      }}>
         <Button
           disabled={activeStep === 0}
           onClick={handleBack}
@@ -669,6 +807,172 @@ const AppImporterMaterial = ({
           </Button>
         )}
       </DialogActions>
+
+      {/* IconSelector */}
+      <Dialog
+        open={iconSelectorOpen}
+        onClose={() => setIconSelectorOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Cambia Icona
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            {/* Mostra icona corrente */}
+            <Box sx={{ mb: 3, textAlign: 'center' }}>
+              <Typography variant="subtitle2" sx={{ mb: 2 }}>
+                Icona Attuale
+              </Typography>
+              <Box sx={{ 
+                width: 64, 
+                height: 64, 
+                borderRadius: 2, 
+                border: '1px solid #ccc',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '2rem',
+                bgcolor: 'background.paper',
+                overflow: 'hidden',
+                mx: 'auto'
+              }}>
+                {customIcon && (customIcon.startsWith('data:') || customIcon.startsWith('http')) ? (
+                  <img 
+                    src={customIcon} 
+                    alt="Icona app" 
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'cover' 
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <Box sx={{ 
+                  display: customIcon && (customIcon.startsWith('data:') || customIcon.startsWith('http')) ? 'none' : 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  height: '100%'
+                }}>
+                  {customIcon || '📱'}
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Opzione 1: Carica file immagine */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Carica Immagine
+              </Typography>
+              <Box sx={{ 
+                position: 'relative',
+                border: '2px dashed',
+                borderColor: 'divider',
+                borderRadius: 2,
+                p: 3,
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                backgroundColor: 'transparent',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  backgroundColor: 'action.hover'
+                }
+              }}>
+                <input
+                  type="file"
+                  accept="image/*,image/svg+xml"
+                  style={{ 
+                    position: 'absolute',
+                    opacity: 0,
+                    width: '100%',
+                    height: '100%',
+                    cursor: 'pointer'
+                  }}
+                  onChange={handleIconUpload}
+                />
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  gap: 1,
+                  pointerEvents: 'none'
+                }}>
+                  <Box sx={{ 
+                    width: 40, 
+                    height: 40, 
+                    borderRadius: 1,
+                    backgroundColor: 'action.hover',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'text.secondary'
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                    </svg>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Clicca per selezionare un'immagine
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled">
+                    PNG, JPG, SVG fino a 2MB
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Opzione 2: URL immagine */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                URL Immagine
+              </Typography>
+              <TextField
+                fullWidth
+                placeholder="https://esempio.com/icona.png"
+                size="small"
+                onChange={(e) => {
+                  const url = e.target.value.trim();
+                  if (url && (url.startsWith('http') || url.startsWith('data:'))) {
+                    setCustomIcon(url);
+                    showToast('URL icona impostato', 'success');
+                  }
+                }}
+                helperText="Inserisci l'URL di un'immagine o favicon"
+              />
+            </Box>
+
+            {/* Opzione 3: Seleziona emoji */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Seleziona Emoji
+              </Typography>
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => {
+                  setIconSelectorOpen(false);
+                  // TODO: Apri selettore emoji
+                }}
+                startIcon={<span style={{ fontSize: '1.2rem' }}>😊</span>}
+              >
+                Scegli Emoji
+              </Button>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIconSelectorOpen(false)}>
+            Chiudi
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 };
