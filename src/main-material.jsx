@@ -1466,11 +1466,11 @@ function AIdeasApp() {
             setLaunchModalOpen(false);
             setLaunchingApp(null);
           }}
-          maxWidth="lg"
-          fullWidth
+          fullScreen
           sx={{
             '& .MuiDialog-paper': {
-              height: '80vh'
+              margin: 0,
+              borderRadius: 0
             }
           }}
         >
