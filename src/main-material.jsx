@@ -48,8 +48,7 @@ import {
   Menu as MenuIcon,
   Close as CloseIcon,
   List as ListIcon,
-  ViewList as ViewListIcon,
-  GetApp as GetAppIcon,
+    ViewList as ViewListIcon,
   OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 
@@ -61,7 +60,7 @@ import AppImporterMaterial from './components/AppImporterMaterial.jsx';
 import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
-import PWAExporterMaterial from './components/PWAExporterMaterial.jsx';
+
 import EmojiSelector from './components/EmojiSelector.jsx';
 import GoogleDriveService from './services/GoogleDriveService.js';
 import GitHubService from './services/GitHubService.js';
@@ -98,7 +97,7 @@ function AIdeasApp() {
   const [emojiSelectorOpen, setEmojiSelectorOpen] = React.useState(false);
   const [iconSelectorOpen, setIconSelectorOpen] = React.useState(false);
   const [faviconUrl, setFaviconUrl] = React.useState('');
-  const [pwaExporterOpen, setPwaExporterOpen] = React.useState(false);
+
 
   // Inizializzazione
   React.useEffect(() => {
@@ -1260,13 +1259,7 @@ function AIdeasApp() {
             >
               <ViewListIcon />
             </IconButton>
-            <IconButton
-              onClick={() => setPwaExporterOpen(true)}
-              color="default"
-              title="Esporta app come PWA"
-            >
-              <GetAppIcon />
-            </IconButton>
+
           </Box>
         </Box>
 
@@ -2061,12 +2054,7 @@ function AIdeasApp() {
         </DialogActions>
       </Dialog>
 
-      {/* PWA Exporter Dialog */}
-      <PWAExporterMaterial
-        open={pwaExporterOpen}
-        onClose={() => setPwaExporterOpen(false)}
-        apps={apps}
-      />
+
     </Box>
   );
 }

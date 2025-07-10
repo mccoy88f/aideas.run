@@ -24,12 +24,9 @@ class AppRouteService {
     if (this.initialized) return;
     
     try {
-      // Importa i servizi dinamicamente per evitare errori di inizializzazione
-      const StorageServiceModule = await import('./StorageService.js');
-      const PWAGeneratorServiceModule = await import('./PWAGeneratorService.js');
-      
-      this.storageService = new StorageServiceModule.default();
-      this.pwaGenerator = new PWAGeneratorServiceModule.default();
+      // Usa i servizi già importati staticamente
+      this.storageService = new StorageService();
+      this.pwaGenerator = new PWAGeneratorService();
       
       this.init();
       this.initialized = true;
