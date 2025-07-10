@@ -379,6 +379,11 @@ function AIdeasApp() {
           }
           showToast(`Avviata: ${app.name}`, 'success');
         } else if (app.type === 'html' && app.content) {
+          // Se è un'app ZIP con file locali, configura il servizio file
+          if (app.files && app.files.length > 0) {
+            await setupLocalFileService(appId);
+          }
+          
           if (openMode === 'modal') {
             // Avvia app HTML in modale
             setLaunchingApp(app);
@@ -400,6 +405,42 @@ function AIdeasApp() {
     } catch (error) {
       console.error('Errore avvio app:', error);
       showToast('Errore nell\'avvio dell\'applicazione', 'error');
+    }
+  };
+
+  // Funzione per configurare il servizio file locali per le app ZIP
+  const setupLocalFileService = async (appId) => {
+    try {
+      const app = apps.find(a => a.id === appId);
+      if (!app || !app.files || app.files.length === 0) return;
+
+      console.log(`📁 Configurando servizio file per app ${appId}:`, app.files.length, 'file');
+
+      // Crea un handler per le richieste di file locali
+      const fileHandler = (request) => {
+        const url = new URL(request.url);
+        if (url.protocol === 'app:') {
+          const fileName = url.pathname.substring(1); // Rimuovi lo slash iniziale
+          const file = app.files.find(f => f.filename.endsWith(fileName));
+          
+          if (file) {
+            console.log(`📄 Servendo file locale: ${fileName}`);
+            return new Response(file.content, {
+              headers: {
+                'Content-Type': file.mimeType || 'application/octet-stream',
+                'Access-Control-Allow-Origin': '*'
+              }
+            });
+          }
+        }
+        return null;
+      };
+
+      // Registra l'handler per questa sessione
+      window.aideasFileHandler = fileHandler;
+      
+    } catch (error) {
+      console.error('Errore configurazione servizio file:', error);
     }
   };
 
@@ -642,8 +683,11 @@ function AIdeasApp() {
         metadata.icon = htmlMetadata.icon;
       }
       
-      // Imposta il contenuto HTML per l'avvio dell'app
-      metadata.content = indexHtmlFile.content;
+      // Modifica i percorsi nell'HTML per puntare ai file salvati
+      const modifiedHtmlContent = modifyHtmlPaths(htmlMetadata.htmlContent || new TextDecoder().decode(indexHtmlFile.content), files);
+      
+      // Imposta il contenuto HTML modificato per l'avvio dell'app
+      metadata.content = modifiedHtmlContent;
       metadata.type = 'html';
       
       console.log('✅ Metadati estratti da index.html:', {
@@ -672,7 +716,9 @@ function AIdeasApp() {
 
   // Funzione per estrarre metadati da HTML (simile a quella in AppImporterMaterial)
   const extractHtmlMetadataFromZip = (htmlContent) => {
-    const metadata = {};
+    const metadata = {
+      htmlContent: htmlContent // Aggiungi il contenuto HTML per la modifica percorsi
+    };
     
     // Estrai il titolo
     const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
@@ -749,6 +795,74 @@ function AIdeasApp() {
     }
     
     return null;
+  };
+
+  // Funzione per modificare i percorsi nell'HTML per puntare ai file salvati
+  const modifyHtmlPaths = (htmlContent, files) => {
+    let modifiedContent = htmlContent;
+    
+    // Lista dei file disponibili per il mapping
+    const availableFiles = files.map(f => f.filename);
+    console.log('📁 File disponibili per il mapping:', availableFiles);
+    
+    // Modifica percorsi CSS
+    modifiedContent = modifiedContent.replace(
+      /href=["']([^"']*\.css)["']/gi,
+      (match, cssPath) => {
+        const fileName = cssPath.split('/').pop();
+        const fileExists = availableFiles.some(f => f.endsWith(fileName));
+        if (fileExists) {
+          console.log(`🎨 CSS trovato: ${cssPath} -> ${fileName}`);
+          return `href="app://${fileName}"`;
+        }
+        return match;
+      }
+    );
+    
+    // Modifica percorsi JavaScript
+    modifiedContent = modifiedContent.replace(
+      /src=["']([^"']*\.js)["']/gi,
+      (match, jsPath) => {
+        const fileName = jsPath.split('/').pop();
+        const fileExists = availableFiles.some(f => f.endsWith(fileName));
+        if (fileExists) {
+          console.log(`📜 JS trovato: ${jsPath} -> ${fileName}`);
+          return `src="app://${fileName}"`;
+        }
+        return match;
+      }
+    );
+    
+    // Modifica percorsi immagini
+    modifiedContent = modifiedContent.replace(
+      /src=["']([^"']*\.(png|jpg|jpeg|gif|svg|ico))["']/gi,
+      (match, imgPath) => {
+        const fileName = imgPath.split('/').pop();
+        const fileExists = availableFiles.some(f => f.endsWith(fileName));
+        if (fileExists) {
+          console.log(`🖼️ Immagine trovata: ${imgPath} -> ${fileName}`);
+          return `src="app://${fileName}"`;
+        }
+        return match;
+      }
+    );
+    
+    // Modifica percorsi font
+    modifiedContent = modifiedContent.replace(
+      /src=["']([^"']*\.(woff|woff2|ttf|eot))["']/gi,
+      (match, fontPath) => {
+        const fileName = fontPath.split('/').pop();
+        const fileExists = availableFiles.some(f => f.endsWith(fileName));
+        if (fileExists) {
+          console.log(`🔤 Font trovato: ${fontPath} -> ${fileName}`);
+          return `src="app://${fileName}"`;
+        }
+        return match;
+      }
+    );
+    
+    console.log('✅ Percorsi HTML modificati per file locali');
+    return modifiedContent;
   };
 
   const renderAppCard = (app) => (
@@ -1620,6 +1734,39 @@ function AIdeasApp() {
                 border: 'none'
               }}
               title={launchingApp.name}
+              onLoad={(e) => {
+                // Configura l'intercettazione delle richieste di file locali
+                if (launchingApp.files && launchingApp.files.length > 0) {
+                  const iframe = e.target;
+                  try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    
+                    // Intercetta le richieste di file con protocollo app://
+                    const originalFetch = iframe.contentWindow.fetch;
+                    iframe.contentWindow.fetch = async (url, options) => {
+                      if (typeof url === 'string' && url.startsWith('app://')) {
+                        const fileName = url.replace('app://', '');
+                        const file = launchingApp.files.find(f => f.filename.endsWith(fileName));
+                        
+                        if (file) {
+                          console.log(`📄 Servendo file locale in iframe: ${fileName}`);
+                          return new Response(file.content, {
+                            headers: {
+                              'Content-Type': file.mimeType || 'application/octet-stream',
+                              'Access-Control-Allow-Origin': '*'
+                            }
+                          });
+                        }
+                      }
+                      return originalFetch(url, options);
+                    };
+                    
+                    console.log('✅ Intercettazione file locali configurata per iframe');
+                  } catch (error) {
+                    console.warn('Impossibile configurare intercettazione file per iframe:', error);
+                  }
+                }
+              }}
             />
           </DialogContent>
         </Dialog>
