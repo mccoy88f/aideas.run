@@ -1326,6 +1326,8 @@ function AIdeasApp() {
                   onEdit={setSelectedApp}
                   onDelete={handleDeleteApp}
                   onShowMenu={() => {}}
+                  onOpenPWA={handleOpenAsPWA}
+                  onInstallPWA={handleInstallAsPWA}
                 />
               </Box>
             ))}

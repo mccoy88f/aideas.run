@@ -16,7 +16,9 @@ import {
   Launch as LaunchIcon,
   Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  GetApp as GetAppIcon,
+  InstallMobile as InstallMobileIcon
 } from '@mui/icons-material';
 
 /**
@@ -29,6 +31,8 @@ const AppCardMaterial = ({
   onEdit, 
   onDelete, 
   onShowMenu,
+  onOpenPWA,
+  onInstallPWA,
   showMenu = true 
 }) => {
   const theme = useTheme();
@@ -337,6 +341,42 @@ const AppCardMaterial = ({
           flexWrap: 'nowrap',
           flex: { xs: '1 1 auto', sm: '0 0 auto' }
         }}>
+          {/* Pulsante PWA - Apri come PWA standalone */}
+          {onOpenPWA && (
+            <Tooltip title="Apri come PWA">
+              <IconButton
+                size="small"
+                onClick={() => onOpenPWA(app.id)}
+                sx={{
+                  '&:hover': {
+                    transform: 'scale(1.1)',
+                    color: theme.palette.secondary.main
+                  }
+                }}
+              >
+                <GetAppIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {/* Pulsante Installa - Installa come PWA nativa */}
+          {onInstallPWA && (
+            <Tooltip title="Installa app">
+              <IconButton
+                size="small"
+                onClick={() => onInstallPWA(app.id)}
+                sx={{
+                  '&:hover': {
+                    transform: 'scale(1.1)',
+                    color: theme.palette.success.main
+                  }
+                }}
+              >
+                <InstallMobileIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+
           <Tooltip title={app.favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}>
             <IconButton
               size="small"
