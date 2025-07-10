@@ -270,6 +270,7 @@ const AppImporterMaterial = ({
         // Leggi automaticamente i metadati dal file HTML
         try {
           const content = await file.text();
+          setHtmlContent(content); // Imposta il contenuto HTML
           const metadata = extractHtmlMetadata(content);
           
           // Aggiorna i campi del form con i metadati trovati
