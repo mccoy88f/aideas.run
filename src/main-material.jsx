@@ -187,7 +187,13 @@ function AIdeasApp() {
       
       // Inizializza servizio routing app
       console.log('🛣️ Inizializzazione AppRouteService...');
-      new AppRouteService();
+      const appRouteService = new AppRouteService();
+      // Inizializza in modo asincrono per evitare errori
+      setTimeout(() => {
+        appRouteService.initialize().catch(error => {
+          console.error('Errore inizializzazione AppRouteService:', error);
+        });
+      }, 100);
       
       // Carica apps
       console.log('📱 Caricamento apps...');
@@ -487,7 +493,8 @@ function AIdeasApp() {
 
   const handleOpenAsPWA = async (appId) => {
     try {
-      const appRouteService = new AppRouteService();
+      // Usa l'istanza singleton di AppRouteService
+      const appRouteService = AppRouteService.instance || new AppRouteService();
       await appRouteService.openAppAsPWA(appId);
       showToast('App aperta come PWA standalone', 'success');
     } catch (error) {

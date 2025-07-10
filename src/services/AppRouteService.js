@@ -12,9 +12,32 @@ class AppRouteService {
       return AppRouteService.instance;
     }
     AppRouteService.instance = this;
-    this.storageService = new StorageService();
-    this.pwaGenerator = new PWAGeneratorService();
-    this.init();
+    this.storageService = null;
+    this.pwaGenerator = null;
+    this.initialized = false;
+  }
+
+  /**
+   * Inizializza i servizi in modo lazy
+   */
+  async initialize() {
+    if (this.initialized) return;
+    
+    try {
+      // Importa i servizi dinamicamente per evitare errori di inizializzazione
+      const StorageServiceModule = await import('./StorageService.js');
+      const PWAGeneratorServiceModule = await import('./PWAGeneratorService.js');
+      
+      this.storageService = new StorageServiceModule.default();
+      this.pwaGenerator = new PWAGeneratorServiceModule.default();
+      
+      this.init();
+      this.initialized = true;
+      
+      console.log('✅ AppRouteService inizializzato con successo');
+    } catch (error) {
+      console.error('❌ Errore inizializzazione AppRouteService:', error);
+    }
   }
 
   /**
@@ -65,6 +88,11 @@ class AppRouteService {
    */
   async handleAppRoute(urlObj, options = {}) {
     try {
+      // Assicurati che i servizi siano inizializzati
+      if (!this.initialized) {
+        await this.initialize();
+      }
+      
       const pathParts = urlObj.pathname.split('/');
       const appId = parseInt(pathParts[2]); // /app/:id/...
       const requestedFile = pathParts.slice(3).join('/') || 'index.html';
@@ -138,6 +166,11 @@ class AppRouteService {
    */
   async openAppAsPWA(appId) {
     try {
+      // Assicurati che i servizi siano inizializzati
+      if (!this.initialized) {
+        await this.initialize();
+      }
+      
       const app = await this.storageService.getApp(appId);
       if (!app) {
         console.error('App non trovata:', appId);
