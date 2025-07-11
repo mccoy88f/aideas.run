@@ -48,7 +48,7 @@ import {
   Menu as MenuIcon,
   Close as CloseIcon,
   List as ListIcon,
-    ViewList as ViewListIcon,
+  ViewList as ViewListIcon,
   OpenInNew as OpenInNewIcon,
   InstallMobile as InstallMobileIcon
 } from '@mui/icons-material';
@@ -61,6 +61,7 @@ import AppImporterMaterial from './components/AppImporterMaterial.jsx';
 import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
+import PWAGeneratorService from './services/PWAGeneratorService.js';
 
 import EmojiSelector from './components/EmojiSelector.jsx';
 import GoogleDriveService from './services/GoogleDriveService.js';
@@ -203,7 +204,9 @@ function AIdeasApp() {
       window.addEventListener('app-installed', async (event) => {
         const { appId, app } = event.detail;
         try {
-          const pwaGenerator = new PWAGeneratorService();
+          // Usa l'istanza singleton di PWAGeneratorService
+          const pwaGenerator = PWAGeneratorService.instance || new PWAGeneratorService();
+          await pwaGenerator.initialize(); // Assicurati che il servizio sia inizializzato
           await pwaGenerator.generatePWAForApp(appId, app);
         } catch (error) {
           console.error('Errore generazione PWA automatica:', error);
