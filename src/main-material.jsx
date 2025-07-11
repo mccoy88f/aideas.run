@@ -198,6 +198,17 @@ function AIdeasApp() {
       } catch (error) {
         console.error('Errore creazione AppRouteService:', error);
       }
+
+      // Gestisci generazione automatica PWA per app installate
+      window.addEventListener('app-installed', async (event) => {
+        const { appId, app } = event.detail;
+        try {
+          const pwaGenerator = new PWAGeneratorService();
+          await pwaGenerator.generatePWAForApp(appId, app);
+        } catch (error) {
+          console.error('Errore generazione PWA automatica:', error);
+        }
+      });
       
       // Carica apps
       console.log('📱 Caricamento apps...');

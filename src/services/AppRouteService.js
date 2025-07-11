@@ -31,6 +31,7 @@ class AppRouteService {
       
       if (!this.pwaGenerator) {
         this.pwaGenerator = new PWAGeneratorService();
+        await this.pwaGenerator.initialize();
       }
       
       // Inizializza solo il routing, non i servizi

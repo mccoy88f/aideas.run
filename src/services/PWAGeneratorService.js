@@ -3,7 +3,7 @@
  * Crea manifest.json, service worker e file HTML per ogni app
  */
 
-import StorageService from './StorageService.js';
+import Dexie from 'dexie';
 import { APP_TYPES, CATEGORIES } from '../utils/constants.js';
 
 class PWAGeneratorService {
@@ -12,7 +12,6 @@ class PWAGeneratorService {
       return PWAGeneratorService.instance;
     }
     PWAGeneratorService.instance = this;
-    this.storageService = null;
     this.initialized = false;
   }
 
@@ -23,7 +22,6 @@ class PWAGeneratorService {
     if (this.initialized) return;
     
     try {
-      this.storageService = new StorageService();
       this.initialized = true;
       console.log('✅ PWAGeneratorService inizializzato con successo');
     } catch (error) {
@@ -32,7 +30,7 @@ class PWAGeneratorService {
   }
 
   /**
-   * Genera automaticamente i file PWA per un'app appena installata
+   * Genera automaticamente i file PWA per un'app appna installata
    * @param {number} appId - ID dell'app installata
    * @param {Object} appData - Dati dell'app
    */
@@ -54,7 +52,7 @@ class PWAGeneratorService {
       // Genera l'HTML wrapper PWA
       const htmlWrapper = this.generateHTMLWrapper(appId, appData);
       
-      // Salva i file PWA nel database
+      // Salva i file PWA nel database usando IndexedDB direttamente
       await this.savePWAFiles(appId, {
         manifest,
         serviceWorker,
@@ -348,8 +346,14 @@ self.addEventListener('message', (event) => {
         await this.initialize();
       }
       
+      // Usa IndexedDB direttamente per evitare dipendenze circolari
+      const db = new Dexie('AIdeas_DB');
+      db.version(1).stores({
+        appFiles: '++id, appId, filename, content, size, mimeType'
+      });
+      
       // Salva manifest.json
-      await this.storageService.db.appFiles.add({
+      await db.appFiles.add({
         appId,
         filename: 'manifest.json',
         content: JSON.stringify(files.manifest, null, 2),
@@ -358,7 +362,7 @@ self.addEventListener('message', (event) => {
       });
 
       // Salva service worker
-      await this.storageService.db.appFiles.add({
+      await db.appFiles.add({
         appId,
         filename: 'sw.js',
         content: files.serviceWorker,
@@ -367,7 +371,7 @@ self.addEventListener('message', (event) => {
       });
 
       // Salva HTML wrapper
-      await this.storageService.db.appFiles.add({
+      await db.appFiles.add({
         appId,
         filename: 'index.html',
         content: files.htmlWrapper,
@@ -375,6 +379,7 @@ self.addEventListener('message', (event) => {
         size: files.htmlWrapper.length
       });
 
+      await db.close();
       console.log(`✅ File PWA salvati per app ${appId}`);
     } catch (error) {
       console.error('Errore salvataggio file PWA:', error);
@@ -391,7 +396,13 @@ self.addEventListener('message', (event) => {
         await this.initialize();
       }
       
-      const files = await this.storageService.db.appFiles
+      // Usa IndexedDB direttamente per evitare dipendenze circolari
+      const db = new Dexie('AIdeas_DB');
+      db.version(1).stores({
+        appFiles: '++id, appId, filename, content, size, mimeType'
+      });
+      
+      const files = await db.appFiles
         .where('appId')
         .equals(appId)
         .toArray();
@@ -406,6 +417,7 @@ self.addEventListener('message', (event) => {
         }
       });
 
+      await db.close();
       return pwaFiles;
     } catch (error) {
       console.error('Errore recupero file PWA:', error);
@@ -423,12 +435,19 @@ self.addEventListener('message', (event) => {
         await this.initialize();
       }
       
-      const files = await this.storageService.db.appFiles
+      // Usa IndexedDB direttamente per evitare dipendenze circolari
+      const db = new Dexie('AIdeas_DB');
+      db.version(1).stores({
+        appFiles: '++id, appId, filename, content, size, mimeType'
+      });
+      
+      const files = await db.appFiles
         .where('appId')
         .equals(appId)
         .and(file => ['manifest.json', 'sw.js', 'index.html'].includes(file.filename))
         .count();
 
+      await db.close();
       return files >= 3; // Deve avere almeno manifest, sw e html
     } catch (error) {
       console.error('Errore verifica file PWA:', error);

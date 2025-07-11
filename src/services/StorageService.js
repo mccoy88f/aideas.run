@@ -1,6 +1,5 @@
 import Dexie from 'dexie';
 import { getEmojiByCategory } from '../utils/constants.js';
-import PWAGeneratorService from './PWAGeneratorService.js';
 
 /**
  * AIdeas Storage Service - Gestione IndexedDB con Dexie.js
@@ -92,9 +91,12 @@ class StorageService {
       }
 
       // Genera automaticamente i file PWA (tranne per app URL importate)
+      // La generazione PWA verrà gestita dal componente principale per evitare dipendenze circolari
       if (appData.type !== 'url' || !appData.url) {
-        const pwaGenerator = new PWAGeneratorService();
-        await pwaGenerator.generatePWAForApp(appId, app);
+        // Emetti un evento per notificare la generazione PWA
+        window.dispatchEvent(new CustomEvent('app-installed', { 
+          detail: { appId, app } 
+        }));
       }
 
       // Registra evento sync
