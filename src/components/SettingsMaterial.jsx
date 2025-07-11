@@ -386,6 +386,7 @@ const SettingsMaterial = ({
           >
             <option value="modal">Modale (in-app)</option>
             <option value="window">Nuova finestra/tab</option>
+            <option value="pwa">PWA (standalone)</option>
           </TextField>
         </Grid>
       </Grid>

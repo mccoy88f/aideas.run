@@ -181,30 +181,30 @@ class AppRouteService {
       if (!this.initialized) {
         await this.initialize();
       }
-      
+      // Verifica che i servizi siano disponibili
+      if (!this.storageService || !this.pwaGenerator) {
+        console.error('Servizi non disponibili per AppRouteService (openAppAsPWA)');
+        return;
+      }
       const app = await this.storageService.getApp(appId);
       if (!app) {
         console.error('App non trovata:', appId);
         return;
       }
-      
       // Verifica se l'app ha i file PWA
       const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
       if (!hasPWA) {
         // Genera i file PWA
         await this.pwaGenerator.generatePWAForApp(appId, app);
       }
-      
       // Apri l'app in una nuova finestra
       const appUrl = `${window.location.origin}/app/${appId}/`;
       const newWindow = window.open(appUrl, `app-${appId}`, 
         'width=1200,height=800,scrollbars=yes,resizable=yes');
-      
       if (!newWindow) {
         // Fallback: apri in nuova tab
         window.open(appUrl, '_blank');
       }
-      
     } catch (error) {
       console.error('Errore apertura app PWA:', error);
     }
@@ -219,30 +219,30 @@ class AppRouteService {
       if (!this.initialized) {
         await this.initialize();
       }
-      
+      // Verifica che i servizi siano disponibili
+      if (!this.storageService || !this.pwaGenerator) {
+        console.error('Servizi non disponibili per AppRouteService (installAppAsPWA)');
+        return;
+      }
       const app = await this.storageService.getApp(appId);
       if (!app) {
         console.error('App non trovata:', appId);
         return;
       }
-      
       // Verifica se l'app ha i file PWA
       const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
       if (!hasPWA) {
         // Genera i file PWA
         await this.pwaGenerator.generatePWAForApp(appId, app);
       }
-      
       // Apri l'app in una nuova finestra per triggerare l'installazione
       const appUrl = `${window.location.origin}/app/${appId}/`;
       const newWindow = window.open(appUrl, `install-${appId}`, 
         'width=1200,height=800,scrollbars=yes,resizable=yes');
-      
       if (!newWindow) {
         // Fallback: apri in nuova tab
         window.open(appUrl, '_blank');
       }
-      
       // Mostra istruzioni per l'installazione
       setTimeout(() => {
         if (newWindow && !newWindow.closed) {
@@ -252,7 +252,6 @@ class AppRouteService {
           }, '*');
         }
       }, 1000);
-      
     } catch (error) {
       console.error('Errore installazione app PWA:', error);
     }

@@ -342,22 +342,6 @@ const AppCardMaterial = ({
           flex: { xs: '1 1 auto', sm: '0 0 auto' }
         }}>
           {/* Pulsante PWA - Apri come PWA standalone */}
-          {onOpenPWA && (
-            <Tooltip title="Apri come PWA">
-              <IconButton
-                size="small"
-                onClick={() => onOpenPWA(app.id)}
-                sx={{
-                  '&:hover': {
-                    transform: 'scale(1.1)',
-                    color: theme.palette.secondary.main
-                  }
-                }}
-              >
-                <GetAppIcon />
-              </IconButton>
-            </Tooltip>
-          )}
 
           {/* Pulsante Installa - Installa come PWA nativa */}
           {onInstallPWA && (
