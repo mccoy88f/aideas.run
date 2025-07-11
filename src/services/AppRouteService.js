@@ -29,9 +29,15 @@ class AppRouteService {
         this.storageService = new StorageService();
       }
       
+      // Inizializza PWAGeneratorService in modo sicuro
       if (!this.pwaGenerator) {
-        this.pwaGenerator = new PWAGeneratorService();
-        await this.pwaGenerator.initialize();
+        try {
+          this.pwaGenerator = new PWAGeneratorService();
+          await this.pwaGenerator.initialize();
+        } catch (pwaError) {
+          console.warn('PWAGeneratorService non disponibile:', pwaError);
+          this.pwaGenerator = null;
+        }
       }
       
       // Inizializza solo il routing, non i servizi
@@ -100,8 +106,8 @@ class AppRouteService {
       }
       
       // Verifica che i servizi siano disponibili
-      if (!this.storageService || !this.pwaGenerator) {
-        console.warn('Servizi non disponibili per AppRouteService');
+      if (!this.storageService) {
+        console.warn('StorageService non disponibile per AppRouteService');
         return new Response('Servizio non disponibile', { status: 503 });
       }
       
@@ -117,36 +123,36 @@ class AppRouteService {
         return new Response('App non trovata', { status: 404 });
       }
       
-      // Verifica se l'app ha i file PWA generati
-      const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
-      if (!hasPWA) {
-        // Genera i file PWA se non esistono
-        await this.pwaGenerator.generatePWAForApp(appId, app);
-      }
-      
-      // Ottieni i file PWA
-      const pwaFiles = await this.pwaGenerator.getPWAFiles(appId);
-      if (!pwaFiles) {
-        return new Response('File PWA non trovati', { status: 404 });
-      }
-      
-      // Servi il file richiesto
-      const file = pwaFiles[requestedFile];
-      if (!file) {
-        return new Response('File non trovato', { status: 404 });
-      }
-      
-      // Crea la risposta
-      const response = new Response(file.content, {
-        status: 200,
-        headers: {
-          'Content-Type': file.mimeType,
-          'Cache-Control': 'public, max-age=3600',
-          'Access-Control-Allow-Origin': '*'
+      // Gestisci file PWA se disponibile
+      if (this.pwaGenerator) {
+        const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
+        if (!hasPWA) {
+          // Genera i file PWA se non esistono
+          await this.pwaGenerator.generatePWAForApp(appId, app);
         }
-      });
+        
+        // Ottieni i file PWA
+        const pwaFiles = await this.pwaGenerator.getPWAFiles(appId);
+        if (pwaFiles) {
+          // Servi il file richiesto
+          const file = pwaFiles[requestedFile];
+          if (file) {
+            // Crea la risposta
+            const response = new Response(file.content, {
+              status: 200,
+              headers: {
+                'Content-Type': file.mimeType,
+                'Cache-Control': 'public, max-age=3600',
+                'Access-Control-Allow-Origin': '*'
+              }
+            });
+            return response;
+          }
+        }
+      }
       
-      return response;
+      // Fallback: se non ci sono file PWA, mostra una pagina di errore
+      return new Response('File PWA non trovati', { status: 404 });
       
     } catch (error) {
       console.error('Errore gestione route app:', error);
@@ -182,26 +188,34 @@ class AppRouteService {
       if (!this.initialized) {
         await this.initialize();
       }
+      
       // Verifica che i servizi siano disponibili
-      if (!this.storageService || !this.pwaGenerator) {
-        console.error('Servizi non disponibili per AppRouteService (openAppAsPWA)');
+      if (!this.storageService) {
+        console.error('StorageService non disponibile per AppRouteService (openAppAsPWA)');
         return;
       }
+      
       const app = await this.storageService.getApp(appId);
       if (!app) {
         console.error('App non trovata:', appId);
         return;
       }
-      // Verifica se l'app ha i file PWA
-      const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
-      if (!hasPWA) {
-        // Genera i file PWA
-        await this.pwaGenerator.generatePWAForApp(appId, app);
+      
+      // Genera i file PWA se necessario
+      if (this.pwaGenerator) {
+        const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
+        if (!hasPWA) {
+          await this.pwaGenerator.generatePWAForApp(appId, app);
+        }
       }
+      
       // Apri l'app in una nuova finestra
       const appUrl = `${window.location.origin}/app/${appId}/`;
+      console.log(`🚀 Apertura app PWA: ${appUrl}`);
+      
       const newWindow = window.open(appUrl, `app-${appId}`, 
         'width=1200,height=800,scrollbars=yes,resizable=yes');
+      
       if (!newWindow) {
         // Fallback: apri in nuova tab
         window.open(appUrl, '_blank');
@@ -213,6 +227,7 @@ class AppRouteService {
 
   /**
    * Installa un'app come PWA sul dispositivo
+   * Apre la pagina PWA per permettere l'installazione dal browser
    */
   async installAppAsPWA(appId) {
     try {
@@ -220,39 +235,45 @@ class AppRouteService {
       if (!this.initialized) {
         await this.initialize();
       }
+      
       // Verifica che i servizi siano disponibili
-      if (!this.storageService || !this.pwaGenerator) {
-        console.error('Servizi non disponibili per AppRouteService (installAppAsPWA)');
+      if (!this.storageService) {
+        console.error('StorageService non disponibile per AppRouteService (installAppAsPWA)');
         return;
       }
+      
       const app = await this.storageService.getApp(appId);
       if (!app) {
         console.error('App non trovata:', appId);
         return;
       }
-      // Verifica se l'app ha i file PWA
-      const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
-      if (!hasPWA) {
-        // Genera i file PWA
-        await this.pwaGenerator.generatePWAForApp(appId, app);
+      
+      // Genera i file PWA se necessario
+      if (this.pwaGenerator) {
+        const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
+        if (!hasPWA) {
+          await this.pwaGenerator.generatePWAForApp(appId, app);
+        }
       }
-      // Apri l'app in una nuova finestra per triggerare l'installazione
+      
+      // Apri l'app in una nuova finestra per permettere l'installazione PWA
       const appUrl = `${window.location.origin}/app/${appId}/`;
-      const newWindow = window.open(appUrl, `install-${appId}`, 
+      console.log(`🚀 Apertura app PWA per installazione: ${appUrl}`);
+      
+      const newWindow = window.open(appUrl, `app-${appId}`, 
         'width=1200,height=800,scrollbars=yes,resizable=yes');
+      
       if (!newWindow) {
         // Fallback: apri in nuova tab
         window.open(appUrl, '_blank');
       }
+      
       // Mostra istruzioni per l'installazione
-      setTimeout(() => {
-        if (newWindow && !newWindow.closed) {
-          newWindow.postMessage({
-            type: 'SHOW_INSTALL_PROMPT',
-            appName: app.name
-          }, '*');
-        }
-      }, 1000);
+      console.log('📱 Per installare l\'app come PWA:');
+      console.log('1. Apri la pagina appena aperta');
+      console.log('2. Clicca sull\'icona di installazione nel browser (🔧 o 📱)');
+      console.log('3. Segui le istruzioni per installare l\'app');
+      
     } catch (error) {
       console.error('Errore installazione app PWA:', error);
     }
