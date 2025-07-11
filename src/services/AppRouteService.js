@@ -213,8 +213,8 @@ class AppRouteService {
         return;
       }
       
-      // Altrimenti, apri l'app in una nuova scheda
-      const appUrl = this.getAppUrl(appId);
+      // Altrimenti, apri l'app in una nuova scheda usando l'URL completo
+      const appUrl = new URL(this.getAppUrl(appId), window.location.origin).href;
       console.log(`🚀 Apertura app in nuova scheda: ${appUrl}`);
       
       window.open(appUrl, `app-${appId}`);
