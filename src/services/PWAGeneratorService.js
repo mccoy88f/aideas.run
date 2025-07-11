@@ -1,6 +1,5 @@
 /**
- * PWA Generator Service - Genera automaticamente file PWA per le app installate
- * Crea manifest.json, service worker e file HTML per ogni app
+ * PWA Generator Service - Genera i file necessari per le PWA
  */
 
 import Dexie from 'dexie';
@@ -16,17 +15,11 @@ class PWAGeneratorService {
   }
 
   /**
-   * Inizializza il servizio in modo lazy
+   * Inizializza il servizio
    */
   async initialize() {
     if (this.initialized) return;
-    
-    try {
-      this.initialized = true;
-      console.log('✅ PWAGeneratorService inizializzato con successo');
-    } catch (error) {
-      console.error('❌ Errore inizializzazione PWAGeneratorService:', error);
-    }
+    this.initialized = true;
   }
 
   /**
@@ -74,12 +67,12 @@ class PWAGeneratorService {
       name: appData.name,
       short_name: appData.name.substring(0, 12),
       description: appData.description || `App ${appData.name}`,
-      start_url: `/app/${appId}`,
+      start_url: '.',  // URL relativo alla directory corrente
       display: 'standalone',
       background_color: '#ffffff',
       theme_color: '#1976d2',
       orientation: 'any',
-      scope: `/app/${appId}/`,
+      scope: './',  // Scope relativo alla directory corrente
       lang: 'it',
       dir: 'ltr',
       categories: [appData.category || 'productivity'],
@@ -90,7 +83,7 @@ class PWAGeneratorService {
           name: appData.name,
           short_name: appData.name.substring(0, 12),
           description: appData.description || `Avvia ${appData.name}`,
-          url: `/app/${appId}`,
+          url: '.', // URL relativo alla directory corrente
           icons: this.generateIcons(appData.icon, '96x96')
         }
       ]

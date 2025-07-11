@@ -1589,6 +1589,13 @@ function AIdeasApp() {
             <Box sx={{ pt: 2 }}>
               <TextField
                 fullWidth
+                label="ID"
+                value={selectedApp.id}
+                disabled
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
                 label="Nome"
                 value={selectedApp.name}
                 onChange={(e) => setSelectedApp({...selectedApp, name: e.target.value})}
