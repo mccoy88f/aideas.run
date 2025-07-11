@@ -11,7 +11,7 @@ class AppRouteService {
       return AppRouteService.instance;
     }
     AppRouteService.instance = this;
-    this.storageService = null;
+    this.storageService = StorageService; // Uso l'istanza singleton invece di crearne una nuova
     this.initialized = false;
   }
 
@@ -22,11 +22,6 @@ class AppRouteService {
     if (this.initialized) return;
     
     try {
-      // Inizializza i servizi in modo sicuro
-      if (!this.storageService) {
-        this.storageService = new StorageService();
-      }
-      
       // Inizializza solo il routing, non i servizi
       this.init();
       this.initialized = true;
