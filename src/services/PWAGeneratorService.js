@@ -19,7 +19,7 @@ class PWAGeneratorService {
    */
   async initialize() {
     if (this.initialized) return;
-    this.initialized = true;
+      this.initialized = true;
   }
 
   /**

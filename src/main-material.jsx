@@ -48,7 +48,7 @@ import {
   Menu as MenuIcon,
   Close as CloseIcon,
   List as ListIcon,
-  ViewList as ViewListIcon,
+    ViewList as ViewListIcon,
   OpenInNew as OpenInNewIcon,
   InstallMobile as InstallMobileIcon
 } from '@mui/icons-material';
@@ -870,7 +870,7 @@ function AIdeasApp() {
         const fileExists = availableFiles.some(f => f.endsWith(fileName));
         if (fileExists) {
           console.log(`🎨 CSS trovato: ${cssPath} -> ${fileName}`);
-          return `href="app://${fileName}"`;
+          return `href="${fileName}"`; // Usa percorso relativo invece di app://
         }
         return match;
       }
@@ -884,7 +884,7 @@ function AIdeasApp() {
         const fileExists = availableFiles.some(f => f.endsWith(fileName));
         if (fileExists) {
           console.log(`📜 JS trovato: ${jsPath} -> ${fileName}`);
-          return `src="app://${fileName}"`;
+          return `src="${fileName}"`; // Usa percorso relativo invece di app://
         }
         return match;
       }
@@ -898,7 +898,7 @@ function AIdeasApp() {
         const fileExists = availableFiles.some(f => f.endsWith(fileName));
         if (fileExists) {
           console.log(`🖼️ Immagine trovata: ${imgPath} -> ${fileName}`);
-          return `src="app://${fileName}"`;
+          return `src="${fileName}"`; // Usa percorso relativo invece di app://
         }
         return match;
       }
@@ -1836,22 +1836,21 @@ function AIdeasApp() {
                   try {
                     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                     
-                    // Intercetta le richieste di file con protocollo app://
+                    // Intercetta le richieste di file
                     const originalFetch = iframe.contentWindow.fetch;
                     iframe.contentWindow.fetch = async (url, options) => {
-                      if (typeof url === 'string' && url.startsWith('app://')) {
-                        const fileName = url.replace('app://', '');
-                        const file = launchingApp.files.find(f => f.filename.endsWith(fileName));
-                        
-                        if (file) {
-                          console.log(`📄 Servendo file locale in iframe: ${fileName}`);
-                          return new Response(file.content, {
-                            headers: {
-                              'Content-Type': file.mimeType || 'application/octet-stream',
-                              'Access-Control-Allow-Origin': '*'
-                            }
-                          });
-                        }
+                      // Gestisci sia percorsi relativi che app://
+                      const fileName = url.startsWith('app://') ? url.replace('app://', '') : url;
+                      const file = launchingApp.files.find(f => f.filename.endsWith(fileName));
+                      
+                      if (file) {
+                        console.log(`📄 Servendo file locale in iframe: ${fileName}`);
+                        return new Response(file.content, {
+                          headers: {
+                            'Content-Type': file.mimeType || 'application/octet-stream',
+                            'Access-Control-Allow-Origin': '*'
+                          }
+                        });
                       }
                       return originalFetch(url, options);
                     };

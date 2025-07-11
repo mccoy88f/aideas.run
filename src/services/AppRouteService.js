@@ -124,7 +124,7 @@ class AppRouteService {
   async handleAppRoute(urlObj, options = {}) {
     try {
       // Se siamo nella finestra child, richiediamo i file alla finestra parent
-      if (!window.opener) {
+      if (!window.opener && !window.parent) {
         return new Response('Questa pagina deve essere aperta dalla finestra principale', { status: 400 });
       }
 
@@ -144,10 +144,19 @@ class AppRouteService {
         const app = await this.storageService.getApp(appId);
         if (app && app.content) {
           // Modifica i percorsi per usare URL relativi invece di app://
-          const modifiedContent = app.content.replace(
-            /(?:src|href)=["']app:\/\/([^"']*)["']/g,
-            (match, path) => `${match.startsWith('src') ? 'src' : 'href'}="${path}"`
-          );
+          const modifiedContent = app.content
+            .replace(/(?:src|href)=["']app:\/\/([^"']*)["']/g, (match, path) => {
+              return `${match.startsWith('src') ? 'src' : 'href'}="${path}"`;
+            })
+            .replace(/(?:src|href)=["']([^"']*)["']/g, (match, path) => {
+              // Se il percorso è già relativo o è un URL esterno, lascialo invariato
+              if (path.startsWith('http') || path.startsWith('/') || !path.includes('/')) {
+                return match;
+              }
+              // Altrimenti prendi solo il nome del file
+              const fileName = path.split('/').pop();
+              return `${match.startsWith('src') ? 'src' : 'href'}="${fileName}"`;
+            });
           
           return new Response(modifiedContent, {
             status: 200,
@@ -229,18 +238,22 @@ class AppRouteService {
 
       // Se è un'app URL, apri direttamente l'URL esterno
       if (app.type === 'url' && app.url) {
-        window.open(app.url, `app-${appId}`);
+        window.open(app.url, `app-${appId}`, 'width=1024,height=768');
         return;
       }
       
       // Per app HTML, usa il sistema di routing
       const appUrl = new URL(this.getAppUrl(appId), window.location.origin).href;
-      console.log(`🚀 Apertura app in nuova scheda: ${appUrl}`);
+      console.log(`🚀 Apertura app in nuova finestra: ${appUrl}`);
       
-      // Apri direttamente l'URL per usare il sistema di routing
-      window.open(appUrl, `app-${appId}`);
+      // Apri in una nuova finestra con dimensioni specifiche
+      const newWindow = window.open('', `app-${appId}`, 'width=1024,height=768');
+      if (newWindow) {
+        // Imposta l'URL dopo aver creato la finestra
+        newWindow.location.href = appUrl;
+      }
     } catch (error) {
-      console.error('Errore apertura app in nuova scheda:', error);
+      console.error('Errore apertura app in nuova finestra:', error);
     }
   }
 
