@@ -4,7 +4,6 @@
  */
 
 import StorageService from './StorageService.js';
-import PWAGeneratorService from './PWAGeneratorService.js';
 
 class AppRouteService {
   constructor() {
@@ -13,7 +12,6 @@ class AppRouteService {
     }
     AppRouteService.instance = this;
     this.storageService = null;
-    this.pwaGenerator = null;
     this.initialized = false;
   }
 
@@ -27,17 +25,6 @@ class AppRouteService {
       // Inizializza i servizi in modo sicuro
       if (!this.storageService) {
         this.storageService = new StorageService();
-      }
-      
-      // Inizializza PWAGeneratorService in modo sicuro
-      if (!this.pwaGenerator) {
-        try {
-          this.pwaGenerator = new PWAGeneratorService();
-          await this.pwaGenerator.initialize();
-        } catch (pwaError) {
-          console.warn('PWAGeneratorService non disponibile:', pwaError);
-          this.pwaGenerator = null;
-        }
       }
       
       // Inizializza solo il routing, non i servizi
@@ -123,36 +110,73 @@ class AppRouteService {
         return new Response('App non trovata', { status: 404 });
       }
       
-      // Gestisci file PWA se disponibile
-      if (this.pwaGenerator) {
-        const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
-        if (!hasPWA) {
-          // Genera i file PWA se non esistono
-          await this.pwaGenerator.generatePWAForApp(appId, app);
+      // Per ora, serviamo una pagina HTML semplice per le app
+      // In futuro, potremo implementare la generazione PWA qui
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${app.name} - AIdeas</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f5f5; 
         }
-        
-        // Ottieni i file PWA
-        const pwaFiles = await this.pwaGenerator.getPWAFiles(appId);
-        if (pwaFiles) {
-          // Servi il file richiesto
-          const file = pwaFiles[requestedFile];
-          if (file) {
-            // Crea la risposta
-            const response = new Response(file.content, {
-              status: 200,
-              headers: {
-                'Content-Type': file.mimeType,
-                'Cache-Control': 'public, max-age=3600',
-                'Access-Control-Allow-Origin': '*'
-              }
-            });
-            return response;
-          }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
         }
-      }
-      
-      // Fallback: se non ci sono file PWA, mostra una pagina di errore
-      return new Response('File PWA non trovati', { status: 404 });
+        .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+        }
+        .app-info { 
+            margin-bottom: 20px; 
+        }
+        .app-content { 
+            border: 1px solid #ddd; 
+            padding: 20px; 
+            border-radius: 4px; 
+            background: #fafafa; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>${app.name}</h1>
+            <p>App gestita da AIdeas</p>
+        </div>
+        <div class="app-info">
+            <p><strong>Descrizione:</strong> ${app.description || 'Nessuna descrizione disponibile'}</p>
+            <p><strong>Categoria:</strong> ${app.category || 'Non categorizzata'}</p>
+            <p><strong>Tipo:</strong> ${app.type || 'Sconosciuto'}</p>
+        </div>
+        <div class="app-content">
+            <h3>Contenuto dell'app</h3>
+            <p>Questa è una pagina temporanea per l'app "${app.name}".</p>
+            <p>La funzionalità PWA completa sarà implementata in futuro.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+      return new Response(htmlContent, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html',
+          'Cache-Control': 'public, max-age=3600',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
       
     } catch (error) {
       console.error('Errore gestione route app:', error);
@@ -201,13 +225,7 @@ class AppRouteService {
         return;
       }
       
-      // Genera i file PWA se necessario
-      if (this.pwaGenerator) {
-        const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
-        if (!hasPWA) {
-          await this.pwaGenerator.generatePWAForApp(appId, app);
-        }
-      }
+      // Per ora, non generiamo file PWA - serviamo la pagina HTML semplice
       
       // Apri l'app in una nuova finestra
       const appUrl = `${window.location.origin}/app/${appId}/`;
@@ -248,13 +266,7 @@ class AppRouteService {
         return;
       }
       
-      // Genera i file PWA se necessario
-      if (this.pwaGenerator) {
-        const hasPWA = await this.pwaGenerator.hasPWAFiles(appId);
-        if (!hasPWA) {
-          await this.pwaGenerator.generatePWAForApp(appId, app);
-        }
-      }
+      // Per ora, non generiamo file PWA - serviamo la pagina HTML semplice
       
       // Apri l'app in una nuova finestra per permettere l'installazione PWA
       const appUrl = `${window.location.origin}/app/${appId}/`;
