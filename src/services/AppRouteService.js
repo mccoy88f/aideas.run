@@ -146,6 +146,7 @@ class AppRouteService {
           // Modifica i percorsi per usare URL relativi invece di app://
           const modifiedContent = app.content
             .replace(/(?:src|href)=["']app:\/\/([^"']*)["']/g, (match, path) => {
+              // Mantieni il percorso completo, rimuovendo solo il prefisso app://
               return `${match.startsWith('src') ? 'src' : 'href'}="${path}"`;
             })
             .replace(/(?:src|href)=["']([^"']*)["']/g, (match, path) => {
@@ -153,9 +154,8 @@ class AppRouteService {
               if (path.startsWith('http') || path.startsWith('/') || !path.includes('/')) {
                 return match;
               }
-              // Altrimenti prendi solo il nome del file
-              const fileName = path.split('/').pop();
-              return `${match.startsWith('src') ? 'src' : 'href'}="${fileName}"`;
+              // Mantieni il percorso completo se non inizia con app://
+              return match;
             });
           
           return new Response(modifiedContent, {
@@ -199,11 +199,16 @@ class AppRouteService {
         window.addEventListener('message', messageHandler);
 
         // Richiedi il file al parent
-        window.opener.postMessage({
-          type: 'REQUEST_APP_FILE',
-          appId,
-          filename: requestedFile
-        }, window.location.origin);
+        const parentWindow = window.opener || window.parent;
+        if (parentWindow) {
+          parentWindow.postMessage({
+            type: 'REQUEST_APP_FILE',
+            appId,
+            filename: requestedFile
+          }, window.location.origin);
+        } else {
+          reject(new Error('Finestra parent non trovata'));
+        }
 
         // Timeout dopo 5 secondi
         setTimeout(() => {
@@ -221,7 +226,7 @@ class AppRouteService {
   }
 
   /**
-   * Apri un'app in una nuova scheda
+   * Apri un'app in una nuova finestra
    */
   async openAppInNewTab(appId) {
     try {
@@ -238,7 +243,8 @@ class AppRouteService {
 
       // Se è un'app URL, apri direttamente l'URL esterno
       if (app.type === 'url' && app.url) {
-        window.open(app.url, `app-${appId}`, 'width=1024,height=768');
+        const features = 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no';
+        window.open(app.url, `app-${appId}`, features);
         return;
       }
       
@@ -246,11 +252,12 @@ class AppRouteService {
       const appUrl = new URL(this.getAppUrl(appId), window.location.origin).href;
       console.log(`🚀 Apertura app in nuova finestra: ${appUrl}`);
       
-      // Apri in una nuova finestra con dimensioni specifiche
-      const newWindow = window.open('', `app-${appId}`, 'width=1024,height=768');
-      if (newWindow) {
-        // Imposta l'URL dopo aver creato la finestra
-        newWindow.location.href = appUrl;
+      // Apri in una nuova finestra con dimensioni e caratteristiche specifiche
+      const features = 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no';
+      const newWindow = window.open(appUrl, `app-${appId}`, features);
+      
+      if (!newWindow) {
+        console.error('Impossibile aprire la nuova finestra. Il popup potrebbe essere stato bloccato.');
       }
     } catch (error) {
       console.error('Errore apertura app in nuova finestra:', error);
