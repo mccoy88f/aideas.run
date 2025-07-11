@@ -139,7 +139,27 @@ class AppRouteService {
       
       console.log(`📱 Richiesta app route: ${appId} - ${requestedFile}`);
 
-      // Crea una Promise che si risolverà quando riceviamo la risposta dal parent
+      // Se è una richiesta per l'index.html, modifica i percorsi dei file per usare URL relativi
+      if (requestedFile === 'index.html') {
+        const app = await this.storageService.getApp(appId);
+        if (app && app.content) {
+          // Modifica i percorsi per usare URL relativi invece di app://
+          const modifiedContent = app.content.replace(
+            /(?:src|href)=["']app:\/\/([^"']*)["']/g,
+            (match, path) => `${match.startsWith('src') ? 'src' : 'href'}="${path}"`
+          );
+          
+          return new Response(modifiedContent, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/html',
+              'Cache-Control': 'no-cache'
+            }
+          });
+        }
+      }
+
+      // Per altri file, usa il sistema di messaggi
       const responsePromise = new Promise((resolve, reject) => {
         // Handler per i messaggi dal parent
         const messageHandler = (event) => {
@@ -155,7 +175,7 @@ class AppRouteService {
                 status: 200,
                 headers: {
                   'Content-Type': mimeType || 'text/plain',
-                  'Cache-Control': 'no-cache' // Disabilitiamo la cache per evitare problemi
+                  'Cache-Control': 'no-cache'
                 }
               }));
             } else if (type === 'APP_REDIRECT') {
@@ -213,10 +233,11 @@ class AppRouteService {
         return;
       }
       
-      // Altrimenti, apri l'app in una nuova scheda usando l'URL completo
+      // Per app HTML, usa il sistema di routing
       const appUrl = new URL(this.getAppUrl(appId), window.location.origin).href;
       console.log(`🚀 Apertura app in nuova scheda: ${appUrl}`);
       
+      // Apri direttamente l'URL per usare il sistema di routing
       window.open(appUrl, `app-${appId}`);
     } catch (error) {
       console.error('Errore apertura app in nuova scheda:', error);
