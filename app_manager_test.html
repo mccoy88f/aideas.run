@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZIP App Manager</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section h2 {
+            margin-top: 0;
+            color: #ffd700;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+
+        .upload-area {
+            border: 3px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(238, 90, 36, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .success {
+            background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3) !important;
+        }
+
+        .warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22) !important;
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3) !important;
+        }
+
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid rgba(46, 204, 113, 0.5);
+        }
+
+        .status.error {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+        }
+
+        .file-tree {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            padding: 3px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .file-item:before {
+            content: "📄";
+            position: absolute;
+            left: 0;
+        }
+
+        .file-item.folder:before {
+            content: "📁";
+        }
+
+        .file-item.html:before {
+            content: "🌐";
+        }
+
+        .file-item.css:before {
+            content: "🎨";
+        }
+
+        .file-item.js:before {
+            content: "⚡";
+        }
+
+        .demo-note {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .app-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ffed4e);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📦 ZIP App Manager</h1>
+        
+        <div class="demo-note">
+            <strong>💡 Come funziona:</strong> Carica un file ZIP con index.html nella root. 
+            Tutti i riferimenti relativi (CSS, JS, immagini) funzioneranno correttamente!
+        </div>
+
+        <div class="section">
+            <h2>📁 Carica App da ZIP</h2>
+            
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-text">🎯 Clicca per selezionare un file ZIP</div>
+                <div class="upload-subtext">oppure trascina e rilascia qui</div>
+            </div>
+            
+            <input type="file" id="fileInput" accept=".zip" />
+            
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div id="uploadStatus"></div>
+            <div id="fileTree"></div>
+        </div>
+
+        <div class="section">
+            <h2>🚀 Gestione App</h2>
+            
+            <button onclick="openApp()" class="success">🖥️ Apri App</button>
+            <button onclick="showAppInfo()" class="warning">📋 Info App Caricata</button>
+            <button onclick="clearStorage()">🗑️ Cancella Storage</button>
+            
+            <div id="appInfo"></div>
+            <div id="messageLog"></div>
+        </div>
+    </div>
+
+    <script>
+        // Simulazione localStorage per la demo
+        const mockStorage = {
+            data: {},
+            setItem: function(key, value) {
+                this.data[key] = value;
+                console.log(`[MockStorage] Salvato: ${key}`);
+            },
+            getItem: function(key) {
+                return this.data[key] || null;
+            },
+            removeItem: function(key) {
+                delete this.data[key];
+            },
+            clear: function() {
+                this.data = {};
+            }
+        };
+
+        const storage = mockStorage; // In ambiente reale: localStorage
+        let subAppWindow = null;
+        let appFiles = {};
+
+        // Setup drag & drop
+        const uploadArea = document.querySelector('.upload-area');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].name.endsWith('.zip')) {
+                handleZipFile(files[0]);
+            } else {
+                showStatus('uploadStatus', 'Per favore seleziona un file ZIP!', 'error');
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleZipFile(e.target.files[0]);
+            }
+        });
+
+        async function handleZipFile(file) {
+            showProgress(true);
+            showStatus('uploadStatus', 'Elaborazione ZIP in corso...', 'success');
+            
+            try {
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(file);
+                
+                let progress = 0;
+                const totalFiles = Object.keys(zipContent.files).length;
+                appFiles = {};
+                
+                // Verifica che esista index.html nella root
+                if (!zipContent.files['index.html']) {
+                    throw new Error('File index.html non trovato nella root del ZIP!');
+                }
+
+                // Estrai tutti i file
+                for (const [filename, zipEntry] of Object.entries(zipContent.files)) {
+                    if (!zipEntry.dir) {
+                        progress++;
+                        updateProgress((progress / totalFiles) * 100);
+                        
+                        let content;
+                        if (isTextFile(filename)) {
+                            content = await zipEntry.async('text');
+                        } else {
+                            content = await zipEntry.async('base64');
+                        }
+                        
+                        appFiles[filename] = {
+                            content: content,
+                            isText: isTextFile(filename),
+                            mimeType: getMimeType(filename)
+                        };
+                    }
+                }
+
+                // Salva nel storage
+                storage.setItem('app_files', JSON.stringify(appFiles));
+                storage.setItem('app_loaded_at', new Date().toISOString());
+                
+                showProgress(false);
+                showStatus('uploadStatus', `✅ App caricata con successo! (${Object.keys(appFiles).length} file)`, 'success');
+                displayFileTree();
+                
+            } catch (error) {
+                showProgress(false);
+                showStatus('uploadStatus', `❌ Errore: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        function isTextFile(filename) {
+            const textExtensions = ['.html', '.htm', '.css', '.js', '.txt', '.json', '.xml', '.svg', '.md'];
+            return textExtensions.some(ext => filename.toLowerCase().endsWith(ext));
+        }
+
+        function getMimeType(filename) {
+            const ext = filename.toLowerCase().split('.').pop();
+            const mimeTypes = {
+                'html': 'text/html',
+                'htm': 'text/html',
+                'css': 'text/css',
+                'js': 'application/javascript',
+                'json': 'application/json',
+                'txt': 'text/plain',
+                'png': 'image/png',
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'gif': 'image/gif',
+                'svg': 'image/svg+xml',
+                'ico': 'image/x-icon'
+            };
+            return mimeTypes[ext] || 'application/octet-stream';
+        }
+
+        function displayFileTree() {
+            const treeDiv = document.getElementById('fileTree');
+            if (!appFiles || Object.keys(appFiles).length === 0) {
+                treeDiv.innerHTML = '';
+                return;
+            }
+
+            let treeHTML = '<div class="file-tree"><strong>📦 Struttura App:</strong><br><br>';
+            
+            // Ordina i file: cartelle prima, poi file
+            const sortedFiles = Object.keys(appFiles).sort((a, b) => {
+                const aIsFolder = a.includes('/') && !a.split('/').pop();
+                const bIsFolder = b.includes('/') && !b.split('/').pop();
+                if (aIsFolder && !bIsFolder) return -1;
+                if (!aIsFolder && bIsFolder) return 1;
+                return a.localeCompare(b);
+            });
+
+            sortedFiles.forEach(filename => {
+                const ext = filename.split('.').pop().toLowerCase();
+                let className = 'file-item';
+                
+                if (['html', 'htm'].includes(ext)) className += ' html';
+                else if (ext === 'css') className += ' css';
+                else if (ext === 'js') className += ' js';
+                
+                treeHTML += `<div class="${className}">${filename}</div>`;
+            });
+            
+            treeHTML += '</div>';
+            treeDiv.innerHTML = treeHTML;
+        }
+
+        function openApp() {
+            const savedFiles = storage.getItem('app_files');
+            if (!savedFiles) {
+                showStatus('uploadStatus', 'Nessuna app caricata! Carica prima un file ZIP.', 'error');
+                return;
+            }
+
+            appFiles = JSON.parse(savedFiles);
+            
+            if (!appFiles['index.html']) {
+                showStatus('uploadStatus', 'File index.html non trovato!', 'error');
+                return;
+            }
+
+            // Crea blob URLs per tutti i file
+            const blobUrls = {};
+            for (const [filename, fileData] of Object.entries(appFiles)) {
+                let blob;
+                if (fileData.isText) {
+                    blob = new Blob([fileData.content], { type: fileData.mimeType });
+                } else {
+                    // File binario (base64)
+                    const binaryString = atob(fileData.content);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    blob = new Blob([bytes], { type: fileData.mimeType });
+                }
+                blobUrls[filename] = URL.createObjectURL(blob);
+            }
+
+            // Modifica l'HTML principale per usare i blob URLs
+            let indexHtml = appFiles['index.html'].content;
+            
+            // Sostituisci tutti i riferimenti relativi con blob URLs
+            for (const [filename, blobUrl] of Object.entries(blobUrls)) {
+                if (filename !== 'index.html') {
+                    // Sostituisci sia con che senza "./" all'inizio
+                    const patterns = [
+                        new RegExp(`(href|src)=["']${filename}["']`, 'g'),
+                        new RegExp(`(href|src)=["']\\./${filename}["']`, 'g')
+                    ];
+                    
+                    patterns.forEach(pattern => {
+                        indexHtml = indexHtml.replace(pattern, `$1="${blobUrl}"`);
+                    });
+                }
+            }
+
+            // Apri la nuova finestra
+            subAppWindow = window.open('', 'subapp', 'width=1000,height=700,scrollbars=yes');
+            
+            if (subAppWindow) {
+                subAppWindow.document.write(indexHtml);
+                subAppWindow.document.close();
+                
+                logMessage('✅ App aperta in una nuova finestra!');
+                
+                // Cleanup URLs dopo un po' di tempo
+                setTimeout(() => {
+                    Object.values(blobUrls).forEach(url => URL.revokeObjectURL(url));
+                }, 60000);
+            } else {
+                showStatus('uploadStatus', 'Impossibile aprire la finestra. Controlla le impostazioni popup.', 'error');
+            }
+        }
+
+        function showAppInfo() {
+            const savedFiles = storage.getItem('app_files');
+            const loadedAt = storage.getItem('app_loaded_at');
+            const infoDiv = document.getElementById('appInfo');
+            
+            if (!savedFiles) {
+                infoDiv.innerHTML = '<div class="status error">Nessuna app caricata.</div>';
+                return;
+            }
+
+            const files = JSON.parse(savedFiles);
+            const fileCount = Object.keys(files).length;
+            let totalSize = 0;
+            
+            Object.values(files).forEach(file => {
+                totalSize += file.content.length;
+            });
+
+            infoDiv.innerHTML = `
+                <div class="app-info">
+                    <strong>📊 Informazioni App:</strong><br>
+                    <strong>Caricata il:</strong> ${new Date(loadedAt).toLocaleString()}<br>
+                    <strong>File totali:</strong> ${fileCount}<br>
+                    <strong>Dimensione totale:</strong> ${(totalSize / 1024).toFixed(1)} KB<br>
+                    <strong>Ha index.html:</strong> ${files['index.html'] ? '✅' : '❌'}
+                </div>
+            `;
+        }
+
+        function clearStorage() {
+            if (confirm('Sei sicuro di voler cancellare tutti i dati?')) {
+                storage.clear();
+                appFiles = {};
+                document.getElementById('fileTree').innerHTML = '';
+                document.getElementById('appInfo').innerHTML = '';
+                showStatus('uploadStatus', 'Storage cancellato!', 'success');
+            }
+        }
+
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function showProgress(show) {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.display = show ? 'block' : 'none';
+            if (!show) {
+                updateProgress(0);
+            }
+        }
+
+        function updateProgress(percent) {
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = percent + '%';
+        }
+
+        function logMessage(message) {
+            const logDiv = document.getElementById('messageLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div class="app-info">[${timestamp}] ${message}</div>`;
+        }
+
+        // Listener per messaggi dalla sub app
+        window.addEventListener('message', function(event) {
+            logMessage(`📨 Messaggio ricevuto: ${JSON.stringify(event.data)}`);
+        });
+
+        // Controlla se la sub app è ancora aperta
+        setInterval(() => {
+            if (subAppWindow && subAppWindow.closed) {
+                logMessage('❌ Sub app chiusa');
+                subAppWindow = null;
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

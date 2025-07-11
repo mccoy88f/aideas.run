@@ -13,6 +13,7 @@ class AppRouteService {
     AppRouteService.instance = this;
     this.storageService = StorageService;
     this.initialized = false;
+    this.blobUrls = new Map(); // Mappa per tenere traccia dei blob URLs
   }
 
   /**
@@ -22,11 +23,7 @@ class AppRouteService {
     if (this.initialized) return;
     
     try {
-      // Inizializza il routing e la comunicazione tra finestre
-      this.init();
-      this.initMessageHandling();
       this.initialized = true;
-      
       console.log('✅ AppRouteService inizializzato con successo');
     } catch (error) {
       console.error('❌ Errore inizializzazione AppRouteService:', error);
@@ -35,194 +32,32 @@ class AppRouteService {
   }
 
   /**
-   * Inizializza il servizio di routing
+   * Crea un blob URL per un file
    */
-  init() {
-    // Intercetta le richieste per /app/:id
-    this.interceptAppRoutes();
-  }
-
-  /**
-   * Inizializza la gestione dei messaggi tra finestre
-   */
-  initMessageHandling() {
-    // Gestisce i messaggi dalle finestre child
-    window.addEventListener('message', async (event) => {
-      // Verifica che il messaggio provenga dal nostro dominio
-      if (event.origin !== window.location.origin) return;
-
-      const { type, appId, filename } = event.data;
-      
-      if (type === 'REQUEST_APP_FILE') {
-        try {
-          // Recupera i file dell'app dallo storage
-          const app = await this.storageService.getApp(appId);
-          if (!app) {
-            event.source.postMessage({ type: 'APP_FILE_ERROR', error: 'App non trovata' }, event.origin);
-            return;
-          }
-
-          // Se è un'app URL, invia l'URL di redirect
-          if (app.type === 'url' && app.url) {
-            event.source.postMessage({ 
-              type: 'APP_REDIRECT', 
-              url: app.url 
-            }, event.origin);
-            return;
-          }
-
-          // Recupera il file richiesto
-          const appFiles = await this.storageService.getAppFiles(appId);
-          const requestedFile = appFiles.find(f => f.filename === filename);
-
-          if (requestedFile) {
-            // Invia il file alla finestra child
-            event.source.postMessage({
-              type: 'APP_FILE_CONTENT',
-              filename,
-              content: requestedFile.content,
-              mimeType: requestedFile.mimeType
-            }, event.origin);
-          } else {
-            event.source.postMessage({ 
-              type: 'APP_FILE_ERROR', 
-              error: 'File non trovato' 
-            }, event.origin);
-          }
-        } catch (error) {
-          console.error('Errore recupero file app:', error);
-          event.source.postMessage({ 
-            type: 'APP_FILE_ERROR', 
-            error: 'Errore interno' 
-          }, event.origin);
-        }
+  createBlobUrl(content, mimeType, isText = true) {
+    let blob;
+    if (isText) {
+      blob = new Blob([content], { type: mimeType });
+    } else {
+      // Gestione file binari (base64)
+      const binaryString = atob(content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
       }
-    });
-  }
-
-  /**
-   * Intercetta le richieste per le route delle app
-   */
-  interceptAppRoutes() {
-    // Intercetta fetch per le route /app/:id
-    const originalFetch = window.fetch;
-    window.fetch = async (url, options) => {
-      const urlObj = new URL(url, window.location.origin);
-      
-      // Se la richiesta è per una route app
-      if (urlObj.pathname.startsWith('/app/')) {
-        return this.handleAppRoute(urlObj, options);
-      }
-      
-      return originalFetch(url, options);
-    };
-  }
-
-  /**
-   * Gestisci una richiesta per una route app
-   */
-  async handleAppRoute(urlObj, options = {}) {
-    try {
-      // Se siamo nella finestra child, richiediamo i file alla finestra parent
-      if (!window.opener && !window.parent) {
-        return new Response('Questa pagina deve essere aperta dalla finestra principale', { status: 400 });
-      }
-
-      // Assicurati che i servizi siano inizializzati
-      if (!this.initialized) {
-        await this.initialize();
-      }
-      
-      const pathParts = urlObj.pathname.split('/');
-      const appId = parseInt(pathParts[2]); // /app/:id/...
-      const requestedFile = pathParts.slice(3).join('/') || 'index.html';
-      
-      console.log(`📱 Richiesta app route: ${appId} - ${requestedFile}`);
-
-      // Se è una richiesta per l'index.html, modifica i percorsi dei file per usare URL relativi
-      if (requestedFile === 'index.html') {
-        const app = await this.storageService.getApp(appId);
-        if (app && app.content) {
-          // Modifica i percorsi per usare URL relativi invece di app://
-          const modifiedContent = app.content
-            .replace(/(?:src|href)=["']app:\/\/([^"']*)["']/g, (match, path) => {
-              // Mantieni il percorso completo, rimuovendo solo il prefisso app://
-              return `${match.startsWith('src') ? 'src' : 'href'}="${path}"`;
-            })
-            .replace(/(?:src|href)=["']([^"']*)["']/g, (match, path) => {
-              // Se il percorso è già relativo o è un URL esterno, lascialo invariato
-              if (path.startsWith('http') || path.startsWith('/') || !path.includes('/')) {
-                return match;
-              }
-              // Mantieni il percorso completo se non inizia con app://
-              return match;
-            });
-          
-          return new Response(modifiedContent, {
-            status: 200,
-            headers: {
-              'Content-Type': 'text/html',
-              'Cache-Control': 'no-cache'
-            }
-          });
-        }
-      }
-
-      // Per altri file, usa il sistema di messaggi
-      const responsePromise = new Promise((resolve, reject) => {
-        // Handler per i messaggi dal parent
-        const messageHandler = (event) => {
-          if (event.origin !== window.location.origin) return;
-          
-          const { type, filename, content, mimeType, error, url } = event.data;
-          
-          if (filename === requestedFile) {
-            window.removeEventListener('message', messageHandler);
-            
-            if (type === 'APP_FILE_CONTENT') {
-              resolve(new Response(content, {
-                status: 200,
-                headers: {
-                  'Content-Type': mimeType || 'text/plain',
-                  'Cache-Control': 'no-cache'
-                }
-              }));
-            } else if (type === 'APP_REDIRECT') {
-              resolve(Response.redirect(url, 302));
-            } else if (type === 'APP_FILE_ERROR') {
-              reject(new Error(error));
-            }
-          }
-        };
-
-        // Aggiungi l'handler per i messaggi
-        window.addEventListener('message', messageHandler);
-
-        // Richiedi il file al parent
-        const parentWindow = window.opener || window.parent;
-        if (parentWindow) {
-          parentWindow.postMessage({
-            type: 'REQUEST_APP_FILE',
-            appId,
-            filename: requestedFile
-          }, window.location.origin);
-        } else {
-          reject(new Error('Finestra parent non trovata'));
-        }
-
-        // Timeout dopo 5 secondi
-        setTimeout(() => {
-          window.removeEventListener('message', messageHandler);
-          reject(new Error('Timeout richiesta file'));
-        }, 5000);
-      });
-
-      return await responsePromise;
-      
-    } catch (error) {
-      console.error('Errore gestione route app:', error);
-      return new Response(error.message || 'Errore interno', { status: 500 });
+      blob = new Blob([bytes], { type: mimeType });
     }
+    return URL.createObjectURL(blob);
+  }
+
+  /**
+   * Pulisce i blob URLs creati
+   */
+  cleanupBlobUrls() {
+    for (const url of this.blobUrls.values()) {
+      URL.revokeObjectURL(url);
+    }
+    this.blobUrls.clear();
   }
 
   /**
@@ -230,7 +65,6 @@ class AppRouteService {
    */
   async openAppInNewTab(appId) {
     try {
-      // Assicurati che i servizi siano inizializzati
       if (!this.initialized) {
         await this.initialize();
       }
@@ -247,29 +81,97 @@ class AppRouteService {
         window.open(app.url, `app-${appId}`, features);
         return;
       }
+
+      // Pulisci eventuali blob URLs precedenti
+      this.cleanupBlobUrls();
+
+      // Recupera tutti i file dell'app
+      const appFiles = await this.storageService.getAppFiles(appId);
       
-      // Per app HTML, usa il sistema di routing
-      const appUrl = new URL(this.getAppUrl(appId), window.location.origin).href;
-      console.log(`🚀 Apertura app in nuova finestra: ${appUrl}`);
-      
-      // Apri in una nuova finestra con dimensioni e caratteristiche specifiche
-      const features = 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no';
-      const newWindow = window.open(appUrl, `app-${appId}`, features);
-      
-      if (!newWindow) {
-        console.error('Impossibile aprire la nuova finestra. Il popup potrebbe essere stato bloccato.');
+      // Crea blob URLs per tutti i file
+      const blobUrlMap = new Map();
+      for (const file of appFiles) {
+        const isText = this.isTextFile(file.filename);
+        const blobUrl = this.createBlobUrl(file.content, file.mimeType, isText);
+        blobUrlMap.set(file.filename, blobUrl);
+        this.blobUrls.set(file.filename, blobUrl);
       }
+
+      // Modifica l'HTML per usare i blob URLs
+      let indexHtml = app.content;
+      
+      // Sostituisci tutti i riferimenti relativi con blob URLs
+      for (const [filename, blobUrl] of blobUrlMap.entries()) {
+        if (filename !== 'index.html') {
+          // Sostituisci sia con che senza "./" all'inizio
+          const patterns = [
+            new RegExp(`(href|src)=["']${filename}["']`, 'g'),
+            new RegExp(`(href|src)=["']\\./${filename}["']`, 'g'),
+            new RegExp(`(href|src)=["']app://${filename}["']`, 'g')
+          ];
+          
+          patterns.forEach(pattern => {
+            indexHtml = indexHtml.replace(pattern, `$1="${blobUrl}"`);
+          });
+        }
+      }
+
+      // Apri la nuova finestra con dimensioni e opzioni specifiche
+      const features = 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no';
+      const appWindow = window.open('', `app-${appId}`, features);
+      
+      if (appWindow) {
+        appWindow.document.write(indexHtml);
+        appWindow.document.close();
+        
+        // Cleanup URLs dopo 60 secondi
+        setTimeout(() => this.cleanupBlobUrls(), 60000);
+      } else {
+        console.error('Impossibile aprire la finestra. Controlla le impostazioni popup.');
+      }
+
     } catch (error) {
-      console.error('Errore apertura app in nuova finestra:', error);
+      console.error('Errore apertura app:', error);
+      this.cleanupBlobUrls();
     }
   }
 
   /**
-   * Ottieni l'URL per un'app
+   * Verifica se un file è un file di testo
+   */
+  isTextFile(filename) {
+    const textExtensions = ['.html', '.htm', '.css', '.js', '.txt', '.json', '.xml', '.svg', '.md'];
+    return textExtensions.some(ext => filename.toLowerCase().endsWith(ext));
+  }
+
+  /**
+   * Ottieni il MIME type di un file
+   */
+  getMimeType(filename) {
+    const ext = filename.toLowerCase().split('.').pop();
+    const mimeTypes = {
+      'html': 'text/html',
+      'htm': 'text/html',
+      'css': 'text/css',
+      'js': 'application/javascript',
+      'json': 'application/json',
+      'txt': 'text/plain',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'svg': 'image/svg+xml',
+      'ico': 'image/x-icon'
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
+  }
+
+  /**
+   * Ottieni l'URL di un'app
    */
   getAppUrl(appId) {
-    return `/app/${appId}/`;
+    return `/app/${appId}`;
   }
 }
 
-export default AppRouteService; 
+export default new AppRouteService(); 
