@@ -33,7 +33,12 @@ import {
   Grid,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  Divider
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -52,9 +57,19 @@ import {
   Restore as RestoreIcon,
   Delete as DeleteIcon,
   CloudUpload as CloudUploadIcon,
-  CloudDownload as CloudDownloadIcon
+  CloudDownload as CloudDownloadIcon,
+  Cloud as CloudIcon,
+  CheckCircle as CheckCircleIcon,
+  CloudOff as CloudOffIcon,
+  GitHub as GitHubIcon,
+  CloudSync as CloudSyncIcon
 } from '@mui/icons-material';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
+import GitHubService from '../services/GitHubService.js';
+import {
+  GitHub as GitHubIcon,
+  CloudSync as CloudSyncIcon
+} from 'react-feather';
 
 /**
  * Componente Settings Material UI con aspetto glossy
@@ -87,6 +102,16 @@ const SettingsMaterial = ({
   const [userInfo, setUserInfo] = useState({
     github: null,
     googledrive: null
+  });
+
+  // Stati per il nuovo flusso di configurazione cloud sync
+  const [cloudSyncConfig, setCloudSyncConfig] = useState({
+    selectedProvider: provider || 'github',
+    githubToken: '',
+    isTestingConnection: false,
+    testResult: null, // null | 'success' | 'error'
+    testError: null,
+    isConfigured: false
   });
 
   const sections = [
@@ -293,7 +318,145 @@ const SettingsMaterial = ({
     await loadUserInfo();
   };
 
+  // === FUNZIONI PER IL NUOVO FLUSSO CLOUD SYNC ===
 
+  const handleCloudProviderChange = (newProvider) => {
+    setCloudSyncConfig(prev => ({
+      ...prev,
+      selectedProvider: newProvider,
+      testResult: null,
+      testError: null,
+      isConfigured: false
+    }));
+    setProvider(newProvider);
+    setHasChanges(true);
+  };
+
+  const handleGitHubTokenChange = (token) => {
+    setCloudSyncConfig(prev => ({
+      ...prev,
+      githubToken: token,
+      testResult: null,
+      testError: null,
+      isConfigured: false
+    }));
+    setHasChanges(true);
+  };
+
+  const testCloudConnection = async () => {
+    setCloudSyncConfig(prev => ({ ...prev, isTestingConnection: true, testResult: null, testError: null }));
+    
+    try {
+      if (cloudSyncConfig.selectedProvider === 'github') {
+        if (!cloudSyncConfig.githubToken.trim()) {
+          throw new Error('Token GitHub richiesto');
+        }
+        
+        // Test connessione GitHub
+        const githubService = new GitHubService();
+        await githubService.authenticate(cloudSyncConfig.githubToken);
+        const isAuthenticated = await githubService.isAuthenticated();
+        
+        if (!isAuthenticated) {
+          throw new Error('Token GitHub non valido');
+        }
+        
+        // Salva il token se il test è riuscito
+        await StorageService.setSetting('githubToken', cloudSyncConfig.githubToken);
+        
+        setCloudSyncConfig(prev => ({ 
+          ...prev, 
+          testResult: 'success', 
+          isConfigured: true 
+        }));
+        
+        showToast('✅ Connessione GitHub testata con successo!', 'success');
+        
+        // Abilita automaticamente la sincronizzazione
+        await enableCloudSync();
+        
+      } else if (cloudSyncConfig.selectedProvider === 'googledrive') {
+        // Test/Avvia autenticazione Google Drive
+        const googleService = new GoogleDriveService();
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        
+        if (!clientId) {
+          throw new Error('Client ID Google non configurato');
+        }
+        
+        googleService.configure(clientId);
+        
+        // Verifica se è già autenticato
+        const alreadyAuthenticated = await googleService.checkAuthentication();
+        if (alreadyAuthenticated) {
+          setCloudSyncConfig(prev => ({ 
+            ...prev, 
+            testResult: 'success', 
+            isConfigured: true 
+          }));
+          showToast('✅ Google Drive già autenticato!', 'success');
+          await enableCloudSync();
+        } else {
+          // Avvia processo di autenticazione
+          const result = await googleService.authenticate(true);
+          if (result.success) {
+            setCloudSyncConfig(prev => ({ 
+              ...prev, 
+              testResult: 'success', 
+              isConfigured: true 
+            }));
+            showToast('✅ Autenticazione Google Drive completata!', 'success');
+            await enableCloudSync();
+          } else {
+            throw new Error('Autenticazione Google Drive fallita');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Errore test connessione:', error);
+      setCloudSyncConfig(prev => ({ 
+        ...prev, 
+        testResult: 'error', 
+        testError: error.message 
+      }));
+      showToast(`❌ Test connessione fallito: ${error.message}`, 'error');
+    } finally {
+      setCloudSyncConfig(prev => ({ ...prev, isTestingConnection: false }));
+    }
+  };
+
+  const enableCloudSync = async () => {
+    try {
+      await StorageService.setSetting('syncProvider', cloudSyncConfig.selectedProvider);
+      await StorageService.setSetting('syncEnabled', true);
+      setIsEnabled(true);
+      showToast('🔄 Sincronizzazione cloud abilitata!', 'success');
+      
+      // Ricarica le informazioni utente
+      await loadUserInfo();
+    } catch (error) {
+      console.error('Errore abilitazione sync:', error);
+      showToast(`❌ Errore abilitazione sincronizzazione: ${error.message}`, 'error');
+    }
+  };
+
+  const disableCloudSync = async () => {
+    try {
+      await StorageService.setSetting('syncEnabled', false);
+      setIsEnabled(false);
+      setCloudSyncConfig(prev => ({ 
+        ...prev, 
+        testResult: null, 
+        isConfigured: false 
+      }));
+      showToast('⏸️ Sincronizzazione cloud disabilitata', 'info');
+    } catch (error) {
+      console.error('Errore disabilitazione sync:', error);
+      showToast(`❌ Errore disabilitazione sincronizzazione: ${error.message}`, 'error');
+    }
+  };
+
+  // === FINE FUNZIONI CLOUD SYNC ===
 
   const renderGeneralSettings = () => (
     <Box sx={{ space: 3 }}>
@@ -635,161 +798,242 @@ const SettingsMaterial = ({
         Sincronizzazione Cloud
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Sincronizza i tuoi dati con servizi cloud
+        Sincronizza i tuoi dati con GitHub Gist o Google Drive
       </Typography>
       
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
-              Configurazione
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <FormControlLabel
-                control={
-                  <Switch 
-                    checked={isEnabled} 
-                    onChange={e => {
-                      setIsEnabled(e.target.checked);
-                      setHasChanges(true);
-                    }} 
-                  />
-                }
-                label="Abilita sincronizzazione cloud"
-              />
-              
-              <TextField
-                select
-                label="Provider"
-                value={provider}
-                onChange={e => handleProviderChange(e.target.value)}
-                fullWidth
-                disabled={!isEnabled}
-              >
-                <MenuItem value="github">GitHub Gist</MenuItem>
-                <MenuItem value="googledrive">Google Drive</MenuItem>
-              </TextField>
-              
-              <TextField
-                label="Intervallo (minuti)"
-                type="number"
-                value={intervalMinutes}
-                onChange={e => {
-                  setIntervalMinutes(Number(e.target.value));
-                  setHasChanges(true);
-                }}
-                inputProps={{ min: 1, max: 60 }}
-                fullWidth
-                disabled={!isEnabled}
-              />
-              
-              {provider === 'googledrive' && (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  <Typography variant="body2">
-                    🔐 Google Drive richiede autenticazione OAuth per la sincronizzazione.
-                  </Typography>
-                  <Typography variant="caption" display="block">
-                    Clicca su "Salva" per avviare il processo di autenticazione.
-                  </Typography>
-                </Alert>
-              )}
-            </Box>
-          </Paper>
-        </Grid>
+      <Paper sx={{ p: 3, mb: 3 }}>
+        {/* 1. SELEZIONE PROVIDER */}
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CloudIcon />
+          Scegli il Provider Cloud
+        </Typography>
         
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
-              Stato Sincronizzazione
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              
-              {/* Informazioni utente */}
-              {isEnabled && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {provider === 'github' && userInfo.github && (
-                    <Alert severity="success" sx={{ mb: 1 }}>
-                      <Typography variant="body2">
-                        ✅ Connesso come: <strong>{userInfo.github.login}</strong>
-                      </Typography>
-                      <Typography variant="caption" display="block">
-                        {userInfo.github.name || userInfo.github.login}
-                      </Typography>
-                    </Alert>
-                  )}
-                  
-                  {provider === 'googledrive' && userInfo.googledrive && (
-                    <Alert severity="success" sx={{ mb: 1 }}>
-                      <Typography variant="body2">
-                        ✅ Connesso come: <strong>{userInfo.googledrive.emailAddress}</strong>
-                      </Typography>
-                      <Typography variant="caption" display="block">
-                        {userInfo.googledrive.displayName}
-                      </Typography>
-                    </Alert>
-                  )}
-                  
-                  {provider === 'github' && !userInfo.github && (
-                    <Alert severity="warning" sx={{ mb: 1 }}>
-                      <Typography variant="body2">
-                        ⚠️ Non autenticato con GitHub
-                      </Typography>
-                      <Typography variant="caption" display="block">
-                        Inserisci il token GitHub per sincronizzare
-                      </Typography>
-                    </Alert>
-                  )}
-                  
-                  {provider === 'googledrive' && !userInfo.googledrive && (
-                    <Alert severity="warning" sx={{ mb: 1 }}>
-                      <Typography variant="body2">
-                        ⚠️ Non autenticato con Google Drive
-                      </Typography>
-                      <Typography variant="caption" display="block">
-                        Completa l'autenticazione OAuth
-                      </Typography>
-                    </Alert>
-                  )}
-                </Box>
-              )}
-              
-              {/* Stato sincronizzazione */}
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Chip 
-                  label={`Ultimo sync: ${lastSync ? new Date(lastSync).toLocaleString() : 'N/A'}`} 
-                  variant="outlined" 
-                  size="small"
-                  color={lastSync ? "success" : "default"}
-                />
-                <Chip 
-                  label={`Prossimo sync: ${nextSync ? nextSync.toLocaleTimeString() : 'N/A'}`} 
-                  variant="outlined" 
-                  size="small"
-                  color={nextSync ? "info" : "default"}
-                />
-                {error && (
-                  <Chip 
-                    label={`Errore: ${error}`} 
-                    variant="outlined" 
-                    size="small"
-                    color="error"
-                  />
-                )}
+        <FormControl fullWidth sx={{ mb: 3 }}>
+          <InputLabel>Provider di Sincronizzazione</InputLabel>
+          <Select
+            value={cloudSyncConfig.selectedProvider}
+            label="Provider di Sincronizzazione"
+            onChange={(e) => handleCloudProviderChange(e.target.value)}
+            disabled={isEnabled}
+          >
+            <MenuItem value="github">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <GitHubIcon />
+                GitHub Gist
               </Box>
-              
-              <Button 
-                onClick={manualSync} 
-                disabled={isInProgress || !isEnabled} 
-                startIcon={<SyncIcon />}
-                variant="contained"
-                fullWidth
-              >
-                {isInProgress ? 'Sincronizzando...' : 'Sincronizza ora'}
-              </Button>
+            </MenuItem>
+            <MenuItem value="googledrive">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CloudIcon />
+                Google Drive
+              </Box>
+            </MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* 2. CONFIGURAZIONE SPECIFICA PER PROVIDER */}
+        <Divider sx={{ my: 3 }} />
+        
+        {cloudSyncConfig.selectedProvider === 'github' && (
+          <>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <GitHubIcon />
+              Configurazione GitHub Gist
+            </Typography>
+            
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                <strong>Come ottenere un token GitHub:</strong>
+              </Typography>
+              <Typography variant="body2" component="div">
+                1. Vai su GitHub → Settings → Developer settings → Personal access tokens<br/>
+                2. Genera un nuovo token (classic)<br/>
+                3. Seleziona la scope <code>gist</code><br/>
+                4. Copia il token e incollalo qui sotto
+              </Typography>
+            </Alert>
+            
+            <TextField
+              fullWidth
+              label="Token GitHub Personal Access"
+              type="password"
+              value={cloudSyncConfig.githubToken}
+              onChange={(e) => handleGitHubTokenChange(e.target.value)}
+              placeholder="ghp_xxxxxxxxxxxxxxxx"
+              disabled={isEnabled}
+              sx={{ mb: 2 }}
+              helperText="Il token viene salvato localmente e utilizzato per creare/aggiornare gist"
+            />
+          </>
+        )}
+
+        {cloudSyncConfig.selectedProvider === 'googledrive' && (
+          <>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CloudIcon />
+              Configurazione Google Drive
+            </Typography>
+            
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>Autenticazione OAuth2:</strong><br/>
+                Clicca il pulsante "Testa Connessione" per avviare l'autenticazione con Google Drive.
+                Ti verrà chiesto di autorizzare l'accesso al tuo account Google.
+              </Typography>
+            </Alert>
+            
+            <Box sx={{ 
+              p: 2, 
+              border: '1px dashed', 
+              borderColor: 'divider', 
+              borderRadius: 1, 
+              textAlign: 'center',
+              backgroundColor: 'action.hover'
+            }}>
+              <CloudIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                Pronto per l'autenticazione OAuth2
+              </Typography>
             </Box>
-          </Paper>
-        </Grid>
-      </Grid>
+          </>
+        )}
+
+        {/* 3. PULSANTE TEST CONNESSIONE */}
+        <Divider sx={{ my: 3 }} />
+        
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={cloudSyncConfig.isTestingConnection ? <CircularProgress size={20} /> : <CloudSyncIcon />}
+            onClick={testCloudConnection}
+            disabled={
+              cloudSyncConfig.isTestingConnection || 
+              isEnabled || 
+              (cloudSyncConfig.selectedProvider === 'github' && !cloudSyncConfig.githubToken.trim())
+            }
+            sx={{ mb: 2 }}
+          >
+            {cloudSyncConfig.isTestingConnection 
+              ? 'Test in corso...' 
+              : cloudSyncConfig.selectedProvider === 'googledrive' 
+                ? 'Avvia Autenticazione Google' 
+                : 'Testa Connessione GitHub'
+            }
+          </Button>
+
+          {/* RISULTATO DEL TEST */}
+          {cloudSyncConfig.testResult === 'success' && (
+            <Alert severity="success">
+              <Typography variant="body2">
+                ✅ <strong>Connessione riuscita!</strong><br/>
+                La sincronizzazione è stata abilitata automaticamente.
+              </Typography>
+            </Alert>
+          )}
+
+          {cloudSyncConfig.testResult === 'error' && (
+            <Alert severity="error">
+              <Typography variant="body2">
+                ❌ <strong>Errore di connessione:</strong><br/>
+                {cloudSyncConfig.testError}
+              </Typography>
+            </Alert>
+          )}
+        </Box>
+      </Paper>
+
+      {/* 4. STATO SINCRONIZZAZIONE (solo se abilitata) */}
+      {isEnabled && (
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CheckCircleIcon sx={{ color: 'success.main' }} />
+            Sincronizzazione Attiva
+          </Typography>
+          
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} sm={6}>
+              <Chip 
+                label={`Provider: ${cloudSyncConfig.selectedProvider === 'github' ? 'GitHub Gist' : 'Google Drive'}`}
+                color="primary" 
+                sx={{ mb: 1, mr: 1 }}
+              />
+              <Chip 
+                label={`Ultimo sync: ${lastSync ? new Date(lastSync).toLocaleString() : 'Mai'}`} 
+                variant="outlined" 
+                color={lastSync ? "success" : "default"}
+                sx={{ mb: 1, mr: 1 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Chip 
+                label={`Prossimo sync: ${nextSync ? nextSync.toLocaleTimeString() : 'N/A'}`} 
+                variant="outlined" 
+                color={nextSync ? "info" : "default"}
+                sx={{ mb: 1, mr: 1 }}
+              />
+              {error && (
+                <Chip 
+                  label={`Errore: ${error}`} 
+                  variant="outlined" 
+                  color="error"
+                  sx={{ mb: 1, mr: 1 }}
+                />
+              )}
+            </Grid>
+          </Grid>
+
+          {/* Informazioni utente */}
+          {((cloudSyncConfig.selectedProvider === 'github' && userInfo.github) || 
+            (cloudSyncConfig.selectedProvider === 'googledrive' && userInfo.googledrive)) && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {cloudSyncConfig.selectedProvider === 'github' && userInfo.github && (
+                <Typography variant="body2">
+                  👤 <strong>Connesso come:</strong> {userInfo.github.login} ({userInfo.github.name || userInfo.github.login})
+                </Typography>
+              )}
+              {cloudSyncConfig.selectedProvider === 'googledrive' && userInfo.googledrive && (
+                <Typography variant="body2">
+                  👤 <strong>Connesso come:</strong> {userInfo.googledrive.emailAddress} ({userInfo.googledrive.displayName})
+                </Typography>
+              )}
+            </Alert>
+          )}
+
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Button 
+              variant="contained"
+              startIcon={<SyncIcon />}
+              onClick={manualSync} 
+              disabled={isInProgress} 
+            >
+              {isInProgress ? 'Sincronizzando...' : 'Sincronizza Ora'}
+            </Button>
+            
+            <TextField
+              label="Intervallo (minuti)"
+              type="number"
+              value={intervalMinutes}
+              onChange={e => {
+                setIntervalMinutes(Number(e.target.value));
+                setHasChanges(true);
+              }}
+              inputProps={{ min: 1, max: 60 }}
+              size="small"
+              sx={{ width: 150 }}
+            />
+            
+            <Button 
+              variant="outlined"
+              color="error"
+              startIcon={<CloudOffIcon />}
+              onClick={disableCloudSync}
+            >
+              Disabilita Sync
+            </Button>
+          </Box>
+        </Paper>
+      )}
     </Box>
   );
 
