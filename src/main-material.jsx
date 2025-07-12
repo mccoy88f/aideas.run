@@ -230,6 +230,12 @@ function AIdeasApp() {
       window.addEventListener('app-installed', async (event) => {
         const { appId, app } = event.detail;
         try {
+          // Le app ZIP non hanno bisogno della PWA - usano solo blob URLs
+          if (app.type === 'zip') {
+            console.log(`⏭️ App ZIP ${app.name} - generazione PWA saltata (usa blob URLs)`);
+            return;
+          }
+          
           // Usa l'istanza singleton di PWAGeneratorService
           const pwaGenerator = PWAGeneratorService.instance || new PWAGeneratorService();
           await pwaGenerator.initialize(); // Assicurati che il servizio sia inizializzato
