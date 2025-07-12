@@ -151,8 +151,6 @@ class AppRouteService {
             let replacementCount = 0;
             
             console.log('🧩 Usare logica basecode originale...');
-            console.log('🔍 HTML originale trovato:', !!indexHtml);
-            console.log('🔍 HTML originale (primi 500 caratteri):', indexHtml ? indexHtml.substring(0, 500) : 'VUOTO');
             
             // Sostituzioni esattamente come nel basecode originale
             for (const [filename, blobUrl] of Object.entries(blobUrls)) {
@@ -162,21 +160,11 @@ class AppRouteService {
                         new RegExp(`(href|src)=["']\\./${filename}["']`, 'g')
                     ];
                     
-                    console.log(`🔍 Cercando riferimenti a: ${filename}`);
-                    
-                    patterns.forEach((pattern, index) => {
+                    patterns.forEach(pattern => {
                         const beforeReplace = indexHtml;
-                        const matches = indexHtml.match(pattern);
-                        console.log(`📋 Pattern ${index + 1} per ${filename}:`, pattern.source);
-                        if (matches) {
-                            console.log(`✅ Trovato ${matches.length} match:`, matches);
-                        } else {
-                            console.log(`❌ Nessun match trovato per pattern ${index + 1}`);
-                        }
                         indexHtml = indexHtml.replace(pattern, `$1="${blobUrl}"`);
                         if (beforeReplace !== indexHtml) {
                             replacementCount++;
-                            console.log(`🔄 Sostituito riferimento a ${filename} con blob URL`);
                         }
                     });
                 }
