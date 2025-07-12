@@ -565,7 +565,10 @@ const SettingsMaterial = ({
             fullWidth
             label="Modalità di apertura"
             value={defaultOpenMode || 'modal'}
-            onChange={e => onDefaultOpenModeChange(e.target.value)}
+            onChange={e => {
+              onDefaultOpenModeChange(e.target.value);
+              handleSettingChange('defaultOpenMode', e.target.value);
+            }}
             SelectProps={{ native: true }}
           >
             <option value="modal">Modale (in-app)</option>
