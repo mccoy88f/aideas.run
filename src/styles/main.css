@@ -278,17 +278,22 @@ a:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #3730a3 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: 9999;
   transition: opacity var(--transition-slow);
+  overflow: hidden;
 }
 
 .loading-content {
   text-align: center;
   color: white;
+  max-width: 400px;
+  padding: var(--space-8);
 }
 
 .aideas-logo {
@@ -297,9 +302,9 @@ a:hover {
 }
 
 .logo-icon {
-  width: 5rem;
-  height: 5rem;
-  filter: drop-shadow(var(--shadow-lg));
+  width: 6rem;
+  height: 6rem;
+  filter: drop-shadow(0 8px 32px rgba(0, 0, 0, 0.3));
 }
 
 .loading-title {
@@ -307,12 +312,15 @@ a:hover {
   font-weight: var(--font-weight-bold);
   margin-bottom: var(--space-2);
   letter-spacing: 0.1em;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .loading-subtitle {
   font-size: var(--font-size-lg);
-  opacity: 0.9;
+  opacity: 0.95;
   margin-bottom: var(--space-8);
+  font-weight: var(--font-weight-medium);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .loading-spinner {
@@ -321,12 +329,13 @@ a:hover {
 }
 
 .spinner {
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top: 3px solid white;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top: 3px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 @keyframes logoFloat {

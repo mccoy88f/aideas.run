@@ -47,28 +47,143 @@
     worker-src 'self';
     manifest-src 'self';
   ">
-  <script type="module" crossorigin src="/js/main-C9h2iNPT.js"></script>
+  <script type="module" crossorigin src="/js/main-BPZgtylt.js"></script>
   <link rel="modulepreload" crossorigin href="/js/vendor-Cc5w31rP.js">
-  <link rel="stylesheet" crossorigin href="/css/main-DGGQBJts.css">
+  <link rel="stylesheet" crossorigin href="/css/main-BuL2Q3jH.css">
 <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
 <body>
   <!-- Loading Splash Screen -->
   <div id="loading-screen" class="loading-screen">
     <div class="loading-content">
-      <div class="sakai-logo">
+      <div class="aideas-logo">
         <svg viewBox="0 0 100 100" class="logo-icon">
+          <!-- Definizioni gradienti -->
           <defs>
-            <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#2563eb"/>
-              <stop offset="100%" style="stop-color:#1d4ed8"/>
+            <linearGradient id="brainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+              <stop offset="50%" style="stop-color:#4f46e5;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#3730a3;stop-opacity:1" />
             </linearGradient>
+            
+            <linearGradient id="faceGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+            </linearGradient>
+            
+            <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:1" />
+            </linearGradient>
+            
+            <!-- Ombra -->
+            <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+            </filter>
+            
+            <!-- Glow effect -->
+            <filter id="glow" x="-50%" y="-50%" width="200%" y="200%">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feMerge> 
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
           </defs>
-          <rect x="10" y="10" width="80" height="80" rx="16" fill="url(#logoGradient)"/>
-          <text x="50" y="65" text-anchor="middle" fill="white" font-size="32" font-weight="bold">A</text>
+          
+          <!-- Sfondo cerchio principale -->
+          <circle cx="50" cy="50" r="46" fill="url(#brainGradient)" filter="url(#shadow)"/>
+          
+          <!-- Testa di profilo (silhouette) -->
+          <g transform="translate(50, 50)">
+            <!-- Testa principale -->
+            <path d="M-18 -22 
+                     C-18 -28, -12 -32, -5 -32
+                     C2 -32, 8 -28, 8 -22
+                     C8 -18, 6 -14, 6 -10
+                     C6 -6, 4 -2, 2 2
+                     C0 6, -2 8, -6 8
+                     C-10 8, -14 6, -16 2
+                     C-18 -2, -18 -8, -18 -14
+                     Z" 
+                  fill="url(#faceGradient)" opacity="0.9"/>
+            
+            <!-- Zona cervello/intelligenza -->
+            <path d="M-16 -20
+                     C-16 -24, -10 -28, -4 -28
+                     C2 -28, 6 -24, 6 -20
+                     C6 -16, 4 -12, 4 -8
+                     C4 -4, 2 0, 0 0
+                     C-2 0, -4 -4, -4 -8
+                     C-4 -12, -6 -16, -16 -20
+                     Z" 
+                  fill="rgba(255,255,255,0.1)" opacity="0.6"/>
+            
+            <!-- Linee cerebrali decorative -->
+            <path d="M-12 -18 Q-8 -16, -4 -18 Q0 -16, 4 -18" 
+                  stroke="rgba(255,255,255,0.3)" stroke-width="1" fill="none"/>
+            <path d="M-10 -14 Q-6 -12, -2 -14 Q2 -12, 4 -14" 
+                  stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/>
+            <path d="M-8 -10 Q-4 -8, 0 -10 Q2 -8, 4 -10" 
+                  stroke="rgba(255,255,255,0.15)" stroke-width="1" fill="none"/>
+          </g>
+          
+          <!-- Lettere "AI" centrali -->
+          <g transform="translate(50, 50)">
+            <!-- Lettera "A" -->
+            <path d="M-10 -3
+                     L-6 -12
+                     L-2 -3
+                     L-4 -6
+                     L-8 -6
+                     Z
+                     M-7 -8
+                     L-5 -8" 
+                  fill="url(#textGradient)" 
+                  stroke="rgba(255,255,255,0.8)" 
+                  stroke-width="0.5"
+                  filter="url(#glow)"/>
+            
+            <!-- Lettera "I" -->
+            <path d="M2 -12
+                     L6 -12
+                     L6 -10
+                     L5 -10
+                     L5 -5
+                     L6 -5
+                     L6 -3
+                     L2 -3
+                     L2 -5
+                     L3 -5
+                     L3 -10
+                     L2 -10
+                     Z" 
+                  fill="url(#textGradient)" 
+                  stroke="rgba(255,255,255,0.8)" 
+                  stroke-width="0.5"
+                  filter="url(#glow)"/>
+          </g>
+          
+          <!-- Dettagli di connessione neurale -->
+          <g opacity="0.3">
+            <!-- Piccoli cerchi per simulare neuroni -->
+            <circle cx="25" cy="30" r="1.5" fill="#ffffff"/>
+            <circle cx="75" cy="35" r="1" fill="#ffffff"/>
+            <circle cx="30" cy="70" r="1" fill="#ffffff"/>
+            <circle cx="70" cy="65" r="1.5" fill="#ffffff"/>
+            
+            <!-- Linee di connessione -->
+            <path d="M25 30 Q35 25, 45 35" stroke="#ffffff" stroke-width="0.5" fill="none"/>
+            <path d="M75 35 Q65 40, 55 45" stroke="#ffffff" stroke-width="0.5" fill="none"/>
+            <path d="M30 70 Q40 65, 50 60" stroke="#ffffff" stroke-width="0.5" fill="none"/>
+            <path d="M70 65 Q60 60, 50 55" stroke="#ffffff" stroke-width="0.5" fill="none"/>
+          </g>
+          
+          <!-- Bordo esterno con glow -->
+          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2" opacity="0.6"/>
         </svg>
       </div>
       <h1 class="loading-title">AIdeas</h1>
-      <p class="loading-subtitle">Run your AIdeas</p>
+      <p class="loading-subtitle">Run your AI-Ideas!</p>
       <div class="loading-spinner">
         <div class="spinner"></div>
       </div>

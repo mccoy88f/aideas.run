@@ -45,32 +45,18 @@ class UILoader {
    * Mostra loading screen moderno
    */
   showLoadingScreen() {
-    // Crea loading screen se non esiste
-    let loadingScreen = document.getElementById('loading-screen');
-    if (!loadingScreen) {
-      loadingScreen = document.createElement('div');
-      loadingScreen.id = 'loading-screen';
-      loadingScreen.innerHTML = `
-        <div class="loading-container">
-          <div class="aideas-logo">
-            <div class="logo-icon">🚀</div>
-            <div class="logo-text">AIdeas</div>
-          </div>
-          <div class="loading-spinner">
-            <div class="spinner-ring"></div>
-            <div class="spinner-ring"></div>
-            <div class="spinner-ring"></div>
-          </div>
-          <div class="loading-text">Caricamento interfaccia...</div>
-          <div class="loading-subtitle">Inizializzazione Material UI</div>
-        </div>
-      `;
-      document.body.appendChild(loadingScreen);
+    // Usa il loading screen esistente dall'HTML
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+      loadingScreen.style.display = 'flex';
+      loadingScreen.style.opacity = '1';
+      
+      // Aggiorna il messaggio per l'inizializzazione
+      const subtitle = loadingScreen.querySelector('.loading-subtitle');
+      if (subtitle) {
+        subtitle.textContent = 'Inizializzazione Material UI...';
+      }
     }
-    
-    // Aggiungi stili moderni
-    this.addLoadingStyles();
-    loadingScreen.style.display = 'flex';
   }
 
   /**
