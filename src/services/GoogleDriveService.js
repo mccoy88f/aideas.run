@@ -287,15 +287,17 @@ export default class GoogleDriveService {
       if (errorMessage.includes('client_secret') || errorMessage.includes('Client authentication failed')) {
         throw new Error(`🔧 Configurazione OAuth2 non valida
 
-❌ La tua app Google deve essere configurata come "Web application" per applicazioni pubbliche.
+❌ Il client_secret è mancante o non valido!
 
 📋 Passaggi per risolvere:
 1. Vai su Google Cloud Console
 2. APIs & Services > Credentials  
 3. Crea/Modifica OAuth 2.0 Client ID
-4. Tipo: "Web application" (NON Desktop/Mobile)
-5. NON usare client_secret per app web pubbliche
-6. Configura origins: https://aideas.run
+4. Tipo: "Web application"
+5. COPIA sia Client ID che Client Secret
+6. Configura variabili d'ambiente:
+   - VITE_GOOGLE_CLIENT_ID
+   - VITE_GOOGLE_CLIENT_SECRET
 
 📖 Guida completa: https://github.com/mccoy88f/aideas.run/blob/main/GOOGLE_OAUTH_SETUP.md
 
@@ -449,13 +451,13 @@ export default class GoogleDriveService {
         if (errorMessage.includes('client_secret') || errorMessage.includes('Client authentication failed')) {
           throw new Error(`🔧 Configurazione OAuth2 non valida
 
-❌ La tua app Google deve essere configurata come "Web application" per applicazioni pubbliche.
+❌ Il client_secret è mancante o non valido durante il refresh!
 
 📋 Passaggi per risolvere:
 1. Vai su Google Cloud Console
 2. APIs & Services > Credentials  
 3. Crea/Modifica OAuth 2.0 Client ID
-4. Tipo: "Web application" (NON Desktop/Mobile)
+4. Tipo: "Web application"
 5. NON usare client_secret per app web pubbliche
 6. Configura origins: https://aideas.run
 
@@ -920,13 +922,13 @@ export default class GoogleDriveService {
       }
 
       // Check 2: Client Secret (dovrebbe essere assente per app pubbliche)
-      if (this.clientSecret) {
-        diagnosis.issues.push('⚠️ Client Secret configurato per app pubblica');
-        diagnosis.recommendations.push('Rimuovi VITE_GOOGLE_CLIENT_SECRET - non necessario per SPA');
-        diagnosis.checks.clientSecret = false;
-      } else {
-        diagnosis.checks.clientSecret = true;
-      }
+              if (this.clientSecret) {
+          diagnosis.checks.clientSecret = true;
+        } else {
+          diagnosis.issues.push('❌ Client Secret mancante');
+          diagnosis.recommendations.push('Configura VITE_GOOGLE_CLIENT_SECRET - necessario per AIdeas');
+          diagnosis.checks.clientSecret = false;
+        }
 
       // Check 3: Redirect URI valido
       if (!this.redirectUri.includes(window.location.origin)) {

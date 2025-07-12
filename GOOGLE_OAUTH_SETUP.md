@@ -60,18 +60,32 @@ Segui questa guida per configurare correttamente l'app.
 
 ### 6. Configura le Variabili d'Ambiente
 
-Nel tuo deployment (GitHub Actions/Netlify/Vercel):
+**IMPORTANTE**: Il client_secret È NECESSARIO per AIdeas!
 
+#### Per Sviluppo Locale:
+Crea un file `.env` nella root del progetto:
+```bash
+# .env
+VITE_GOOGLE_CLIENT_ID=il_tuo_client_id_qui.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_SECRET=il_tuo_client_secret_qui
+```
+
+#### Per Deployment (GitHub Actions/Netlify/Vercel):
 ```bash
 VITE_GOOGLE_CLIENT_ID=il_tuo_client_id_qui.apps.googleusercontent.com
-# NON configurare VITE_GOOGLE_CLIENT_SECRET per app pubbliche
+VITE_GOOGLE_CLIENT_SECRET=il_tuo_client_secret_qui
 ```
+
+**⚠️ ATTENZIONE**: 
+- Nonostante sia una "Web application", AIdeas ha bisogno del client_secret
+- Il .env NON deve essere committato su Git (è già in .gitignore)
+- Usa le variabili d'ambiente del tuo hosting provider per production
 
 ## 🔍 Verifica Configurazione
 
 ### Controllo Rapido
 1. Il Client ID termina con `.apps.googleusercontent.com`?
-2. **Non** hai configurato `VITE_GOOGLE_CLIENT_SECRET`?
+2. **Hai configurato** `VITE_GOOGLE_CLIENT_SECRET`?
 3. L'app type è **Web application**?
 4. Gli origins e redirect URIs sono corretti?
 
@@ -79,7 +93,7 @@ VITE_GOOGLE_CLIENT_ID=il_tuo_client_id_qui.apps.googleusercontent.com
 ```javascript
 // Console del browser - verifica variabili
 console.log('Client ID:', import.meta.env.VITE_GOOGLE_CLIENT_ID);
-console.log('Client Secret dovrebbe essere undefined:', import.meta.env.VITE_GOOGLE_CLIENT_SECRET);
+console.log('Client Secret dovrebbe essere configurato:', import.meta.env.VITE_GOOGLE_CLIENT_SECRET ? 'SÌ' : 'NO');
 ```
 
 ## 🔄 Processo OAuth2 per App Pubbliche
@@ -125,12 +139,12 @@ sequenceDiagram
 1. Verifica OAuth consent screen
 2. Aggiungi utenti di test se l'app è in modalità test
 
-## 🔒 Sicurezza per App Pubbliche
+## 🔒 Sicurezza per App Web
 
-### Perché senza client_secret?
-- **Single Page Applications (SPA)** come AIdeas non possono mantenere segreti
-- Il codice JavaScript è visibile nel browser
-- Google supporta il flusso OAuth2 senza client_secret per SPA
+### Perché AIdeas usa client_secret?
+- **AIdeas è configurato** per usare il client_secret per maggiore sicurezza
+- Il client_secret è necessario per il flusso OAuth2 corrente
+- Anche se è una "Web application", mantiene configurazione tradizionale
 
 ### Meccanismi di Sicurezza
 1. **CORS**: Restrizioni Cross-Origin
@@ -147,8 +161,9 @@ sequenceDiagram
 - [ ] Credenziali create come "Web application"
 - [ ] JavaScript origins configurati
 - [ ] Redirect URIs configurati
-- [ ] Solo Client ID copiato (NO client_secret)
+- [ ] Client ID E client_secret copiati
 - [ ] Variabile VITE_GOOGLE_CLIENT_ID impostata
+- [ ] Variabile VITE_GOOGLE_CLIENT_SECRET impostata
 - [ ] Test di autenticazione completato
 
 ## 🆘 Debug Avanzato

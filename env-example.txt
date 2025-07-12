@@ -1,0 +1,16 @@
+# Variabili d'ambiente per AIdeas
+# Copia questo contenuto in un file .env nella root del progetto
+
+# Google OAuth2 Configuration
+VITE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Come ottenere queste credenziali:
+# 1. Vai su Google Cloud Console
+# 2. APIs & Services > Credentials
+# 3. Crea OAuth 2.0 Client ID (Web application)
+# 4. Copia sia Client ID che Client Secret
+# 5. Configura "Origini JavaScript autorizzate"
+# 6. Configura "URI di reindirizzamento autorizzati"
+
+# Guida completa: https://github.com/mccoy88f/aideas.run/blob/main/GOOGLE_OAUTH_SETUP.md 
