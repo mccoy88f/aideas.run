@@ -5,7 +5,7 @@
 
 import { SECURITY_CONFIG, SANDBOX_PERMISSIONS, SUPPORTED_EXTENSIONS } from '../utils/constants.js';
 import { showToast } from '../utils/helpers.js';
-import DOMPurify from 'dompurify';
+// NOTA: DOMPurify rimosso - non sanitizziamo più i contenuti delle app
 
 /**
  * Servizio centralizzato per la sicurezza delle applicazioni
@@ -400,113 +400,78 @@ export default class SecurityService {
    */
 
   /**
-   * Sanitizza contenuto HTML
-   * @param {string} html - HTML da sanitizzare
-   * @param {Object} options - Opzioni di sanitizzazione
-   * @returns {string} HTML sanitizzato
+   * NOTA: Funzione di sanitizzazione RIMOSSA
+   * Le app non vengono più sanitizzate per preservare la loro integrità.
+   * Utilizzare AppAnalyzer per l'analisi non-invasiva.
    */
-  sanitizeHTML(html, options = {}) {
-    const defaultConfig = {
-      ALLOWED_TAGS: [
-        'div', 'span', 'p', 'br', 'hr', 
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'strong', 'em', 'b', 'i', 'u',
-        'ul', 'ol', 'li',
-        'table', 'thead', 'tbody', 'tr', 'td', 'th',
-        'a', 'img', 
-        'canvas', 'svg', 'path', 'circle', 'rect',
-        'input', 'button', 'form', 'label', 'select', 'option'
-      ],
-      ALLOWED_ATTR: [
-        'class', 'id', 'style',
-        'href', 'target', 'title', 'alt',
-        'src', 'width', 'height',
-        'type', 'value', 'name', 'placeholder',
-        'viewBox', 'd', 'fill', 'stroke'
-      ],
-      FORBID_TAGS: ['script', 'object', 'embed', 'iframe', 'frame'],
-      FORBID_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover'],
-      ...options
-    };
-
-    try {
-      return DOMPurify.sanitize(html, defaultConfig);
-    } catch (error) {
-      console.error('Errore sanitizzazione HTML:', error);
-      return '<!-- Contenuto rimosso per sicurezza -->';
-    }
-  }
 
   /**
-   * Sanitizza contenuto JavaScript
+   * Analizza contenuto JavaScript per sicurezza (senza modificarlo)
    * @param {string} jsContent - Codice JavaScript
-   * @param {Object} options - Opzioni di sanitizzazione  
-   * @returns {Object} Risultato sanitizzazione
+   * @returns {Object} Risultato analisi
    */
-  sanitizeJavaScript(jsContent, options = {}) {
+  analyzeJavaScript(jsContent) {
     const result = {
       safe: false,
-      sanitized: '',
       issues: [],
-      blocked: []
+      risks: [],
+      warnings: []
     };
 
     try {
-      // Pattern pericolosi
+      // Pattern potenzialmente pericolosi
       const dangerousPatterns = [
-        { pattern: /eval\s*\(/gi, description: 'Uso di eval()' },
-        { pattern: /Function\s*\(/gi, description: 'Costruttore Function()' },
-        { pattern: /document\.write/gi, description: 'document.write()' },
-        { pattern: /innerHTML\s*=/gi, description: 'Modifica innerHTML' },
-        { pattern: /outerHTML\s*=/gi, description: 'Modifica outerHTML' },
-        { pattern: /\.appendChild\s*\(/gi, description: 'appendChild dinamico' },
-        { pattern: /createElement\s*\(/gi, description: 'createElement dinamico' },
-        { pattern: /setTimeout\s*\(/gi, description: 'setTimeout con string' },
-        { pattern: /setInterval\s*\(/gi, description: 'setInterval con string' },
-        { pattern: /XMLHttpRequest/gi, description: 'XMLHttpRequest' },
-        { pattern: /fetch\s*\(/gi, description: 'Fetch API' },
-        { pattern: /websocket/gi, description: 'WebSocket' },
-        { pattern: /localStorage|sessionStorage/gi, description: 'Web Storage' },
-        { pattern: /navigator\./gi, description: 'Navigator API' },
-        { pattern: /window\./gi, description: 'Window object access' },
-        { pattern: /parent\.|top\./gi, description: 'Frame parent access' }
+        { pattern: /eval\s*\(/gi, description: 'Uso di eval()', severity: 'high' },
+        { pattern: /Function\s*\(/gi, description: 'Costruttore Function()', severity: 'high' },
+        { pattern: /document\.write/gi, description: 'document.write()', severity: 'medium' },
+        { pattern: /innerHTML\s*=/gi, description: 'Modifica innerHTML', severity: 'medium' },
+        { pattern: /outerHTML\s*=/gi, description: 'Modifica outerHTML', severity: 'medium' },
+        { pattern: /\.appendChild\s*\(/gi, description: 'appendChild dinamico', severity: 'low' },
+        { pattern: /createElement\s*\(/gi, description: 'createElement dinamico', severity: 'low' },
+        { pattern: /setTimeout\s*\(/gi, description: 'setTimeout', severity: 'low' },
+        { pattern: /setInterval\s*\(/gi, description: 'setInterval', severity: 'low' },
+        { pattern: /XMLHttpRequest/gi, description: 'XMLHttpRequest', severity: 'medium' },
+        { pattern: /fetch\s*\(/gi, description: 'Fetch API', severity: 'medium' },
+        { pattern: /websocket/gi, description: 'WebSocket', severity: 'medium' },
+        { pattern: /localStorage|sessionStorage/gi, description: 'Web Storage', severity: 'low' },
+        { pattern: /navigator\./gi, description: 'Navigator API', severity: 'medium' },
+        { pattern: /window\./gi, description: 'Window object access', severity: 'low' },
+        { pattern: /parent\.|top\./gi, description: 'Frame parent access', severity: 'high' }
       ];
 
-      let sanitizedContent = jsContent;
-      
-      for (const { pattern, description } of dangerousPatterns) {
+      for (const { pattern, description, severity } of dangerousPatterns) {
         if (pattern.test(jsContent)) {
           result.issues.push(description);
           
-          if (options.removeUnsafe) {
-            sanitizedContent = sanitizedContent.replace(pattern, '/* REMOVED: ' + description + ' */');
-            result.blocked.push(description);
+          if (severity === 'high') {
+            result.risks.push(description);
+          } else if (severity === 'medium') {
+            result.warnings.push(description);
           }
         }
       }
 
       // Controlla lunghezza eccessiva
       if (jsContent.length > 1024 * 1024) { // 1MB
-        result.issues.push('Codice JavaScript molto grande');
+        result.warnings.push('Codice JavaScript molto grande');
       }
 
       // Controlla offuscamento
       if (this.isObfuscated(jsContent)) {
-        result.issues.push('Codice potenzialmente offuscato');
+        result.warnings.push('Codice potenzialmente offuscato');
       }
 
-      result.safe = result.issues.length === 0;
-      result.sanitized = sanitizedContent;
-
+      result.safe = result.risks.length === 0;
+      
       return result;
 
     } catch (error) {
-      console.error('Errore sanitizzazione JavaScript:', error);
+      console.error('Errore analisi JavaScript:', error);
       return {
         safe: false,
-        sanitized: '/* Codice rimosso per errore di sanitizzazione */',
-        issues: ['Errore durante la sanitizzazione'],
-        blocked: []
+        issues: ['Errore durante l\'analisi'],
+        risks: ['Errore di analisi'],
+        warnings: []
       };
     }
   }
@@ -740,16 +705,26 @@ export default class SecurityService {
 
           // Scan contenuto JavaScript
           if (file.filename.endsWith('.js')) {
-            const jsScan = this.sanitizeJavaScript(file.content);
+            const jsScan = this.analyzeJavaScript(file.content);
             if (!jsScan.safe) {
               scanResult.issues.push({
                 type: 'javascript',
                 file: file.filename,
                 severity: 'high',
-                message: 'Codice JavaScript non sicuro',
-                details: jsScan.issues
+                message: 'Codice JavaScript con potenziali rischi',
+                details: jsScan.risks
               });
               scanResult.score -= 20;
+            }
+            if (jsScan.warnings.length > 0) {
+              scanResult.issues.push({
+                type: 'javascript',
+                file: file.filename,
+                severity: 'medium',
+                message: 'Codice JavaScript con avvisi',
+                details: jsScan.warnings
+              });
+              scanResult.score -= 10;
             }
           }
         }

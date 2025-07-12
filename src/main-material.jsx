@@ -61,6 +61,7 @@ import AppImporterMaterial from './components/AppImporterMaterial.jsx';
 import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
+import AppInfoModal from './components/AppInfoModal.jsx';
 import PWAGeneratorService from './services/PWAGeneratorService.js';
 
 import EmojiSelector from './components/EmojiSelector.jsx';
@@ -99,6 +100,8 @@ function AIdeasApp() {
   const [emojiSelectorOpen, setEmojiSelectorOpen] = React.useState(false);
   const [iconSelectorOpen, setIconSelectorOpen] = React.useState(false);
   const [faviconUrl, setFaviconUrl] = React.useState('');
+  const [appInfoModalOpen, setAppInfoModalOpen] = React.useState(false);
+  const [appInfoData, setAppInfoData] = React.useState(null);
 
 
   // Inizializzazione
@@ -1114,6 +1117,28 @@ function AIdeasApp() {
     }
   };
 
+  const handleShowAppInfo = async (app) => {
+    try {
+      console.log('🔍 Richiesta informazioni app:', app.name);
+      
+      // Carica i file dell'app dal database se è di tipo ZIP
+      let appWithFiles = { ...app };
+      
+      if (app.type === 'zip') {
+        const files = await StorageService.getAppFiles(app.id);
+        appWithFiles.files = files;
+        console.log(`📁 Caricati ${files.length} file per app ${app.name}`);
+      }
+      
+      setAppInfoData(appWithFiles);
+      setAppInfoModalOpen(true);
+      
+    } catch (error) {
+      console.error('Errore caricamento informazioni app:', error);
+      showToast('Errore durante il caricamento delle informazioni', 'error');
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ 
@@ -1344,6 +1369,7 @@ function AIdeasApp() {
                   onEdit={setSelectedApp}
                   onDelete={handleDeleteApp}
                   onShowMenu={() => {}}
+                  onShowInfo={handleShowAppInfo}
                   onOpenPWA={handleOpenAsPWA}
                   onInstallPWA={handleInstallAsPWA}
                 />
@@ -2106,6 +2132,15 @@ function AIdeasApp() {
         </DialogActions>
       </Dialog>
 
+      {/* Modal informazioni app */}
+      <AppInfoModal
+        open={appInfoModalOpen}
+        onClose={() => {
+          setAppInfoModalOpen(false);
+          setAppInfoData(null);
+        }}
+        app={appInfoData}
+      />
 
     </Box>
   );

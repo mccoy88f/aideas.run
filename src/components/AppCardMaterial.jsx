@@ -16,7 +16,8 @@ import {
   Launch as LaunchIcon,
   Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Info as InfoIcon
 } from '@mui/icons-material';
 
 /**
@@ -29,6 +30,7 @@ const AppCardMaterial = ({
   onEdit, 
   onDelete, 
   onShowMenu,
+  onShowInfo,
   showMenu = true 
 }) => {
   const theme = useTheme();
@@ -337,6 +339,21 @@ const AppCardMaterial = ({
           flexWrap: 'nowrap',
           flex: { xs: '1 1 auto', sm: '0 0 auto' }
         }}>
+          <Tooltip title="Informazioni app">
+            <IconButton
+              size="small"
+              onClick={() => onShowInfo?.(app)}
+              sx={{
+                '&:hover': {
+                  transform: 'scale(1.1)',
+                  color: theme.palette.info.main
+                }
+              }}
+            >
+              <InfoIcon />
+            </IconButton>
+          </Tooltip>
+
           <Tooltip title={app.favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}>
             <IconButton
               size="small"
