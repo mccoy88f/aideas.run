@@ -39,6 +39,12 @@
             border-radius: 8px;
             margin: 20px 0;
         }
+        .success {
+            background: rgba(76, 175, 80, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
@@ -49,67 +55,193 @@
             <p>Completamento autenticazione Google Drive</p>
         </div>
         
+        <div id="success" style="display: none;">
+            <h2>✅ Autenticazione Completata</h2>
+            <div class="success">
+                <p>Autenticazione Google Drive completata con successo!</p>
+                <p>Questa finestra si chiuderà automaticamente...</p>
+            </div>
+        </div>
+        
         <div id="error" style="display: none;">
             <h2>❌ Errore di Autenticazione</h2>
             <div class="error">
                 <p id="errorMessage"></p>
             </div>
-            <button onclick="window.close()">Chiudi</button>
+            <button onclick="closeWindow()">Chiudi</button>
         </div>
     </div>
 
     <script>
-        // Gestisce il callback di autenticazione Google OAuth
+        // Gestisce il callback di autenticazione Google OAuth (versione robusta)
         (function() {
+            console.log('🔐 [Google Auth] Callback caricato');
+            
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
             const error = urlParams.get('error');
 
+            // Funzione per chiudere la finestra in modo sicuro
+            function closeWindow() {
+                try {
+                    if (window.opener && !window.opener.closed) {
+                        window.close();
+                    } else {
+                        // Se non c'è opener, reindirizza alla pagina principale
+                        window.location.href = '/';
+                    }
+                } catch (e) {
+                    console.log('⚠️ Impossibile chiudere finestra:', e);
+                    // Fallback: reindirizza alla pagina principale
+                    window.location.href = '/';
+                }
+            }
+
+            // Funzione per mostrare errore
+            function showError(message) {
+                console.error('❌ [Google Auth] Errore:', message);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('errorMessage').textContent = message;
+            }
+
+            // Funzione per mostrare successo
+            function showSuccess() {
+                console.log('✅ [Google Auth] Successo');
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('success').style.display = 'block';
+                
+                // Chiudi automaticamente dopo 2 secondi
+                setTimeout(closeWindow, 2000);
+            }
+
+            // Funzione per inviare messaggio sicuro
+            function sendMessageToOpener(messageData) {
+                try {
+                    if (window.opener && !window.opener.closed) {
+                        console.log('📤 [Google Auth] Invio messaggio:', messageData);
+                        window.opener.postMessage(messageData, window.location.origin);
+                        return true;
+                    } else {
+                        console.log('⚠️ [Google Auth] Opener non disponibile');
+                        return false;
+                    }
+                } catch (e) {
+                    console.error('❌ [Google Auth] Errore invio messaggio:', e);
+                    return false;
+                }
+            }
+
+            // Gestione errori OAuth
             if (error) {
-                // Errore di autenticazione
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').style.display = 'block';
-                document.getElementById('errorMessage').textContent = 
-                    error === 'access_denied' ? 'Accesso negato dall\'utente' : 
-                    `Errore: ${error}`;
+                let errorMessage;
+                switch (error) {
+                    case 'access_denied':
+                        errorMessage = 'Accesso negato dall\'utente';
+                        break;
+                    case 'invalid_request':
+                        errorMessage = 'Richiesta non valida';
+                        break;
+                    case 'unauthorized_client':
+                        errorMessage = 'Client non autorizzato';
+                        break;
+                    case 'unsupported_response_type':
+                        errorMessage = 'Tipo di risposta non supportato';
+                        break;
+                    case 'invalid_scope':
+                        errorMessage = 'Scope non valido';
+                        break;
+                    default:
+                        errorMessage = `Errore: ${error}`;
+                }
+                
+                // Invia messaggio di errore
+                const messageSent = sendMessageToOpener({
+                    type: 'GOOGLE_AUTH_ERROR',
+                    error: errorMessage
+                });
+
+                showError(errorMessage);
+                
+                // Se non è possibile inviare il messaggio, chiudi dopo 5 secondi
+                if (!messageSent) {
+                    setTimeout(closeWindow, 5000);
+                }
                 return;
             }
 
+            // Verifica presenza codice di autorizzazione
             if (!code) {
-                // Nessun codice di autorizzazione
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').style.display = 'block';
-                document.getElementById('errorMessage').textContent = 
-                    'Codice di autorizzazione mancante';
+                const errorMessage = 'Codice di autorizzazione mancante';
+                
+                sendMessageToOpener({
+                    type: 'GOOGLE_AUTH_ERROR',
+                    error: errorMessage
+                });
+                
+                showError(errorMessage);
                 return;
             }
 
-            // Invia il codice al popup principale
-            try {
-                if (window.opener) {
-                    window.opener.postMessage({
+            // Verifica state parameter
+            if (!state) {
+                const errorMessage = 'State parameter mancante';
+                
+                sendMessageToOpener({
+                    type: 'GOOGLE_AUTH_ERROR',
+                    error: errorMessage
+                });
+                
+                showError(errorMessage);
+                return;
+            }
+
+            // Successo: invia codice di autorizzazione
+            console.log('✅ [Google Auth] Codice ricevuto:', code.substring(0, 20) + '...');
+            
+            const messageSent = sendMessageToOpener({
+                type: 'GOOGLE_AUTH_SUCCESS',
+                code: code,
+                state: state
+            });
+
+            if (messageSent) {
+                showSuccess();
+            } else {
+                // Fallback: salva in sessionStorage e reindirizza
+                console.log('⚠️ [Google Auth] Fallback: salvataggio in sessionStorage');
+                
+                try {
+                    sessionStorage.setItem('google_auth_result', JSON.stringify({
                         type: 'GOOGLE_AUTH_SUCCESS',
                         code: code,
-                        state: state
-                    }, window.location.origin);
+                        state: state,
+                        timestamp: Date.now()
+                    }));
                     
-                    // Chiudi il popup dopo un breve delay
-                    setTimeout(() => {
-                        window.close();
-                    }, 1000);
-                } else {
-                    // Se non c'è un popup, reindirizza alla pagina principale
-                    window.location.href = '/?auth=success&code=' + encodeURIComponent(code);
+                    window.location.href = '/?auth=callback';
+                } catch (e) {
+                    console.error('❌ [Google Auth] Errore salvataggio fallback:', e);
+                    showError('Errore di comunicazione con l\'applicazione principale');
                 }
-            } catch (err) {
-                console.error('Errore invio messaggio:', err);
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').style.display = 'block';
-                document.getElementById('errorMessage').textContent = 
-                    'Errore di comunicazione con l\'applicazione principale';
             }
+
         })();
+
+        // Espone la funzione closeWindow globalmente
+        window.closeWindow = function() {
+            try {
+                if (window.opener && !window.opener.closed) {
+                    window.close();
+                } else {
+                    window.location.href = '/';
+                }
+            } catch (e) {
+                console.log('⚠️ Impossibile chiudere finestra:', e);
+                window.location.href = '/';
+            }
+        };
     </script>
 </body>
 </html> 

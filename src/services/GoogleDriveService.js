@@ -3,8 +3,8 @@ import ErrorHandler from './ErrorHandler.js';
 import { showToast } from '../utils/helpers.js';
 
 /**
- * AIdeas - Google Drive Service (Versione completamente riscritta)
- * Sistema di sincronizzazione robusto e affidabile
+ * AIdeas - Google Drive Service (Versione semplificata per web pubbliche)
+ * Sistema di sincronizzazione robusto e compatibile con applicazioni web pubbliche
  */
 
 const GOOGLE_API_BASE = 'https://www.googleapis.com/drive/v3';
@@ -36,7 +36,7 @@ export default class GoogleDriveService {
       'https://www.googleapis.com/auth/userinfo.profile'
     ];
 
-    DEBUG.log('🔧 GoogleDriveService inizializzato');
+    DEBUG.log('🔧 GoogleDriveService inizializzato (versione web pubblica)');
   }
 
   /**
@@ -53,7 +53,7 @@ export default class GoogleDriveService {
   }
 
   /**
-   * Avvia il processo di autenticazione OAuth2
+   * Avvia il processo di autenticazione OAuth2 (semplificato)
    */
   async authenticate(usePopup = true) {
     try {
@@ -70,13 +70,10 @@ export default class GoogleDriveService {
         return { success: true, user: this.userInfo };
       }
 
-      // Genera parametri OAuth2 con PKCE
-      const codeVerifier = this.generateCodeVerifier();
-      const codeChallenge = await this.generateCodeChallenge(codeVerifier);
+      // Genera parametri OAuth2 semplificati (senza PKCE)
       const state = this.generateRandomString(32);
       
-      // Salva code verifier per il callback
-      sessionStorage.setItem('google_code_verifier', codeVerifier);
+      // Salva state per verifica
       sessionStorage.setItem('google_auth_state', state);
 
       const authParams = new URLSearchParams({
@@ -86,8 +83,6 @@ export default class GoogleDriveService {
         scope: this.scopes.join(' '),
         access_type: 'offline',
         prompt: 'consent',
-        code_challenge: codeChallenge,
-        code_challenge_method: 'S256',
         state: state
       });
 
@@ -107,7 +102,7 @@ export default class GoogleDriveService {
   }
 
   /**
-   * Autenticazione tramite popup
+   * Autenticazione tramite popup (versione robusta)
    */
   async authenticateWithPopup(authUrl) {
     return new Promise((resolve, reject) => {
@@ -124,33 +119,65 @@ export default class GoogleDriveService {
         return;
       }
 
-      // Controlla se il popup è chiuso
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed);
-          reject(new Error('Autenticazione annullata dall\'utente'));
+      let checkInterval;
+      let messageHandler;
+
+      const cleanup = () => {
+        if (checkInterval) {
+          clearInterval(checkInterval);
+        }
+        if (messageHandler) {
+          window.removeEventListener('message', messageHandler);
+        }
+      };
+
+      // Controlla se il popup è chiuso (con gestione Cross-Origin-Opener-Policy)
+      checkInterval = setInterval(() => {
+        try {
+          if (popup.closed) {
+            cleanup();
+            reject(new Error('Autenticazione annullata dall\'utente'));
+          }
+        } catch (error) {
+          // Ignora errori Cross-Origin-Opener-Policy
+          DEBUG.log('⚠️ Cross-Origin-Opener-Policy rilevato (normale)');
         }
       }, 1000);
 
       // Listener per messaggi dal popup
-      const messageHandler = async (event) => {
-        if (event.origin !== window.location.origin) return;
+      messageHandler = async (event) => {
+        // Verifica origine per sicurezza
+        if (event.origin !== window.location.origin) {
+          DEBUG.log('⚠️ Messaggio da origine non valida ignorato:', event.origin);
+          return;
+        }
 
         if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-          clearInterval(checkClosed);
-          popup.close();
-          window.removeEventListener('message', messageHandler);
+          cleanup();
+          
+          // Chiudi popup in modo sicuro
+          try {
+            popup.close();
+          } catch (error) {
+            DEBUG.log('⚠️ Impossibile chiudere popup (Cross-Origin-Opener-Policy)');
+          }
 
           try {
             const result = await this.handleAuthCallback(event.data.code, event.data.state);
             resolve(result);
           } catch (error) {
+            DEBUG.error('❌ Errore callback autenticazione:', error);
             reject(error);
           }
         } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
-          clearInterval(checkClosed);
-          popup.close();
-          window.removeEventListener('message', messageHandler);
+          cleanup();
+          
+          try {
+            popup.close();
+          } catch (error) {
+            DEBUG.log('⚠️ Impossibile chiudere popup (Cross-Origin-Opener-Policy)');
+          }
+          
           reject(new Error(event.data.error));
         }
       };
@@ -183,7 +210,6 @@ export default class GoogleDriveService {
       await this.initializeAIdeasFolder();
       
       // Pulisci session storage
-      sessionStorage.removeItem('google_code_verifier');
       sessionStorage.removeItem('google_auth_state');
       
       DEBUG.log('✅ Autenticazione Google completata:', this.userInfo?.name);
@@ -204,25 +230,28 @@ export default class GoogleDriveService {
   }
 
   /**
-   * Scambia authorization code con token
+   * Scambia authorization code con token (versione semplificata)
    */
   async exchangeCodeForTokens(code) {
-    const codeVerifier = sessionStorage.getItem('google_code_verifier');
-    if (!codeVerifier) {
-      throw new Error('Code verifier non trovato');
-    }
+    DEBUG.log('🔄 Scambio codice con token...');
 
     const tokenParams = {
       client_id: this.clientId,
       code: code,
-      code_verifier: codeVerifier,
       grant_type: 'authorization_code',
       redirect_uri: this.redirectUri
     };
 
+    // Aggiungi client_secret solo se disponibile
     if (this.clientSecret) {
       tokenParams.client_secret = this.clientSecret;
     }
+
+    DEBUG.log('🔄 Parametri token:', {
+      client_id: this.clientId.substring(0, 10) + '...',
+      redirect_uri: this.redirectUri,
+      hasClientSecret: !!this.clientSecret
+    });
 
     const response = await fetch(GOOGLE_TOKEN_URL, {
       method: 'POST',
@@ -233,11 +262,29 @@ export default class GoogleDriveService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Token exchange failed: ${error.error_description || error.error}`);
+      const errorText = await response.text();
+      let errorMessage;
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error_description || errorData.error || 'Errore sconosciuto';
+      } catch {
+        errorMessage = errorText || 'Errore sconosciuto';
+      }
+
+      DEBUG.error('❌ Errore exchange token:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorMessage
+      });
+
+      throw new Error(`Token exchange failed: ${errorMessage}`);
     }
 
-    return await response.json();
+    const tokens = await response.json();
+    DEBUG.log('✅ Token ottenuti con successo');
+    
+    return tokens;
   }
 
   /**
@@ -694,24 +741,6 @@ export default class GoogleDriveService {
   }
 
   /**
-   * Genera code verifier per PKCE
-   */
-  generateCodeVerifier() {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return this.base64URLEncode(array);
-  }
-
-  /**
-   * Genera code challenge per PKCE
-   */
-  async generateCodeChallenge(verifier) {
-    const data = new TextEncoder().encode(verifier);
-    const digest = await crypto.subtle.digest('SHA-256', data);
-    return this.base64URLEncode(new Uint8Array(digest));
-  }
-
-  /**
    * Genera stringa random
    */
   generateRandomString(length) {
@@ -721,15 +750,5 @@ export default class GoogleDriveService {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
-  }
-
-  /**
-   * Codifica in base64 URL-safe
-   */
-  base64URLEncode(array) {
-    return btoa(String.fromCharCode(...array))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
   }
 }

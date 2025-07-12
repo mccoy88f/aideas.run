@@ -203,6 +203,48 @@ function AIdeasApp() {
     }
   }, []);
 
+  const checkGoogleAuthFallback = async () => {
+    try {
+      // Controlla se c'è un fallback di autenticazione Google nel sessionStorage
+      const authResult = sessionStorage.getItem('google_auth_result');
+      
+      if (authResult) {
+        const authData = JSON.parse(authResult);
+        
+        // Verifica che non sia troppo vecchio (max 5 minuti)
+        const age = Date.now() - authData.timestamp;
+        if (age > 5 * 60 * 1000) {
+          sessionStorage.removeItem('google_auth_result');
+          DEBUG.warn('⚠️ Fallback autenticazione Google scaduto');
+          return;
+        }
+        
+        DEBUG.log('🔄 Processando fallback autenticazione Google...');
+        
+        // Processa l'autenticazione
+        await handleGoogleAuthCallback(authData.code, authData.state);
+        
+        // Pulisci sessionStorage
+        sessionStorage.removeItem('google_auth_result');
+        
+        DEBUG.log('✅ Fallback autenticazione Google completato');
+      }
+      
+      // Controlla anche l'URL per il parametro auth=callback
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('auth') === 'callback') {
+        // Pulisci URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        DEBUG.log('🔄 URL callback pulito');
+      }
+      
+    } catch (error) {
+      DEBUG.error('❌ Errore gestione fallback autenticazione Google:', error);
+      // Pulisci sessionStorage in caso di errore
+      sessionStorage.removeItem('google_auth_result');
+    }
+  };
+
   const initializeApp = async () => {
     try {
       console.log('🚀 Inizializzazione AIdeas con Material UI...');
@@ -210,6 +252,10 @@ function AIdeasApp() {
       // Inizializza debug
       console.log('🔧 Inizializzazione ErrorTracker...');
       ErrorTracker.init();
+      
+      // Controlla se c'è un fallback di autenticazione Google
+      console.log('🔐 Controllo fallback autenticazione Google...');
+      await checkGoogleAuthFallback();
       
       // Inizializza servizio routing app
       console.log('🛣️ Inizializzazione AppRouteService...');
@@ -350,7 +396,8 @@ function AIdeasApp() {
           
           googleService.configure(clientId, clientSecret);
           
-          const authenticated = await googleService.isAuthenticated();
+          // Usa checkAuthentication invece di isAuthenticated (obsoleto)
+          const authenticated = await googleService.checkAuthentication();
           DEBUG.log('🔐 Google Drive autenticato:', authenticated);
           
           if (authenticated) {
