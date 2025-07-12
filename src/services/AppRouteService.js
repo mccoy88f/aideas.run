@@ -161,6 +161,7 @@ class AppRouteService {
                 // Estrai solo il contenuto originale dell'app dal wrapper PWA
                 indexHtml = appContentMatch[1];
                 console.log('✅ Estratto HTML originale dal wrapper PWA');
+                console.log('🔍 HTML estratto (primi 500 caratteri):', indexHtml.substring(0, 500));
             } else {
                 // Se non c'è il wrapper PWA, rimuovi solo i riferimenti tecnici problematici
                 indexHtml = indexHtml.replace(/<script[^>]*>[\s\S]*?navigator\.serviceWorker[\s\S]*?<\/script>/gi, '');
@@ -168,6 +169,7 @@ class AppRouteService {
                 indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?}\s*;/g, '');
                 indexHtml = indexHtml.replace(/<link[^>]*rel=["']manifest["'][^>]*>/gi, '');
                 console.log('✅ Riferimenti tecnici rimossi da HTML originale');
+                console.log('🔍 HTML originale (primi 500 caratteri):', indexHtml.substring(0, 500));
             }
             for (const [filename, blobUrl] of Object.entries(blobUrls)) {
                 if (filename !== 'index.html') {
@@ -177,8 +179,14 @@ class AppRouteService {
                         new RegExp(`(href|src)=["']\\./${filename}["']`, 'g')
                     ];
                     
-                    patterns.forEach(pattern => {
+                    console.log(`🔍 Cercando riferimenti a: ${filename}`);
+                    
+                    patterns.forEach((pattern, index) => {
                         const beforeReplace = indexHtml;
+                        const matches = indexHtml.match(pattern);
+                        if (matches) {
+                            console.log(`📋 Pattern ${index + 1} trovato per ${filename}:`, matches);
+                        }
                         indexHtml = indexHtml.replace(pattern, `$1="${blobUrl}"`);
                         if (beforeReplace !== indexHtml) {
                             replacementCount++;
