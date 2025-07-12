@@ -531,7 +531,10 @@ const SettingsMaterial = ({
             control={
               <Switch
                 checked={localSettings.debugMode || false}
-                onChange={(e) => handleSettingChange('debugMode', e.target.checked)}
+                onChange={(e) => {
+                  handleSettingChange('debugMode', e.target.checked);
+                  localStorage.setItem('aideas_debug', e.target.checked);
+                }}
               />
             }
             label="Modalità debug"
@@ -543,7 +546,10 @@ const SettingsMaterial = ({
             control={
               <Switch
                 checked={localSettings.verboseLogging || false}
-                onChange={(e) => handleSettingChange('verboseLogging', e.target.checked)}
+                onChange={(e) => {
+                  handleSettingChange('verboseLogging', e.target.checked);
+                  localStorage.setItem('aideas_verbose_logging', e.target.checked);
+                }}
               />
             }
             label="Logging verboso"
@@ -661,17 +667,7 @@ const SettingsMaterial = ({
           />
         </Grid>
         
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={localSettings.enableDebugMode || false}
-                onChange={(e) => handleSettingChange('enableDebugMode', e.target.checked)}
-              />
-            }
-            label="Modalità debug"
-          />
-        </Grid>
+
         
         <Grid item xs={12}>
           <FormControlLabel

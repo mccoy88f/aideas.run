@@ -304,59 +304,9 @@ function AIdeasApp() {
       const appsData = await StorageService.getAllApps();
       console.log('📱 Apps caricate:', appsData.length, appsData);
       
-      // Se non ci sono app, importa quelle di default
-      if (appsData.length === 0) {
-        console.log('📱 Database vuoto, importazione app di default...');
-        try {
-          // Importa le app di default dal file di configurazione
-          const defaultApps = [
-            {
-              name: 'Google',
-              description: 'Motore di ricerca Google',
-              url: 'https://www.google.com',
-              icon: 'https://www.google.com/favicon.ico',
-              category: 'Search',
-              type: 'url',
-              favorite: true,
-              tags: ['search', 'web']
-            },
-            {
-              name: 'GitHub',
-              description: 'Piattaforma di sviluppo software',
-              url: 'https://github.com',
-              icon: 'https://github.com/favicon.ico',
-              category: 'Development',
-              type: 'url',
-              favorite: true,
-              tags: ['development', 'code', 'git']
-            },
-            {
-              name: 'Stack Overflow',
-              description: 'Community di programmatori',
-              url: 'https://stackoverflow.com',
-              icon: 'https://stackoverflow.com/favicon.ico',
-              category: 'Development',
-              type: 'url',
-              favorite: false,
-              tags: ['development', 'qa', 'help']
-            }
-          ];
-          
-          for (const app of defaultApps) {
-            await StorageService.installApp(app);
-          }
-          
-          console.log('📱 App di default importate');
-          const updatedApps = await StorageService.getAllApps();
-          setApps(updatedApps);
-          setFilteredApps(updatedApps);
-        } catch (importError) {
-          console.error('Errore importazione app di default:', importError);
-        }
-      } else {
-        setApps(appsData);
-        setFilteredApps(appsData);
-      }
+      // Imposta le app caricate
+      setApps(appsData);
+      setFilteredApps(appsData);
       
       console.log('📱 State apps aggiornato');
     } catch (error) {
