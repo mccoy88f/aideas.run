@@ -150,6 +150,26 @@ const SettingsMaterial = ({
       ...prev,
       [key]: value
     }));
+    
+    // Gestione speciale per le impostazioni di debug
+    if (key === 'enableDebugMode' || key === 'debugMode') {
+      if (value) {
+        localStorage.setItem('aideas_debug', 'true');
+      } else {
+        localStorage.removeItem('aideas_debug');
+      }
+      showToast(`Modalità debug ${value ? 'attivata' : 'disattivata'}`, 'info');
+    }
+    
+    if (key === 'verboseLogging') {
+      if (value) {
+        localStorage.setItem('aideas_verbose_logging', 'true');
+      } else {
+        localStorage.removeItem('aideas_verbose_logging');
+      }
+      showToast(`Logging verboso ${value ? 'attivato' : 'disattivato'}`, 'info');
+    }
+    
     setHasChanges(true);
   };
 
@@ -275,8 +295,22 @@ const SettingsMaterial = ({
   useEffect(() => {
     if (open) {
       loadUserInfo();
+      // Carica anche i valori di debug dal localStorage
+      loadDebugSettings();
     }
   }, [open]);
+
+  const loadDebugSettings = () => {
+    const debugEnabled = localStorage.getItem('aideas_debug') === 'true';
+    const verboseEnabled = localStorage.getItem('aideas_verbose_logging') === 'true';
+    
+    setLocalSettings(prev => ({
+      ...prev,
+      debugMode: debugEnabled,
+      enableDebugMode: debugEnabled,
+      verboseLogging: verboseEnabled
+    }));
+  };
 
   const handleProviderChange = async (newProvider) => {
     setProvider(newProvider);
@@ -489,6 +523,30 @@ const SettingsMaterial = ({
               />
             }
             label="Avvia all'avvio del sistema"
+          />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={localSettings.debugMode || false}
+                onChange={(e) => handleSettingChange('debugMode', e.target.checked)}
+              />
+            }
+            label="Modalità debug"
+          />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={localSettings.verboseLogging || false}
+                onChange={(e) => handleSettingChange('verboseLogging', e.target.checked)}
+              />
+            }
+            label="Logging verboso"
           />
         </Grid>
         
