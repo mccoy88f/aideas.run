@@ -40,7 +40,7 @@ export const APP_TYPES = {
   ZIP: 'zip',
   URL: 'url',
   GITHUB: 'github',
-  PWA: 'pwa'
+  // PWA type removed
 };
 
 // Set di emoji predefinite per app senza icona
@@ -257,18 +257,7 @@ export const STORAGE_KEYS = {
   DEV_MODE: 'aideas_dev_mode'
 };
 
-// Configurazione PWA
-export const PWA_CONFIG = {
-  INSTALL_PROMPT_DELAY: 3000, // ms
-  OFFLINE_READY_DELAY: 1000,  // ms
-  UPDATE_CHECK_INTERVAL: 60000, // ms
-  CACHE_VERSION: 'v1',
-  PRECACHE_ROUTES: [
-    '/',
-    '/manifest.json',
-    '/favicon.ico'
-  ]
-};
+// PWA_CONFIG removed - not needed
 
 // Configurazioni di sicurezza
 export const SECURITY_CONFIG = {
@@ -444,7 +433,7 @@ export const REGEX_PATTERNS = {
 
 // Feature flags per controllo funzionalità
 export const FEATURE_FLAGS = {
-  ENABLE_PWA_INSTALL: true,
+  ENABLE_PWA_INSTALL: false,
   ENABLE_GITHUB_SYNC: true,
   ENABLE_GOOGLE_DRIVE_SYNC: false,
   ENABLE_APP_STORE: false,
@@ -476,7 +465,7 @@ export default {
   CACHE_STRATEGIES,
   CUSTOM_EVENTS,
   STORAGE_KEYS,
-  PWA_CONFIG,
+  // PWA_CONFIG removed
   SECURITY_CONFIG,
   PERFORMANCE_CONFIG,
   DATE_FORMATS,

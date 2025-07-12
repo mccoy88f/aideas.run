@@ -423,13 +423,7 @@ export function isMobile() {
   return window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-/**
- * Verifica se il dispositivo supporta le PWA
- * @returns {boolean} True se supporta PWA
- */
-export function isPWASupported() {
-  return 'serviceWorker' in navigator && 'manifests' in window;
-}
+// isPWASupported function removed - not needed
 
 /**
  * Ottieni informazioni sul dispositivo
@@ -452,7 +446,7 @@ export function getDeviceInfo() {
       height: window.innerHeight
     },
     isMobile: isMobile(),
-    isPWASupported: isPWASupported()
+    isPWASupported: false
   };
 }
 
@@ -732,7 +726,7 @@ export default {
   throttle,
   copyToClipboard,
   isMobile,
-  isPWASupported,
+  // isPWASupported removed
   getDeviceInfo,
   isValidUrl,
   extractDomain,

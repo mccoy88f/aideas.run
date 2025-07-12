@@ -49,8 +49,7 @@ import {
   Close as CloseIcon,
   List as ListIcon,
     ViewList as ViewListIcon,
-  OpenInNew as OpenInNewIcon,
-  InstallMobile as InstallMobileIcon
+  OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 
 import StorageService from './services/StorageService.js';
@@ -62,7 +61,7 @@ import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
 import AppInfoModal from './components/AppInfoModal.jsx';
-import PWAGeneratorService from './services/PWAGeneratorService.js';
+
 
 import EmojiSelector from './components/EmojiSelector.jsx';
 import GoogleDriveService from './services/GoogleDriveService.js';
@@ -226,24 +225,7 @@ function AIdeasApp() {
         console.error('Errore creazione AppRouteService:', error);
       }
 
-      // Gestisci generazione automatica PWA per app installate
-      window.addEventListener('app-installed', async (event) => {
-        const { appId, app } = event.detail;
-        try {
-          // Le app ZIP non hanno bisogno della PWA - usano solo blob URLs
-          if (app.type === 'zip') {
-            console.log(`⏭️ App ZIP ${app.name} - generazione PWA saltata (usa blob URLs)`);
-            return;
-          }
-          
-          // Usa l'istanza singleton di PWAGeneratorService
-          const pwaGenerator = PWAGeneratorService.instance || new PWAGeneratorService();
-          await pwaGenerator.initialize(); // Assicurati che il servizio sia inizializzato
-          await pwaGenerator.generatePWAForApp(appId, app);
-        } catch (error) {
-          console.error('Errore generazione PWA automatica:', error);
-        }
-      });
+      // Removed PWA auto-generation - not needed
       
       // Carica apps
       console.log('📱 Caricamento apps...');
@@ -681,29 +663,7 @@ function AIdeasApp() {
     }
   };
 
-  const handleOpenAsPWA = async (appId) => {
-    try {
-      // Usa l'istanza singleton di AppRouteService
-      const appRouteService = AppRouteService.instance || new AppRouteService();
-      await appRouteService.openAppAsPWA(appId);
-      showToast('App aperta come PWA standalone', 'success');
-    } catch (error) {
-      console.error('Errore apertura PWA:', error);
-      showToast('Errore nell\'apertura dell\'app come PWA', 'error');
-    }
-  };
-
-  const handleInstallAsPWA = async (appId) => {
-    try {
-      // Usa l'istanza singleton di AppRouteService
-      const appRouteService = AppRouteService.instance || new AppRouteService();
-      await appRouteService.installAppAsPWA(appId);
-      showToast('App installata come PWA sul dispositivo', 'success');
-    } catch (error) {
-      console.error('Errore installazione PWA:', error);
-      showToast('Errore nell\'installazione dell\'app come PWA', 'error');
-    }
-  };
+  // Removed PWA handlers - functionality not implemented
 
   const handleAddApp = async (appData) => {
     try {
@@ -1165,31 +1125,7 @@ function AIdeasApp() {
             Avvia
           </Button>
           
-          {/* Pulsante "Apri come PWA" - solo per app non-URL */}
-          {app.type !== 'url' && (
-            <Button
-              variant="outlined"
-              startIcon={<OpenInNewIcon />}
-              onClick={() => handleOpenAsPWA(app.id)}
-              size="small"
-              title="Apri come PWA standalone"
-            >
-              PWA
-            </Button>
-          )}
-          
-          {/* Pulsante "Installa come PWA" - solo per app non-URL */}
-          {app.type !== 'url' && (
-            <Button
-              variant="outlined"
-              startIcon={<InstallMobileIcon />}
-              onClick={() => handleInstallAsPWA(app.id)}
-              size="small"
-              title="Installa come PWA sul dispositivo"
-            >
-              Installa
-            </Button>
-          )}
+          {/* Removed PWA buttons - functionality not implemented */}
         </Box>
         
         <Box>
@@ -1537,10 +1473,8 @@ function AIdeasApp() {
                   onToggleFavorite={handleToggleFavorite}
                   onEdit={setSelectedApp}
                   onDelete={handleDeleteApp}
-                  onShowMenu={() => {}}
+                                    onShowMenu={() => {}}
                   onShowInfo={handleShowAppInfo}
-                  onOpenPWA={handleOpenAsPWA}
-                  onInstallPWA={handleInstallAsPWA}
                 />
               </Box>
             ))}
