@@ -252,12 +252,17 @@ const SettingsMaterial = ({
 
       // Carica info Google Drive
       const googleService = new GoogleDriveService();
-      if (await googleService.isAuthenticated()) {
-        const userInfo = await googleService.getUserInfo();
-        setUserInfo(prev => ({
-          ...prev,
-          googledrive: userInfo
-        }));
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+      if (clientId) {
+        googleService.configure(clientId);
+        const isAuthenticated = await googleService.checkAuthentication();
+        if (isAuthenticated) {
+          const userInfo = googleService.getUserInfo();
+          setUserInfo(prev => ({
+            ...prev,
+            googledrive: userInfo
+          }));
+        }
       }
     } catch (error) {
       console.error('Errore caricamento info utente:', error);
@@ -298,8 +303,17 @@ const SettingsMaterial = ({
             }
             
             googleService.configure(clientId);
-            await googleService.authenticate();
-            showToast('Autenticazione Google avviata. Completa il processo nel browser.', 'info');
+            const isAuthenticated = await googleService.checkAuthentication();
+            if (!isAuthenticated) {
+              const result = await googleService.authenticate();
+              if (result.success) {
+                showToast('Autenticazione Google completata con successo!', 'success');
+                // Ricarica le info utente
+                await loadUserInfo();
+              }
+            } else {
+              showToast('Google Drive già autenticato', 'info');
+            }
           } catch (error) {
             console.error('Errore autenticazione Google:', error);
             showToast('Errore avvio autenticazione Google: ' + error.message, 'error');

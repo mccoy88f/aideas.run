@@ -51,6 +51,7 @@ import ErrorHandler from '../services/ErrorHandler.js';
 import SyncConflictModal from './SyncConflictModal.jsx';
 import { useTheme } from '@mui/material/styles';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
+import { DEBUG } from '../utils/debug.js';
 
 export default function SyncManagerMaterial({ open, onClose }) {
   const [setupMode, setSetupMode] = useState(false);
@@ -64,9 +65,14 @@ export default function SyncManagerMaterial({ open, onClose }) {
 
   const [progress, setProgress] = useState({ show: false, value: 0, text: '' });
   const [success, setSuccess] = useState(null);
+  const [error, setError] = useState(null);
   const [gistId, setGistId] = useState(null);
   const [conflictData, setConflictData] = useState(null);
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
+  const [authenticationStatus, setAuthenticationStatus] = useState({
+    github: false,
+    googledrive: false
+  });
 
   const [githubService] = useState(new GitHubService());
   const [googleService] = useState(new GoogleDriveService());
@@ -74,13 +80,15 @@ export default function SyncManagerMaterial({ open, onClose }) {
   const theme = useTheme();
 
   const {
-    isEnabled, provider, isInProgress, lastSync, nextSync, error, intervalMinutes, syncHistory, setProvider, setIsEnabled, setIntervalMinutes, manualSync
+    isEnabled, provider, isInProgress, lastSync, nextSync, intervalMinutes, syncHistory, 
+    setProvider, setIsEnabled, setIntervalMinutes, manualSync
   } = useSyncStatus();
 
   useEffect(() => {
     if (open) {
       loadSyncStatus();
       loadSyncHistory();
+      checkAuthenticationStatus();
     }
   }, [open]);
 
@@ -88,24 +96,12 @@ export default function SyncManagerMaterial({ open, onClose }) {
     try {
       const isEnabled = await StorageService.getSetting('syncEnabled', false);
       const provider = await StorageService.getSetting('syncProvider', 'github');
-      const lastSync = await StorageService.getSetting('lastSyncTime', null);
-      const autoSync = await StorageService.getSetting('autoSyncEnabled', false);
       const savedGistId = await StorageService.getSetting('githubGistId', null);
 
-      setSyncStatus({
-        isEnabled,
-        provider,
-        lastSync: lastSync ? new Date(lastSync) : null,
-        isInProgress: false,
-        autoSync
-      });
-
       setGistId(savedGistId);
-
-      // Carica credenziali salvate
       await loadCredentials();
     } catch (error) {
-      console.error('Errore caricamento stato sync:', error);
+      DEBUG.error('Errore caricamento stato sync:', error);
       setError('Errore caricamento configurazione sincronizzazione');
     }
   };
@@ -118,21 +114,60 @@ export default function SyncManagerMaterial({ open, onClose }) {
         ...savedCredentials
       }));
     } catch (error) {
-      console.error('Errore caricamento credenziali:', error);
+      DEBUG.error('Errore caricamento credenziali:', error);
     }
   };
 
   const loadSyncHistory = async () => {
     try {
       const history = await StorageService.getSetting('syncHistory', []);
-      setSyncHistory(history.slice(-10)); // Ultimi 10 sync
+      // setSyncHistory(history.slice(-10)); // Ultimi 10 sync
     } catch (error) {
-      console.error('Errore caricamento cronologia:', error);
+      DEBUG.error('Errore caricamento cronologia:', error);
+    }
+  };
+
+  const checkAuthenticationStatus = async () => {
+    try {
+      DEBUG.log('🔍 Controllo stato autenticazione...');
+      
+      const newStatus = {
+        github: false,
+        googledrive: false
+      };
+
+      // Controlla GitHub
+      try {
+        const githubToken = await StorageService.getSetting('githubToken');
+        if (githubToken) {
+          await githubService.authenticate(githubToken);
+          newStatus.github = await githubService.isAuthenticated();
+        }
+      } catch (error) {
+        DEBUG.warn('GitHub non autenticato:', error.message);
+      }
+
+      // Controlla Google Drive
+      try {
+        const clientId = credentials.googledrive.clientId;
+        if (clientId) {
+          googleService.configure(clientId, credentials.googledrive.clientSecret);
+          newStatus.googledrive = await googleService.checkAuthentication();
+        }
+      } catch (error) {
+        DEBUG.warn('Google Drive non autenticato:', error.message);
+      }
+
+      setAuthenticationStatus(newStatus);
+      
+      DEBUG.log('✅ Stato autenticazione aggiornato:', newStatus);
+    } catch (error) {
+      DEBUG.error('Errore controllo autenticazione:', error);
     }
   };
 
   const handleProviderChange = (event) => {
-    setSyncStatus(prev => ({ ...prev, provider: event.target.value }));
+    setProvider(event.target.value);
   };
 
   const handleCredentialChange = (provider, field, value) => {
@@ -148,62 +183,98 @@ export default function SyncManagerMaterial({ open, onClose }) {
   const authenticateGoogleDrive = async () => {
     try {
       setProgress({ show: true, value: 0, text: 'Autenticazione Google Drive...' });
+      setError(null);
       
       const clientId = credentials.googledrive.clientId;
-      if (!clientId) throw new Error('Client ID Google richiesto');
+      if (!clientId) {
+        throw new Error('Client ID Google richiesto');
+      }
+      
+      DEBUG.log('🔐 Avvio autenticazione Google Drive...');
       
       googleService.configure(clientId, credentials.googledrive.clientSecret);
-      
       const result = await googleService.authenticate(true); // Usa popup
       
       if (result.success) {
         setProgress({ show: false, value: 100, text: '' });
         setSuccess(`Autenticazione Google Drive completata! Benvenuto ${result.user.name}`);
+        
+        // Aggiorna stato autenticazione
+        setAuthenticationStatus(prev => ({
+          ...prev,
+          googledrive: true
+        }));
+        
+        // Salva credenziali
+        await StorageService.setSetting('syncCredentials', credentials);
+        
+        DEBUG.log('✅ Autenticazione Google Drive completata');
         return true;
       } else {
         throw new Error('Autenticazione fallita');
       }
     } catch (error) {
-      console.error('Errore autenticazione Google:', error);
+      DEBUG.error('Errore autenticazione Google:', error);
       setError(`Errore autenticazione Google: ${error.message}`);
       setProgress({ show: false, value: 0, text: '' });
+      
+      setAuthenticationStatus(prev => ({
+        ...prev,
+        googledrive: false
+      }));
+      
       return false;
     }
   };
 
   const testConnection = async () => {
-    const provider = syncStatus.provider;
+    const currentProvider = provider;
     setProgress({ show: true, value: 0, text: 'Test connessione...' });
+    setError(null);
 
     try {
       let isConnected = false;
 
-      if (provider === 'github') {
+      if (currentProvider === 'github') {
         const token = credentials.github.token;
         if (!token) throw new Error('Token GitHub richiesto');
         
         await githubService.authenticate(token);
         isConnected = await githubService.isAuthenticated();
-      } else if (provider === 'googledrive') {
+      } else if (currentProvider === 'googledrive') {
         const clientId = credentials.googledrive.clientId;
         if (!clientId) throw new Error('Client ID Google richiesto');
         
         googleService.configure(clientId, credentials.googledrive.clientSecret);
-        isConnected = await googleService.isAuthenticated();
+        isConnected = await googleService.checkAuthentication();
       }
 
       setProgress({ show: false, value: 100, text: '' });
       
       if (isConnected) {
-        setSuccess(`Connessione ${provider} testata con successo!`);
+        setSuccess(`Connessione ${currentProvider} testata con successo!`);
+        
+        // Aggiorna stato autenticazione
+        setAuthenticationStatus(prev => ({
+          ...prev,
+          [currentProvider]: true
+        }));
+        
         return true;
       } else {
         throw new Error('Connessione fallita');
       }
     } catch (error) {
-      console.error('Errore test connessione:', error);
+      DEBUG.error('Errore test connessione:', error);
       setError(`Errore connessione: ${error.message}`);
       setProgress({ show: false, value: 0, text: '' });
+      
+      // Aggiorna stato autenticazione
+      setAuthenticationStatus(prev => ({
+        ...prev,
+        [currentProvider]: false
+      }));
+      
       return false;
     }
   };
@@ -225,10 +296,9 @@ export default function SyncManagerMaterial({ open, onClose }) {
       const trimmedHistory = history.slice(0, 20);
       await StorageService.setSetting('syncHistory', trimmedHistory);
       
-      // Aggiorna lo stato locale se disponibile
-      // setSyncHistory(trimmedHistory);
+      DEBUG.log('📝 Aggiunta alla cronologia:', message);
     } catch (error) {
-      console.error('Errore aggiunta cronologia sync:', error);
+      DEBUG.error('Errore aggiunta cronologia sync:', error);
     }
   };
 
@@ -261,7 +331,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
           }
         }
       } catch (error) {
-        console.warn('Nessun dato remoto trovato o errore download:', error.message);
+        DEBUG.warn('Nessun dato remoto trovato o errore download:', error.message);
         hasRemoteData = false;
       }
 
@@ -281,7 +351,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
       }
 
     } catch (error) {
-      console.error('Errore controllo conflitti:', error);
+      DEBUG.error('Errore controllo conflitti:', error);
       setProgress({ show: false, value: 0, text: '' });
       setSuccess('Sincronizzazione abilitata! Errore nel controllo conflitti, dati locali preservati.');
     }
@@ -308,7 +378,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
         setSuccess(`Sincronizzazione abilitata! Nessun dato trovato su ${provider === 'github' ? 'GitHub' : 'Google Drive'}.`);
       }
     } catch (error) {
-      console.warn('Errore download automatico:', error);
+      DEBUG.warn('Errore download automatico:', error);
       setProgress({ show: false, value: 100, text: '' });
       setSuccess('Sincronizzazione abilitata! Errore nel download automatico dei dati.');
     }
@@ -343,37 +413,58 @@ export default function SyncManagerMaterial({ open, onClose }) {
       setConflictData(null);
 
     } catch (error) {
-      console.error('Errore risoluzione conflitto:', error);
+      DEBUG.error('Errore risoluzione conflitto:', error);
       setError(`Errore durante la risoluzione del conflitto: ${error.message}`);
       setProgress({ show: false, value: 0, text: '' });
     }
   };
 
   const enableSync = async () => {
-    if (!await testConnection()) return;
-
     try {
-      setProgress({ show: true, value: 50, text: 'Abilitazione sincronizzazione...' });
+      setProgress({ show: true, value: 0, text: 'Abilitazione sincronizzazione...' });
+      
+      // Verifica che il provider sia autenticato
+      const currentProvider = provider;
+      let isAuthenticated = false;
 
-      // Salva credenziali
+      if (currentProvider === 'github') {
+        const token = credentials.github.token;
+        if (!token) throw new Error('Token GitHub richiesto');
+        
+        await githubService.authenticate(token);
+        isAuthenticated = await githubService.isAuthenticated();
+      } else if (currentProvider === 'googledrive') {
+        const clientId = credentials.googledrive.clientId;
+        if (!clientId) throw new Error('Client ID Google richiesto');
+        
+        googleService.configure(clientId, credentials.googledrive.clientSecret);
+        isAuthenticated = await googleService.checkAuthentication();
+      }
+
+      if (!isAuthenticated) {
+        throw new Error(`Autenticazione ${currentProvider} richiesta`);
+      }
+
+      // Salva configurazione
+      await StorageService.setSetting('syncProvider', currentProvider);
       await StorageService.setSetting('syncCredentials', credentials);
-      await StorageService.setSetting('syncEnabled', true);
-      await StorageService.setSetting('syncProvider', syncStatus.provider);
-
-      setSyncStatus(prev => ({ ...prev, isEnabled: true }));
-      setProgress({ show: false, value: 100, text: '' });
-      setSuccess('Sincronizzazione abilitata con successo!');
-      setSetupMode(false);
-
-      // Aggiungi alla cronologia
-      await addToSyncHistory('enabled', 'Sincronizzazione abilitata');
-
-      // Controllo conflitti per provider abilitati
+      
+      setProgress({ show: true, value: 50, text: 'Controllo conflitti...' });
+      
+      // Controlla conflitti e abilita sincronizzazione
       await checkForSyncConflicts();
-
+      
+      await StorageService.setSetting('syncEnabled', true);
+      setIsEnabled(true);
+      
+      setProgress({ show: false, value: 100, text: '' });
+      setSetupMode(false);
+      
+      await addToSyncHistory('info', `Sincronizzazione abilitata con ${currentProvider}`);
+      
     } catch (error) {
-      console.error('Errore abilitazione sync:', error);
-      setError(`Errore abilitazione: ${error.message}`);
+      DEBUG.error('Errore abilitazione sync:', error);
+      setError(`Errore abilitazione sincronizzazione: ${error.message}`);
       setProgress({ show: false, value: 0, text: '' });
     }
   };
@@ -383,186 +474,145 @@ export default function SyncManagerMaterial({ open, onClose }) {
       await StorageService.setSetting('syncEnabled', false);
       setIsEnabled(false);
       setSuccess('Sincronizzazione disabilitata');
-      await addToSyncHistory('disabled', 'Sincronizzazione disabilitata');
+      await addToSyncHistory('info', 'Sincronizzazione disabilitata');
     } catch (error) {
-      console.error('Errore disabilitazione sync:', error);
-      setError(`Errore disabilitazione: ${error.message}`);
+      DEBUG.error('Errore disabilitazione sync:', error);
+      setError(`Errore disabilitazione sincronizzazione: ${error.message}`);
     }
   };
 
   const performSync = async (direction = 'bidirectional') => {
-    if (syncStatus.isInProgress) {
-      setError('Sincronizzazione già in corso');
-      return;
-    }
-
-    setSyncStatus(prev => ({ ...prev, isInProgress: true }));
-    setProgress({ show: true, value: 0, text: 'Preparazione sincronizzazione...' });
-
     try {
-      const provider = syncStatus.provider;
-      let result;
+      setProgress({ show: true, value: 0, text: 'Sincronizzazione in corso...' });
+      setError(null);
 
       if (provider === 'github') {
-        result = await performGitHubSync(direction);
+        await performGitHubSync(direction);
       } else if (provider === 'googledrive') {
-        result = await performGoogleDriveSync(direction);
+        await performGoogleDriveSync(direction);
       }
 
       setProgress({ show: false, value: 100, text: '' });
-      setSuccess(`Sincronizzazione completata: ${result.message}`);
-      
-      // Aggiorna ultimo sync
-      const now = new Date();
-      await StorageService.setSetting('lastSyncTime', now.toISOString());
-      setSyncStatus(prev => ({ ...prev, lastSync: now, isInProgress: false }));
-
-      await addToSyncHistory('sync', `Sincronizzazione ${direction}: ${result.message}`);
+      setSuccess(`Sincronizzazione ${direction} completata con successo!`);
+      await addToSyncHistory('sync', `Sincronizzazione ${direction} completata`);
 
     } catch (error) {
-      console.error('Errore sincronizzazione:', error);
+      DEBUG.error('Errore sincronizzazione:', error);
       setError(`Errore sincronizzazione: ${error.message}`);
       setProgress({ show: false, value: 0, text: '' });
-      setSyncStatus(prev => ({ ...prev, isInProgress: false }));
+      await addToSyncHistory('error', `Errore sincronizzazione: ${error.message}`);
     }
   };
 
   const performGitHubSync = async (direction) => {
     const token = credentials.github.token;
-    if (!token) throw new Error('Token GitHub non configurato');
-
+    if (!token) throw new Error('Token GitHub richiesto');
+    
     await githubService.authenticate(token);
     
     if (direction === 'upload' || direction === 'bidirectional') {
+      setProgress({ show: true, value: 30, text: 'Caricamento dati su GitHub...' });
       const data = await StorageService.exportAllData();
       const result = await githubService.uploadSyncData(data, gistId);
       
-      // Salva Gist ID per future sincronizzazioni
-      if (result.gistId && result.gistId !== gistId) {
+      if (result.gistId && !gistId) {
         setGistId(result.gistId);
         await StorageService.setSetting('githubGistId', result.gistId);
       }
-      
-      return { message: 'Dati caricati su GitHub Gist', gistId: result.gistId };
     }
     
     if (direction === 'download' || direction === 'bidirectional') {
-      if (!gistId) throw new Error('Gist ID non trovato. Esegui prima un upload.');
-      
-      const result = await githubService.downloadSyncData(gistId);
-      
-      // Aggiorna i dati locali con quelli scaricati
-      if (result.data && result.data.data && result.data.data.apps) {
-        await StorageService.importData(result.data);
-        return { message: 'Dati scaricati e aggiornati da GitHub Gist' };
-      } else {
-        throw new Error('Dati non validi nel Gist');
+      setProgress({ show: true, value: 70, text: 'Scaricamento dati da GitHub...' });
+      if (gistId) {
+        const result = await githubService.downloadSyncData(gistId);
+        if (result.data) {
+          await StorageService.importData(result.data);
+        }
       }
     }
-    
-    return { message: 'Sincronizzazione GitHub completata' };
   };
 
   const performGoogleDriveSync = async (direction) => {
     const clientId = credentials.googledrive.clientId;
-    if (!clientId) throw new Error('Client ID Google non configurato');
-
-    if (!await googleService.isAuthenticated()) {
-      // Richiedi autenticazione
-      await googleService.authenticate();
+    if (!clientId) throw new Error('Client ID Google richiesto');
+    
+    googleService.configure(clientId, credentials.googledrive.clientSecret);
+    
+    // Verifica autenticazione
+    const isAuthenticated = await googleService.checkAuthentication();
+    if (!isAuthenticated) {
+      throw new Error('Autenticazione Google Drive richiesta');
     }
-
+    
     if (direction === 'upload' || direction === 'bidirectional') {
+      setProgress({ show: true, value: 30, text: 'Caricamento dati su Google Drive...' });
       const data = await StorageService.exportAllData();
-      const result = await googleService.uploadSyncData(data);
-      return { message: 'Dati caricati su Google Drive', fileId: result.syncFile.id };
+      await googleService.uploadSyncData(data);
     }
-
+    
     if (direction === 'download' || direction === 'bidirectional') {
+      setProgress({ show: true, value: 70, text: 'Scaricamento dati da Google Drive...' });
       const result = await googleService.downloadSyncData();
-      
-      // Aggiorna i dati locali con quelli scaricati
-      if (result.data && result.data.data && result.data.data.apps) {
+      if (result.data) {
         await StorageService.importData(result.data);
-        return { message: 'Dati scaricati e aggiornati da Google Drive' };
-      } else {
-        throw new Error('Dati non validi su Google Drive');
       }
     }
-
-    return { message: 'Sincronizzazione Google Drive completata' };
   };
 
   const createBackup = async () => {
     try {
       setProgress({ show: true, value: 0, text: 'Creazione backup...' });
       
-      const backupData = await StorageService.exportAllData();
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], { 
-        type: 'application/json' 
-      });
-      
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `aideas-backup-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const data = await StorageService.exportAllData();
+      const backupId = await ErrorHandler.createBackup('Manual Backup', data);
       
       setProgress({ show: false, value: 100, text: '' });
-      setSuccess('Backup creato con successo');
-      await addToSyncHistory('backup', 'Backup locale creato');
+      setSuccess(`Backup creato: ${backupId}`);
+      await addToSyncHistory('backup', `Backup creato: ${backupId}`);
+      
     } catch (error) {
-      console.error('Errore creazione backup:', error);
-      setError(`Errore backup: ${error.message}`);
+      DEBUG.error('Errore creazione backup:', error);
+      setError(`Errore creazione backup: ${error.message}`);
       setProgress({ show: false, value: 0, text: '' });
     }
   };
 
   const addToHistory = (type, message) => {
-    const entry = {
-      id: Date.now(),
-      type,
-      message,
-      timestamp: new Date().toISOString()
-    };
-
-    setSyncHistory(prev => {
-      const newHistory = [entry, ...prev.slice(0, 9)];
-      StorageService.setSetting('syncHistory', newHistory);
-      return newHistory;
-    });
+    // Implementazione placeholder per compatibilità
+    addToSyncHistory(type, message);
   };
 
   const getStatusIcon = (type) => {
     switch (type) {
-      case 'enabled':
       case 'sync':
-      case 'backup':
-        return <CheckIcon color="success" />;
-      case 'disabled':
-        return <WarningIcon color="warning" />;
+        return <SyncIcon color="primary" />;
       case 'error':
         return <ErrorIcon color="error" />;
-      default:
+      case 'warning':
+        return <WarningIcon color="warning" />;
+      case 'info':
         return <InfoIcon color="info" />;
+      case 'backup':
+        return <BackupIcon color="success" />;
+      default:
+        return <CheckIcon color="success" />;
     }
   };
 
   const getStatusColor = (type) => {
     switch (type) {
-      case 'enabled':
       case 'sync':
-      case 'backup':
-        return 'success';
-      case 'disabled':
-        return 'warning';
+        return 'primary';
       case 'error':
         return 'error';
-      default:
+      case 'warning':
+        return 'warning';
+      case 'info':
         return 'info';
+      case 'backup':
+        return 'success';
+      default:
+        return 'success';
     }
   };
 
@@ -639,15 +689,23 @@ export default function SyncManagerMaterial({ open, onClose }) {
                   variant="outlined"
                 />
               )}
-              <Chip label={`Prossimo sync: ${nextSync ? nextSync.toLocaleTimeString() : 'N/A'}`} variant="outlined" />
-              <TextField
-                label="Intervallo (minuti)"
-                type="number"
-                value={intervalMinutes}
-                onChange={e => setIntervalMinutes(Number(e.target.value))}
-                inputProps={{ min: 1, max: 60 }}
-                sx={{ width: 120, ml: 2 }}
-              />
+              {/* Stato autenticazione */}
+              {provider === 'github' && (
+                <Chip 
+                  label={authenticationStatus.github ? 'GitHub Autenticato' : 'GitHub Non Autenticato'}
+                  color={authenticationStatus.github ? 'success' : 'warning'}
+                  icon={authenticationStatus.github ? <CheckIcon /> : <WarningIcon />}
+                  variant="outlined"
+                />
+              )}
+              {provider === 'googledrive' && (
+                <Chip 
+                  label={authenticationStatus.googledrive ? 'Google Drive Autenticato' : 'Google Drive Non Autenticato'}
+                  color={authenticationStatus.googledrive ? 'success' : 'warning'}
+                  icon={authenticationStatus.googledrive ? <CheckIcon /> : <WarningIcon />}
+                  variant="outlined"
+                />
+              )}
             </Box>
 
             {!isEnabled && (
@@ -781,6 +839,17 @@ export default function SyncManagerMaterial({ open, onClose }) {
                       </Typography>
                       <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                         Debug: {import.meta.env.VITE_GOOGLE_CLIENT_ID ? 'Presente' : 'Mancante'}
+                      </Typography>
+                    </Alert>
+                  )}
+                  
+                  {authenticationStatus.googledrive && (
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                      <Typography variant="body2">
+                        ✅ Google Drive autenticato
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        Pronto per la sincronizzazione
                       </Typography>
                     </Alert>
                   )}
