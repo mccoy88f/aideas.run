@@ -741,6 +741,58 @@ export default class GoogleDriveService {
   }
 
   /**
+   * Sincronizzazione bidirezionale con Google Drive
+   */
+  async syncBidirectional() {
+    try {
+      DEBUG.log('🔄 Avvio sincronizzazione bidirezionale Google Drive...');
+      
+      if (!this.isAuthenticated) {
+        throw new Error('Non autenticato con Google Drive');
+      }
+
+      // 1. Scarica dati remoti
+      const remoteData = await this.downloadSyncData();
+      
+      // 2. Ottieni dati locali
+      const StorageService = (await import('../services/StorageService.js')).default;
+      const localData = await StorageService.exportData();
+      
+      // 3. Determina quale sia più recente
+      let finalData = localData;
+      let syncMessage = 'Dati locali caricati su Google Drive';
+      
+      if (remoteData && remoteData.data && remoteData.lastModified) {
+        const remoteDate = new Date(remoteData.lastModified);
+        const localDate = new Date(localData.exportedAt || 0);
+        
+        if (remoteDate > localDate) {
+          // Dati remoti più recenti - importa
+          await StorageService.importData(remoteData.data);
+          finalData = remoteData.data;
+          syncMessage = 'Dati più recenti scaricati da Google Drive';
+        }
+      }
+      
+      // 4. Carica la versione finale su Google Drive
+      await this.uploadSyncData(finalData);
+      
+      DEBUG.log('✅ Sincronizzazione bidirezionale completata');
+      
+      return {
+        success: true,
+        message: syncMessage,
+        syncedAt: new Date().toISOString(),
+        apps: finalData.apps?.length || 0
+      };
+
+    } catch (error) {
+      DEBUG.error('❌ Errore sincronizzazione bidirezionale Google Drive:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Genera stringa random
    */
   generateRandomString(length) {

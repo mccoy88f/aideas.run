@@ -193,11 +193,38 @@ export default function SyncManagerMaterial({ open, onClose }) {
       DEBUG.log('🔐 Avvio autenticazione Google Drive...');
       
       googleService.configure(clientId, credentials.googledrive.clientSecret);
+      
+      // Prova prima a verificare se è già autenticato
+      const alreadyAuthenticated = await googleService.checkAuthentication();
+      if (alreadyAuthenticated) {
+        const userInfo = googleService.getUserInfo();
+        setProgress({ show: false, value: 100, text: '' });
+        setSuccess(`Google Drive già autenticato! Benvenuto ${userInfo?.name || 'Utente'}`);
+        
+        setAuthenticationStatus(prev => ({
+          ...prev,
+          googledrive: true
+        }));
+        
+        return true;
+      }
+      
+      // Avvia autenticazione con popup migliorato
+      setProgress({ show: true, value: 25, text: 'Apertura finestra autenticazione...' });
+      
       const result = await googleService.authenticate(true); // Usa popup
       
       if (result.success) {
+        setProgress({ show: true, value: 75, text: 'Completamento autenticazione...' });
+        
+        // Verifica che l'autenticazione sia effettivamente completata
+        const verified = await googleService.checkAuthentication();
+        if (!verified) {
+          throw new Error('Verifica autenticazione fallita');
+        }
+        
         setProgress({ show: false, value: 100, text: '' });
-        setSuccess(`Autenticazione Google Drive completata! Benvenuto ${result.user.name}`);
+        setSuccess(`Autenticazione Google Drive completata! Benvenuto ${result.user?.name || 'Utente'}`);
         
         // Aggiorna stato autenticazione
         setAuthenticationStatus(prev => ({
@@ -208,20 +235,36 @@ export default function SyncManagerMaterial({ open, onClose }) {
         // Salva credenziali
         await StorageService.setSetting('syncCredentials', credentials);
         
+        await addToSyncHistory('info', `Autenticazione Google Drive completata per ${result.user?.name || 'Utente'}`);
+        
         DEBUG.log('✅ Autenticazione Google Drive completata');
         return true;
+      } else if (result.pending) {
+        setProgress({ show: false, value: 100, text: '' });
+        setSuccess('Autenticazione in corso... Controlla la finestra del browser.');
+        return false;
       } else {
-        throw new Error('Autenticazione fallita');
+        throw new Error('Autenticazione fallita o annullata');
       }
     } catch (error) {
       DEBUG.error('Errore autenticazione Google:', error);
-      setError(`Errore autenticazione Google: ${error.message}`);
+      
+      let errorMessage = error.message;
+      if (errorMessage.includes('Popup bloccato')) {
+        errorMessage = 'Popup bloccato dal browser. Abilita i popup per questo sito e riprova.';
+      } else if (errorMessage.includes('annullata dall\'utente')) {
+        errorMessage = 'Autenticazione annullata dall\'utente.';
+      }
+      
+      setError(`Errore autenticazione Google Drive: ${errorMessage}`);
       setProgress({ show: false, value: 0, text: '' });
       
       setAuthenticationStatus(prev => ({
         ...prev,
         googledrive: false
       }));
+      
+      await addToSyncHistory('error', `Errore autenticazione Google Drive: ${errorMessage}`);
       
       return false;
     }
@@ -448,17 +491,12 @@ export default function SyncManagerMaterial({ open, onClose }) {
       // Salva configurazione
       await StorageService.setSetting('syncProvider', currentProvider);
       await StorageService.setSetting('syncCredentials', credentials);
-      
-      setProgress({ show: true, value: 50, text: 'Controllo conflitti...' });
-      
-      // Controlla conflitti e abilita sincronizzazione
-      await checkForSyncConflicts();
-      
       await StorageService.setSetting('syncEnabled', true);
       setIsEnabled(true);
       
       setProgress({ show: false, value: 100, text: '' });
       setSetupMode(false);
+      setSuccess(`Sincronizzazione abilitata con ${currentProvider}! Usa i pulsanti sotto per sincronizzare manualmente.`);
       
       await addToSyncHistory('info', `Sincronizzazione abilitata con ${currentProvider}`);
       
@@ -486,14 +524,34 @@ export default function SyncManagerMaterial({ open, onClose }) {
       setProgress({ show: true, value: 0, text: 'Sincronizzazione in corso...' });
       setError(null);
 
-      if (provider === 'github') {
-        await performGitHubSync(direction);
-      } else if (provider === 'googledrive') {
-        await performGoogleDriveSync(direction);
+      let result;
+      
+      if (direction === 'bidirectional') {
+        // Usa il nuovo metodo syncBidirectional per sincronizzazione intelligente
+        if (provider === 'github') {
+          await githubService.authenticate(credentials.github.token);
+          result = await githubService.syncBidirectional();
+        } else if (provider === 'googledrive') {
+          googleService.configure(credentials.googledrive.clientId, credentials.googledrive.clientSecret);
+          result = await googleService.syncBidirectional();
+        }
+      } else {
+        // Usa i metodi individuali per upload/download
+        if (provider === 'github') {
+          await performGitHubSync(direction);
+        } else if (provider === 'googledrive') {
+          await performGoogleDriveSync(direction);
+        }
       }
 
       setProgress({ show: false, value: 100, text: '' });
-      setSuccess(`Sincronizzazione ${direction} completata con successo!`);
+      
+      if (result && result.message) {
+        setSuccess(result.message);
+      } else {
+        setSuccess(`Sincronizzazione ${direction} completata con successo!`);
+      }
+      
       await addToSyncHistory('sync', `Sincronizzazione ${direction} completata`);
 
     } catch (error) {
@@ -905,56 +963,125 @@ export default function SyncManagerMaterial({ open, onClose }) {
                 Azioni Sincronizzazione
               </Typography>
               
-              {provider === 'github' && gistId && (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  <Typography variant="body2">
-                    📋 Sincronizzazione con Gist: {gistId}
-                  </Typography>
-                </Alert>
-              )}
-              
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                <Button
-                  variant="contained"
-                  startIcon={<SyncIcon />}
-                  onClick={() => performSync('bidirectional')}
-                  disabled={isInProgress}
-                >
-                  Sincronizza Ora
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<UploadIcon />}
-                  onClick={() => performSync('upload')}
-                  disabled={isInProgress}
-                >
-                  Solo Upload
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<DownloadIcon />}
-                  onClick={() => performSync('download')}
-                  disabled={isInProgress}
-                >
-                  Solo Download
-                </Button>
+              {/* Stato Connessione */}
+              <Box sx={{ mb: 2 }}>
+                {provider === 'github' && (
+                  <>
+                    <Chip 
+                      label={authenticationStatus.github ? 'GitHub Connesso' : 'GitHub Non Connesso'}
+                      color={authenticationStatus.github ? 'success' : 'error'}
+                      icon={authenticationStatus.github ? <CheckIcon /> : <WarningIcon />}
+                      variant="outlined"
+                      size="small"
+                      sx={{ mr: 1 }}
+                    />
+                    {gistId && (
+                      <Chip 
+                        label={`Gist: ${gistId.substring(0, 8)}...`}
+                        color="info"
+                        variant="outlined"
+                        size="small"
+                      />
+                    )}
+                  </>
+                )}
+                {provider === 'googledrive' && (
+                  <Chip 
+                    label={authenticationStatus.googledrive ? 'Google Drive Connesso' : 'Google Drive Non Connesso'}
+                    color={authenticationStatus.googledrive ? 'success' : 'error'}
+                    icon={authenticationStatus.googledrive ? <CheckIcon /> : <WarningIcon />}
+                    variant="outlined"
+                    size="small"
+                  />
+                )}
               </Box>
 
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  startIcon={<BackupIcon />}
-                  onClick={createBackup}
-                >
-                  Crea Backup
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<RestoreIcon />}
-                  onClick={() => {/* TODO: Implementa ripristino */}}
-                >
-                  Ripristina Backup
-                </Button>
+              {/* Mostrar azioni solo se autenticato */}
+              {((provider === 'github' && authenticationStatus.github) || 
+                (provider === 'googledrive' && authenticationStatus.googledrive)) ? (
+                <>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <Typography variant="body2">
+                      🔄 <strong>Sincronizzazione Intelligente:</strong> La sincronizzazione bidirezionale confronta automaticamente i dati locali e remoti, mantenendo la versione più recente.
+                    </Typography>
+                  </Alert>
+                  
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      startIcon={<SyncIcon />}
+                      onClick={() => performSync('bidirectional')}
+                      disabled={isInProgress}
+                      sx={{ 
+                        minWidth: 200,
+                        background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)'
+                      }}
+                    >
+                      Sincronizzazione Intelligente
+                    </Button>
+                  </Box>
+                  
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Azioni Avanzate:
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<UploadIcon />}
+                      onClick={() => performSync('upload')}
+                      disabled={isInProgress}
+                    >
+                      Solo Upload
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<DownloadIcon />}
+                      onClick={() => performSync('download')}
+                      disabled={isInProgress}
+                    >
+                      Solo Download
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<BackupIcon />}
+                      onClick={createBackup}
+                    >
+                      Crea Backup
+                    </Button>
+                  </Box>
+                </>
+              ) : (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    ⚠️ <strong>Connessione Richiesta:</strong> Devi prima autenticarti con {provider === 'github' ? 'GitHub' : 'Google Drive'} per utilizzare la sincronizzazione.
+                  </Typography>
+                  <Box sx={{ mt: 2 }}>
+                    {provider === 'github' ? (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => setSetupMode(true)}
+                        startIcon={<GitHubIcon />}
+                      >
+                        Configura GitHub
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={authenticateGoogleDrive}
+                        disabled={!credentials.googledrive.clientId}
+                        startIcon={<GoogleIcon />}
+                      >
+                        Autentica Google Drive
+                      </Button>
+                    )}
+                  </Box>
+                </Alert>
+              )}
+
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
                 <Button
                   variant="outlined"
                   color="warning"
