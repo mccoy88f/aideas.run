@@ -660,7 +660,7 @@ export default class GoogleDriveService {
 
     }, {
       operationName: 'Download sincronizzazione Google Drive',
-      retryStrategy: 'EXPONENTIAL_BACKOFF',
+      retryStrategy: 'NETWORK_ERROR',
       maxRetries: 3,
       timeout: 30000
     });
@@ -751,7 +751,7 @@ export default class GoogleDriveService {
 
     }, {
       operationName: 'Upload sincronizzazione Google Drive',
-      retryStrategy: 'EXPONENTIAL_BACKOFF',
+      retryStrategy: 'NETWORK_ERROR',
       maxRetries: 3,
       timeout: 60000
     });

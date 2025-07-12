@@ -985,7 +985,7 @@ const SettingsMaterial = ({
               )}
               {cloudSyncConfig.selectedProvider === 'googledrive' && userInfo.googledrive && (
                 <Typography variant="body2">
-                  👤 <strong>Connesso come:</strong> {userInfo.googledrive.emailAddress} ({userInfo.googledrive.displayName})
+                  👤 <strong>Connesso come:</strong> {userInfo.googledrive.email} ({userInfo.googledrive.name || userInfo.googledrive.given_name || 'Google User'})
                 </Typography>
               )}
             </Alert>

@@ -34,7 +34,16 @@ export function useSyncStatus() {
   useEffect(() => {
     (async () => {
       setIsEnabled(await StorageService.getSetting('syncEnabled', false));
-      setProvider(await StorageService.getSetting('syncProvider', 'github'));
+      
+      // Correggi provider obsoleto "gist" -> "googledrive"
+      let syncProvider = await StorageService.getSetting('syncProvider', 'github');
+      if (syncProvider === 'gist') {
+        console.log('🔧 Correzione provider obsoleto: gist -> googledrive');
+        syncProvider = 'googledrive';
+        await StorageService.setSetting('syncProvider', 'googledrive');
+      }
+      setProvider(syncProvider);
+      
       setLastSync(await StorageService.getSetting('lastSyncTime', null));
       setIntervalMinutes(await StorageService.getSetting('autoSyncInterval', DEFAULT_INTERVAL));
       setSyncHistory(await StorageService.getSetting('syncHistory', []));
