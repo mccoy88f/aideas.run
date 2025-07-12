@@ -972,7 +972,17 @@ export default class GoogleDriveService {
         DEBUG.warn('⚠️ Errore download dati remoti:', downloadError.message);
         
         // Verifica che downloadError.message esista prima di usare includes()
-        const errorMessage = downloadError.message || downloadError.toString() || 'Errore sconosciuto';
+        // Gestisce anche errori strutturati dall'ErrorHandler
+        let errorMessage = downloadError.message || downloadError.toString() || 'Errore sconosciuto';
+        
+        // Se è un errore strutturato dall'ErrorHandler, prova a estrarre il messaggio tecnico
+        if (downloadError.technicalMessage) {
+          errorMessage = downloadError.technicalMessage;
+        } else if (downloadError.originalError && downloadError.originalError.message) {
+          errorMessage = downloadError.originalError.message;
+        }
+        
+        DEBUG.log('🔍 Messaggio errore estratto:', errorMessage);
         
         // Gestione errori specifici
         if (errorMessage.includes('File di sincronizzazione non trovato')) {
@@ -992,6 +1002,7 @@ export default class GoogleDriveService {
           } else {
             DEBUG.log('📤 Recupero fallito - ricreazione file con dati locali');
             syncMessage = 'File corrotto sostituito con dati locali';
+            // Non imposta remoteData, quindi userà i dati locali
           }
           
         } else {
