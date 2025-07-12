@@ -474,15 +474,4 @@ export const darkTheme = createTheme({
   },
 });
 
-// Hook per gestire il tema
-export const useThemeMode = () => {
-  const [mode, setMode] = React.useState('light');
-
-  const toggleTheme = () => {
-    setMode(prevMode => prevMode === 'light' ? 'dark' : 'light');
-  };
-
-  const theme = mode === 'light' ? lightTheme : darkTheme;
-
-  return { theme, mode, toggleTheme };
-}; 
+// Theme definitions exported for use in ThemeProvider 

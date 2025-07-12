@@ -2,7 +2,7 @@
   "name": "aideas-run",
   "version": "1.0.0",
   "description": "AIdeas - Run your AIdeas - PWA Launcher per applicazioni web client-side",
-  "main": "src/main.js",
+  "main": "src/ui-loader.js",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:proxy\" \"npm run dev:vite\"",
