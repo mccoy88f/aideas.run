@@ -146,37 +146,9 @@ class AppRouteService {
                 }
             }
 
-            // Modifica l'HTML principale per usare i blob URLs (esattamente come nel basecode originale)
+            // Sostituisci tutti i riferimenti relativi con blob URLs (esattamente come nel basecode originale)
             let indexHtml = appData.files['index.html'];
             let replacementCount = 0;
-            
-            // PULIZIA HTML: Rimuovi elementi di AIdeas che causano conflitti
-            console.log('🧹 Pulizia HTML per nuova finestra...');
-            
-            // Rimuovi service worker registration
-            indexHtml = indexHtml.replace(/<script[^>]*>[\s\S]*?navigator\.serviceWorker[\s\S]*?<\/script>/gi, '');
-            indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?;/g, '');
-            
-            // Rimuovi riferimenti al manifest di AIdeas
-            indexHtml = indexHtml.replace(/<link[^>]*rel=["']manifest["'][^>]*>/gi, '');
-            
-            // Rimuovi meta tag PWA di AIdeas
-            indexHtml = indexHtml.replace(/<meta[^>]*name=["']theme-color["'][^>]*>/gi, '');
-            indexHtml = indexHtml.replace(/<meta[^>]*name=["']apple-mobile-web-app[^"']*["'][^>]*>/gi, '');
-            indexHtml = indexHtml.replace(/<meta[^>]*name=["']mobile-web-app-capable["'][^>]*>/gi, '');
-            
-            // Rimuovi script di inizializzazione UI di AIdeas
-            indexHtml = indexHtml.replace(/<script[^>]*src=["'][^"']*ui-loader[^"']*["'][^>]*><\/script>/gi, '');
-            indexHtml = indexHtml.replace(/<script[^>]*>[\s\S]*?initializeAIdeas[\s\S]*?<\/script>/gi, '');
-            
-            // Rimuovi elementi della barra dell'app di AIdeas
-            indexHtml = indexHtml.replace(/<div[^>]*class=["'][^"']*app-container[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, '');
-            indexHtml = indexHtml.replace(/<nav[^>]*class=["'][^"']*navbar[^"']*["'][^>]*>[\s\S]*?<\/nav>/gi, '');
-            indexHtml = indexHtml.replace(/<header[^>]*class=["'][^"']*header[^"']*["'][^>]*>[\s\S]*?<\/header>/gi, '');
-            
-            console.log('✅ HTML pulito dai riferimenti di AIdeas');
-            
-            // Sostituisci tutti i riferimenti relativi con blob URLs
             for (const [filename, blobUrl] of Object.entries(blobUrls)) {
                 if (filename !== 'index.html') {
                     // Usa gli stessi pattern del basecode originale
