@@ -34,11 +34,7 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  Divider
+  CircularProgress
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -66,10 +62,6 @@ import {
 } from '@mui/icons-material';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
 import GitHubService from '../services/GitHubService.js';
-import {
-  GitHub as GitHubIcon,
-  CloudSync as CloudSyncIcon
-} from 'react-feather';
 
 /**
  * Componente Settings Material UI con aspetto glossy
