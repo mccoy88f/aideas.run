@@ -655,6 +655,15 @@ export default function SyncManagerMaterial({ open, onClose }) {
 
       let result;
 
+      if (resolution === 'cancel') {
+        // Prima sincronizzazione: mantieni solo locale, non sincronizzare
+        setProgress({ show: false, value: 100, text: '' });
+        setSuccess('Sincronizzazione annullata. I dati rimangono solo locali.');
+        setConflictData(null);
+        await addToSyncHistory('info', 'Prima sincronizzazione annullata: dati mantenuti solo locali');
+        return;
+      }
+
       if (resolution === 'local') {
         // Usa dati locali
         setProgress({ show: true, value: 50, text: 'Caricamento dati locali...' });

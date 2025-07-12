@@ -986,8 +986,28 @@ export default class GoogleDriveService {
         
         // Gestione errori specifici
         if (errorMessage.includes('File di sincronizzazione non trovato')) {
-          DEBUG.log('📤 Primo sync - caricamento dati locali');
-          syncMessage = 'Primo sync: dati locali caricati su Google Drive';
+          DEBUG.log('📤 Prima sincronizzazione rilevata');
+          
+          // Se ci sono dati locali e questa è la prima sincronizzazione, interroga l'utente
+          const localApps = localData.apps?.length || 0;
+          if (localApps > 0) {
+            DEBUG.log('⚠️ Prima sincronizzazione con dati locali esistenti - richiesta conferma utente');
+            
+            // Forza la modalità 'ask' per interrogare l'utente
+            if (conflictResolution === 'auto') {
+              return {
+                conflict: true,
+                isFirstSync: true,
+                localData: localData,
+                remoteData: null,
+                localTimestamp: localData.timestamp,
+                remoteTimestamp: null,
+                message: 'Prima sincronizzazione: scegli se caricare i dati locali su Google Drive o mantenere vuoto il cloud'
+              };
+            }
+          }
+          
+          syncMessage = 'Prima sincronizzazione: dati locali caricati su Google Drive';
           
         } else if (errorMessage.includes('vuoto') || errorMessage.includes('corrotto')) {
           DEBUG.warn('🔧 File corrotto rilevato - tentativo di recupero');
@@ -1017,6 +1037,8 @@ export default class GoogleDriveService {
       if (remoteData) {
         const localTimestamp = localData.timestamp ? new Date(localData.timestamp).getTime() : 0;
         const remoteTimestamp = remoteData.timestamp ? new Date(remoteData.timestamp).getTime() : 0;
+        const localApps = localData.apps?.length || 0;
+        const remoteApps = remoteData.apps?.length || 0;
 
         // Rileva conflitti (differenza significativa nei dati)
         const hasConflict = this.detectSyncConflict(localData, remoteData);
@@ -1032,10 +1054,36 @@ export default class GoogleDriveService {
           };
         }
 
-        // Risoluzione automatica o forzata
-        if (conflictResolution === 'remote' || 
-           (conflictResolution === 'auto' && remoteTimestamp > localTimestamp)) {
-          DEBUG.log('📥 Dati remoti più recenti - download');
+        // Logica di risoluzione migliorata
+        let useRemoteData = false;
+        
+        if (conflictResolution === 'remote') {
+          useRemoteData = true;
+        } else if (conflictResolution === 'local') {
+          useRemoteData = false;
+        } else if (conflictResolution === 'auto') {
+          // Logica intelligente per nuove sessioni
+          if (localApps === 0 && remoteApps > 0) {
+            // Database locale vuoto e remoto ha dati -> usa remoto
+            useRemoteData = true;
+            DEBUG.log('🔄 Database locale vuoto, ripristino da remoto');
+          } else if (localApps > 0 && remoteApps === 0) {
+            // Database locale ha dati e remoto è vuoto -> usa locale
+            useRemoteData = false;
+            DEBUG.log('🔄 Database remoto vuoto, caricamento dati locali');
+          } else if (Math.abs(localApps - remoteApps) > 5) {
+            // Grande differenza nel numero di app -> usa quello con più dati
+            useRemoteData = remoteApps > localApps;
+            DEBUG.log(`🔄 Grande differenza nel numero di app (${localApps} vs ${remoteApps}), uso quello con più dati`);
+          } else {
+            // Usa timestamp solo se entrambi hanno dati significativi
+            useRemoteData = remoteTimestamp > localTimestamp;
+            DEBUG.log(`🔄 Confronto timestamp: locale=${new Date(localTimestamp).toISOString()}, remoto=${new Date(remoteTimestamp).toISOString()}`);
+          }
+        }
+
+        if (useRemoteData) {
+          DEBUG.log('📥 Uso dati remoti');
           finalData = remoteData;
           syncMessage = syncMessage || 'Dati scaricati da Google Drive';
           
@@ -1043,7 +1091,7 @@ export default class GoogleDriveService {
           await StorageService.importBackupData(finalData);
           
         } else {
-          DEBUG.log('📤 Dati locali più recenti - upload');
+          DEBUG.log('📤 Uso dati locali');
           finalData = localData;
           syncMessage = syncMessage || 'Dati caricati su Google Drive';
         }

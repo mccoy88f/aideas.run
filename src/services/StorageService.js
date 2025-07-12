@@ -118,6 +118,9 @@ class StorageService {
         }));
       }
 
+      // Aggiorna timestamp di ultima modifica
+      await this.setSetting('lastDataModification', new Date().toISOString());
+
       // Registra evento sync
       try {
         await this.addSyncEvent('app_installed', { appId, app });
@@ -234,6 +237,10 @@ class StorageService {
   async updateApp(appId, updates) {
     try {
       await this.db.apps.update(appId, updates);
+      
+      // Aggiorna timestamp di ultima modifica
+      await this.setSetting('lastDataModification', new Date().toISOString());
+      
       await this.addSyncEvent('app_updated', { appId, updates });
       return true;
     } catch (error) {
@@ -337,6 +344,9 @@ class StorageService {
         await this.db.apps.delete(appId);
         await this.db.appFiles.where('appId').equals(appId).delete();
       });
+
+      // Aggiorna timestamp di ultima modifica
+      await this.setSetting('lastDataModification', new Date().toISOString());
 
       await this.addSyncEvent('app_deleted', { appId });
       return true;
@@ -637,11 +647,19 @@ class StorageService {
         });
       });
 
+      // Usa timestamp persistente per evitare che i dati locali sembrino sempre più recenti
+      let persistentTimestamp = await this.getSetting('lastDataModification');
+      if (!persistentTimestamp) {
+        // Prima volta: usa timestamp corrente
+        persistentTimestamp = new Date().toISOString();
+        await this.setSetting('lastDataModification', persistentTimestamp);
+      }
+
       return {
         settings: settings,
         apps: apps,
         appFiles: appFiles, // Aggiungi i file delle app
-        timestamp: new Date().toISOString(),
+        timestamp: persistentTimestamp,
         version: '1.0.0'
       };
     } catch (error) {
