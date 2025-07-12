@@ -150,19 +150,25 @@ class AppRouteService {
             let indexHtml = appData.files['index.html'];
             let replacementCount = 0;
             
-            // Rimuovi SOLO i riferimenti tecnici che causano errori nella nuova finestra
-            // ma mantieni tutta l'interfaccia dell'app originale
-            console.log('🧹 Rimozione riferimenti tecnici problematici...');
+            // Rimuovi il wrapper PWA e recupera solo l'HTML originale dell'app
+            console.log('🧹 Rimozione wrapper PWA e recupero HTML originale...');
             
-            // Rimuovi solo service worker registration che causa errori
-            indexHtml = indexHtml.replace(/<script[^>]*>[\s\S]*?navigator\.serviceWorker[\s\S]*?<\/script>/gi, '');
-            indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?catch\([^)]*\)\s*;/g, '');
-            indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?}\s*;/g, '');
+            // Se l'HTML contiene il wrapper PWA, estrai solo il contenuto originale
+            const appHeaderMatch = indexHtml.match(/<div id="app-header">[\s\S]*?<\/div>/);
+            const appContentMatch = indexHtml.match(/<div id="app-content">([\s\S]*?)<\/div>/);
             
-            // Rimuovi solo manifest.json che causa 404
-            indexHtml = indexHtml.replace(/<link[^>]*rel=["']manifest["'][^>]*>/gi, '');
-            
-            console.log('✅ Riferimenti tecnici rimossi');
+            if (appHeaderMatch && appContentMatch) {
+                // Estrai solo il contenuto originale dell'app dal wrapper PWA
+                indexHtml = appContentMatch[1];
+                console.log('✅ Estratto HTML originale dal wrapper PWA');
+            } else {
+                // Se non c'è il wrapper PWA, rimuovi solo i riferimenti tecnici problematici
+                indexHtml = indexHtml.replace(/<script[^>]*>[\s\S]*?navigator\.serviceWorker[\s\S]*?<\/script>/gi, '');
+                indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?catch\([^)]*\)\s*;/g, '');
+                indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?}\s*;/g, '');
+                indexHtml = indexHtml.replace(/<link[^>]*rel=["']manifest["'][^>]*>/gi, '');
+                console.log('✅ Riferimenti tecnici rimossi da HTML originale');
+            }
             for (const [filename, blobUrl] of Object.entries(blobUrls)) {
                 if (filename !== 'index.html') {
                     // Usa gli stessi pattern del basecode originale
