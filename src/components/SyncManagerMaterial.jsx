@@ -75,7 +75,14 @@ export default function SyncManagerMaterial({ open, onClose }) {
   });
 
   const [githubService] = useState(new GitHubService());
-  const [googleService] = useState(new GoogleDriveService());
+  const [googleService] = useState(() => {
+    try {
+      return GoogleDriveService.createConfiguredInstance();
+    } catch (error) {
+      console.warn('Google Drive non configurato:', error.message);
+      return new GoogleDriveService(); // Istanza non configurata come fallback
+    }
+  });
 
   const theme = useTheme();
 
@@ -147,13 +154,10 @@ export default function SyncManagerMaterial({ open, onClose }) {
         DEBUG.warn('GitHub non autenticato:', error.message);
       }
 
-      // Controlla Google Drive (senza client_secret)
+      // Controlla Google Drive 
       try {
-        const clientId = credentials.googledrive.clientId;
-        if (clientId) {
-          googleService.configure(clientId); // Solo clientId per app web pubbliche
-          newStatus.googledrive = await googleService.checkAuthentication();
-        }
+        // Il servizio è già configurato tramite createConfiguredInstance
+        newStatus.googledrive = await googleService.checkAuthentication();
       } catch (error) {
         DEBUG.warn('Google Drive non autenticato:', error.message);
       }
@@ -185,14 +189,9 @@ export default function SyncManagerMaterial({ open, onClose }) {
       setProgress({ show: true, value: 0, text: 'Autenticazione Google Drive...' });
       setError(null);
       
-      const clientId = credentials.googledrive.clientId;
-      if (!clientId) {
-        throw new Error('Client ID Google richiesto');
-      }
-      
       DEBUG.log('🔐 Avvio autenticazione Google Drive...');
       
-      googleService.configure(clientId); // Solo clientId per app web pubbliche
+      // Il servizio è già configurato tramite createConfiguredInstance
       
       // Prova prima a verificare se è già autenticato
       const alreadyAuthenticated = await googleService.checkAuthentication();

@@ -36,7 +36,39 @@ export default class GoogleDriveService {
       'https://www.googleapis.com/auth/userinfo.profile'
     ];
 
+    // Debug variabili d'ambiente
     DEBUG.log('🔧 GoogleDriveService inizializzato (versione web pubblica)');
+    DEBUG.log('📋 Debug variabili d\'ambiente:', {
+      hasClientId: !!import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      hasClientSecret: !!import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
+      clientIdStart: import.meta.env.VITE_GOOGLE_CLIENT_ID?.substring(0, 10) || 'MANCANTE',
+      clientSecretStart: import.meta.env.VITE_GOOGLE_CLIENT_SECRET?.substring(0, 10) || 'MANCANTE',
+      origin: window.location.origin,
+      env: import.meta.env.MODE
+    });
+  }
+
+  /**
+   * Crea un'istanza configurata del servizio Google Drive
+   * Usa le variabili d'ambiente per la configurazione automatica
+   */
+  static createConfiguredInstance() {
+    const service = new GoogleDriveService();
+    
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
+    
+    if (!clientId) {
+      DEBUG.error('❌ VITE_GOOGLE_CLIENT_ID mancante!');
+      DEBUG.error('📋 Per risolvere:');
+      DEBUG.error('   1. Configura le variabili d\'ambiente negli Environment secrets di GitHub');
+      DEBUG.error('   2. Vai su Settings > Environments > github-pages > Environment secrets');
+      DEBUG.error('   3. Aggiungi VITE_GOOGLE_CLIENT_ID e VITE_GOOGLE_CLIENT_SECRET');
+      throw new Error('Configurazione Google OAuth2 mancante');
+    }
+
+    service.configure(clientId, clientSecret);
+    return service;
   }
 
   /**
@@ -48,8 +80,22 @@ export default class GoogleDriveService {
     
     DEBUG.log('🔧 Credenziali Google configurate', {
       clientId: clientId ? `${clientId.substring(0, 10)}...` : 'MANCANTE',
-      hasClientSecret: !!clientSecret
+      hasClientSecret: !!clientSecret,
+      appType: clientSecret ? 'confidenziale' : 'pubblica'
     });
+
+    // Verifiche di sicurezza
+    if (!clientId) {
+      DEBUG.error('❌ Client ID mancante! Verificare configurazione variabili d\'ambiente');
+      throw new Error('Client ID Google non configurato');
+    }
+
+    if (!clientSecret) {
+      DEBUG.warn('⚠️ Client Secret mancante - modalità app web pubblica');
+      DEBUG.log('📋 Per app web pubbliche, assicurarsi che:');
+      DEBUG.log('   1. Le "Origini JavaScript autorizzate" includano: ' + window.location.origin);
+      DEBUG.log('   2. Le "URI di reindirizzamento autorizzati" includano: ' + this.redirectUri);
+    }
   }
 
   /**

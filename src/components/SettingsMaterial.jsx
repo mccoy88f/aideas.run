@@ -268,10 +268,8 @@ const SettingsMaterial = ({
       }
 
       // Carica info Google Drive
-      const googleService = new GoogleDriveService();
-      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-      if (clientId) {
-        googleService.configure(clientId);
+      try {
+        const googleService = GoogleDriveService.createConfiguredInstance();
         const isAuthenticated = await googleService.checkAuthentication();
         if (isAuthenticated) {
           const userInfo = googleService.getUserInfo();
@@ -280,6 +278,8 @@ const SettingsMaterial = ({
             googledrive: userInfo
           }));
         }
+      } catch (error) {
+        console.warn('Google Drive non configurato:', error.message);
       }
     } catch (error) {
       console.error('Errore caricamento info utente:', error);
@@ -369,14 +369,7 @@ const SettingsMaterial = ({
         
       } else if (cloudSyncConfig.selectedProvider === 'googledrive') {
         // Test/Avvia autenticazione Google Drive
-        const googleService = new GoogleDriveService();
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-        
-        if (!clientId) {
-          throw new Error('Client ID Google non configurato');
-        }
-        
-        googleService.configure(clientId);
+        const googleService = GoogleDriveService.createConfiguredInstance();
         
         // Verifica se è già autenticato
         const alreadyAuthenticated = await googleService.checkAuthentication();

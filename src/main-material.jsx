@@ -385,33 +385,30 @@ function AIdeasApp() {
 
       if (syncEnabled) {
         if (syncProvider === 'googledrive') {
-          const googleService = new GoogleDriveService();
-          const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+          try {
+            const googleService = GoogleDriveService.createConfiguredInstance();
           
-          if (!clientId) {
-            DEBUG.warn('⚠️ Google Client ID non configurato');
-            return;
-          }
-          
-          googleService.configure(clientId);
-          
-          // Usa checkAuthentication invece di isAuthenticated (obsoleto)
-          const authenticated = await googleService.checkAuthentication();
-          DEBUG.log('🔐 Google Drive autenticato:', authenticated);
-          
-          if (authenticated) {
-            try {
-              const user = await googleService.getUserInfo();
-              setUserInfo(user);
-              setIsAuthenticated(true);
-              DEBUG.success('👤 Utente Google Drive caricato:', user.name);
-            } catch (userError) {
-              DEBUG.error('❌ Errore caricamento utente Google:', userError);
-              // L'autenticazione è valida ma getUserInfo fallisce - problema token
+            // Usa checkAuthentication invece di isAuthenticated (obsoleto)
+            const authenticated = await googleService.checkAuthentication();
+            DEBUG.log('🔐 Google Drive autenticato:', authenticated);
+            
+            if (authenticated) {
+              try {
+                const user = await googleService.getUserInfo();
+                setUserInfo(user);
+                setIsAuthenticated(true);
+                DEBUG.success('👤 Utente Google Drive caricato:', user.name);
+              } catch (userError) {
+                DEBUG.error('❌ Errore caricamento utente Google:', userError);
+                // L'autenticazione è valida ma getUserInfo fallisce - problema token
+                setIsAuthenticated(false);
+              }
+            } else {
+              DEBUG.warn('⚠️ Google Drive non autenticato - richiesta nuova autenticazione');
               setIsAuthenticated(false);
             }
-          } else {
-            DEBUG.warn('⚠️ Google Drive non autenticato - richiesta nuova autenticazione');
+          } catch (configError) {
+            DEBUG.warn('⚠️ Google Drive non configurato:', configError.message);
             setIsAuthenticated(false);
           }
         } else if (syncProvider === 'github') {
@@ -1284,8 +1281,7 @@ function AIdeasApp() {
 
   const handleGoogleAuthCallback = async (code, state) => {
     try {
-      const googleService = new GoogleDriveService();
-      googleService.configure(import.meta.env.VITE_GOOGLE_CLIENT_ID, import.meta.env.VITE_GOOGLE_CLIENT_SECRET);
+      const googleService = GoogleDriveService.createConfiguredInstance();
       
       const result = await googleService.handleAuthCallback(code, state);
       showToast('Autenticazione Google completata!', 'success');
