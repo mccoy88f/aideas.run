@@ -971,12 +971,15 @@ export default class GoogleDriveService {
       } catch (downloadError) {
         DEBUG.warn('⚠️ Errore download dati remoti:', downloadError.message);
         
+        // Verifica che downloadError.message esista prima di usare includes()
+        const errorMessage = downloadError.message || downloadError.toString() || 'Errore sconosciuto';
+        
         // Gestione errori specifici
-        if (downloadError.message.includes('File di sincronizzazione non trovato')) {
+        if (errorMessage.includes('File di sincronizzazione non trovato')) {
           DEBUG.log('📤 Primo sync - caricamento dati locali');
           syncMessage = 'Primo sync: dati locali caricati su Google Drive';
           
-        } else if (downloadError.message.includes('vuoto') || downloadError.message.includes('corrotto')) {
+        } else if (errorMessage.includes('vuoto') || errorMessage.includes('corrotto')) {
           DEBUG.warn('🔧 File corrotto rilevato - tentativo di recupero');
           
           // Prova a recuperare il file di sincronizzazione

@@ -37,6 +37,7 @@ export function useSyncStatus() {
       
       // Gestione migliore del provider
       let syncProvider = await StorageService.getSetting('syncProvider', 'github');
+      console.log('📋 Provider dal storage:', syncProvider);
       
       // Correggi provider obsoleto "gist" -> "googledrive" (migrazione legacy)
       if (syncProvider === 'gist') {
@@ -44,6 +45,10 @@ export function useSyncStatus() {
         syncProvider = 'googledrive';
         await StorageService.setSetting('syncProvider', 'googledrive');
         console.log('✅ Provider aggiornato a googledrive');
+        
+        // Verifica che il salvataggio sia andato a buon fine
+        const verifyProvider = await StorageService.getSetting('syncProvider');
+        console.log('🔍 Verifica provider dopo salvataggio:', verifyProvider);
       }
       
       // Verifica che il provider sia valido
@@ -56,7 +61,7 @@ export function useSyncStatus() {
       }
       
       setProvider(syncProvider);
-      console.log('📋 Provider sincronizzazione caricato:', syncProvider);
+      console.log('📋 Provider sincronizzazione caricato e impostato:', syncProvider);
       
       setLastSync(await StorageService.getSetting('lastSyncTime', null));
       setIntervalMinutes(await StorageService.getSetting('autoSyncInterval', DEFAULT_INTERVAL));
@@ -78,9 +83,23 @@ export function useSyncStatus() {
     try {
       // Salva immediatamente nel storage
       await StorageService.setSetting('syncProvider', newProvider);
+      console.log('💾 Provider salvato nel storage');
+      
+      // Verifica che il salvataggio sia andato a buon fine
+      const verifyProvider = await StorageService.getSetting('syncProvider');
+      console.log('🔍 Verifica provider dopo salvataggio:', verifyProvider);
+      
+      if (verifyProvider !== newProvider) {
+        console.error('❌ Errore: provider non salvato correttamente', { 
+          expected: newProvider, 
+          actual: verifyProvider 
+        });
+        return false;
+      }
       
       // Aggiorna lo stato locale
       setProvider(newProvider);
+      console.log('🔄 Stato locale aggiornato');
       
       // Pulisci errori precedenti
       setError(null);
@@ -174,8 +193,8 @@ export function useSyncStatus() {
       await StorageService.setSetting('syncEnabled', newSettings.isEnabled);
     }
     if ('provider' in newSettings) {
-      setProvider(newSettings.provider);
-      await StorageService.setSetting('syncProvider', newSettings.provider);
+      // Usa la funzione updateProvider per persistenza corretta
+      await updateProvider(newSettings.provider);
     }
     if ('intervalMinutes' in newSettings) {
       setIntervalMinutes(newSettings.intervalMinutes);
