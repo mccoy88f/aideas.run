@@ -149,6 +149,20 @@ class AppRouteService {
             // Sostituisci tutti i riferimenti relativi con blob URLs (esattamente come nel basecode originale)
             let indexHtml = appData.files['index.html'];
             let replacementCount = 0;
+            
+            // Rimuovi SOLO i riferimenti tecnici che causano errori nella nuova finestra
+            // ma mantieni tutta l'interfaccia dell'app originale
+            console.log('🧹 Rimozione riferimenti tecnici problematici...');
+            
+            // Rimuovi solo service worker registration che causa errori
+            indexHtml = indexHtml.replace(/<script[^>]*>[\s\S]*?navigator\.serviceWorker[\s\S]*?<\/script>/gi, '');
+            indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?catch\([^)]*\)\s*;/g, '');
+            indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?}\s*;/g, '');
+            
+            // Rimuovi solo manifest.json che causa 404
+            indexHtml = indexHtml.replace(/<link[^>]*rel=["']manifest["'][^>]*>/gi, '');
+            
+            console.log('✅ Riferimenti tecnici rimossi');
             for (const [filename, blobUrl] of Object.entries(blobUrls)) {
                 if (filename !== 'index.html') {
                     // Usa gli stessi pattern del basecode originale
