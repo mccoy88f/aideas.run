@@ -988,23 +988,26 @@ export default class GoogleDriveService {
         if (errorMessage.includes('File di sincronizzazione non trovato')) {
           DEBUG.log('📤 Prima sincronizzazione rilevata');
           
-          // Se ci sono dati locali e questa è la prima sincronizzazione, interroga l'utente
-          const localApps = localData.apps?.length || 0;
-          if (localApps > 0) {
-            DEBUG.log('⚠️ Prima sincronizzazione con dati locali esistenti - richiesta conferma utente');
+          // Se è la prima sincronizzazione, interroga sempre l'utente (con o senza dati locali)
+          if (conflictResolution === 'ask') {
+            const localApps = localData.apps?.length || 0;
             
-            // Forza la modalità 'ask' per interrogare l'utente
-            if (conflictResolution === 'auto') {
-              return {
-                conflict: true,
-                isFirstSync: true,
-                localData: localData,
-                remoteData: null,
-                localTimestamp: localData.timestamp,
-                remoteTimestamp: null,
-                message: 'Prima sincronizzazione: scegli se caricare i dati locali su Google Drive o mantenere vuoto il cloud'
-              };
-            }
+            DEBUG.log('🔄 Prima sincronizzazione - modal richiesto', { 
+              localApps, 
+              conflictResolution 
+            });
+            
+            return {
+              conflict: true,
+              isFirstSync: true,
+              localData: localData,
+              remoteData: null,
+              localTimestamp: localData.timestamp,
+              remoteTimestamp: null,
+              message: localApps > 0 
+                ? 'Prima sincronizzazione: scegli se caricare i dati locali su Google Drive o mantenere vuoto il cloud'
+                : 'Prima sincronizzazione: Google Drive è vuoto, iniziare con backup vuoto o annullare?'
+            };
           }
           
           syncMessage = 'Prima sincronizzazione: dati locali caricati su Google Drive';

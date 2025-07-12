@@ -25,7 +25,8 @@ import {
   Warning as WarningIcon,
   CloudDownload as CloudIcon,
   Storage as LocalIcon,
-  Merge as MergeIcon
+  Merge as MergeIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';

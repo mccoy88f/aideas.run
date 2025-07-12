@@ -496,13 +496,27 @@ export default function SyncManagerMaterial({ open, onClose }) {
           await githubService.authenticate(credentials.github.token);
           result = await githubService.syncBidirectional();
         } else if (provider === 'googledrive') {
-          googleService.configure(credentials.googledrive.clientId);
+          // Verifica autenticazione prima di sincronizzare
+          const isAuthenticated = await googleService.checkAuthentication();
+          if (!isAuthenticated) {
+            throw new Error('Autenticazione Google Drive richiesta');
+          }
+          
+          DEBUG.log('🔄 Avvio sincronizzazione Google Drive con rilevamento conflitti...');
           
           // Prima prova con rilevamento conflitti
           result = await googleService.syncBidirectional({ conflictResolution: 'ask' });
           
+          DEBUG.log('📋 Risultato sincronizzazione Google Drive:', result);
+          
           // Se c'è un conflitto, mostra il modal di risoluzione
           if (result.conflict) {
+            DEBUG.log('⚠️ Conflitto rilevato, apertura modal:', { 
+              isFirstSync: result.isFirstSync, 
+              hasLocalData: !!result.localData,
+              hasRemoteData: !!result.remoteData 
+            });
+            
             setProgress({ show: false, value: 0, text: '' });
             setConflictData(result);
             setConflictModalOpen(true);
