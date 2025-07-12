@@ -15,6 +15,20 @@ export function useSyncStatus() {
   const [nextSync, setNextSync] = useState(null);
   const [syncHistory, setSyncHistory] = useState([]);
   const timerRef = useRef(null);
+  
+  // Istanze servizi riutilizzabili
+  const githubServiceRef = useRef(new GitHubService());
+  const googleServiceRef = useRef(null);
+  
+  // Inizializza GoogleDriveService configurato (singleton)
+  useEffect(() => {
+    try {
+      googleServiceRef.current = GoogleDriveService.createConfiguredInstance();
+    } catch (error) {
+      console.warn('Google Drive non configurato in useSyncStatus:', error.message);
+      googleServiceRef.current = null;
+    }
+  }, []);
 
   // Carica stato iniziale
   useEffect(() => {
@@ -63,12 +77,21 @@ export function useSyncStatus() {
     try {
       let result;
       if (provider === 'github') {
-        const githubService = new GitHubService();
+        const githubService = githubServiceRef.current;
         // TODO: gestire token
         result = await githubService.syncBidirectional();
       } else if (provider === 'googledrive') {
-        const googleService = new GoogleDriveService();
-        // TODO: gestire auth
+        const googleService = googleServiceRef.current;
+        if (!googleService) {
+          throw new Error('Google Drive non configurato correttamente');
+        }
+        
+        // Verifica autenticazione prima della sincronizzazione
+        const isAuthenticated = await googleService.checkAuthentication();
+        if (!isAuthenticated) {
+          throw new Error('Non autenticato con Google Drive - rieffettua il login');
+        }
+        
         result = await googleService.syncBidirectional();
       }
       const now = new Date();
@@ -84,7 +107,7 @@ export function useSyncStatus() {
       setIsInProgress(false);
       scheduleNextSync();
     }
-  }, [isEnabled, isInProgress, provider, intervalMinutes]);
+  }, [isEnabled, isInProgress, provider, intervalMinutes, syncHistory]);
 
   const manualSync = async () => {
     clearTimer();

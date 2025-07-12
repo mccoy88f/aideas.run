@@ -12,6 +12,9 @@ const GOOGLE_OAUTH_BASE = 'https://accounts.google.com/o/oauth2/v2';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
 
+// Istanza singleton
+let _singletonInstance = null;
+
 export default class GoogleDriveService {
   constructor() {
     this.clientId = null;
@@ -49,10 +52,15 @@ export default class GoogleDriveService {
   }
 
   /**
-   * Crea un'istanza configurata del servizio Google Drive
+   * Crea un'istanza configurata del servizio Google Drive (Singleton)
    * Usa le variabili d'ambiente per la configurazione automatica
    */
   static createConfiguredInstance() {
+    if (_singletonInstance) {
+      DEBUG.log('🔧 Riutilizzo istanza singleton GoogleDriveService');
+      return _singletonInstance;
+    }
+    
     const service = new GoogleDriveService();
     
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -68,6 +76,8 @@ export default class GoogleDriveService {
     }
 
     service.configure(clientId, clientSecret);
+    _singletonInstance = service;
+    DEBUG.log('🔧 Creata nuova istanza singleton GoogleDriveService');
     return service;
   }
 
@@ -864,6 +874,10 @@ export default class GoogleDriveService {
     this.aideasFolderId = null;
     
     localStorage.removeItem('google_drive_credentials');
+    
+    // Reset singleton
+    _singletonInstance = null;
+    DEBUG.log('🔧 Singleton reset');
     
     DEBUG.log('✅ Logout completato');
   }
