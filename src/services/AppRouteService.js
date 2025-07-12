@@ -146,34 +146,16 @@ class AppRouteService {
                 }
             }
 
-            // Sostituisci tutti i riferimenti relativi con blob URLs (esattamente come nel basecode originale)
+            // Usa la stessa logica identica del basecode originale
             let indexHtml = appData.files['index.html'];
             let replacementCount = 0;
             
-            // Rimuovi il wrapper PWA e recupera solo l'HTML originale dell'app
-            console.log('🧹 Rimozione wrapper PWA e recupero HTML originale...');
+            console.log('🧩 Usare logica basecode originale...');
+            console.log('🔍 HTML originale (primi 500 caratteri):', indexHtml.substring(0, 500));
             
-            // Se l'HTML contiene il wrapper PWA, estrai solo il contenuto originale
-            const appHeaderMatch = indexHtml.match(/<div id="app-header">[\s\S]*?<\/div>/);
-            const appContentMatch = indexHtml.match(/<div id="app-content">([\s\S]*?)<\/div>/);
-            
-            if (appHeaderMatch && appContentMatch) {
-                // Estrai solo il contenuto originale dell'app dal wrapper PWA
-                indexHtml = appContentMatch[1];
-                console.log('✅ Estratto HTML originale dal wrapper PWA');
-                console.log('🔍 HTML estratto (primi 500 caratteri):', indexHtml.substring(0, 500));
-            } else {
-                // Se non c'è il wrapper PWA, rimuovi solo i riferimenti tecnici problematici
-                indexHtml = indexHtml.replace(/<script[^>]*>[\s\S]*?navigator\.serviceWorker[\s\S]*?<\/script>/gi, '');
-                indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?catch\([^)]*\)\s*;/g, '');
-                indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?}\s*;/g, '');
-                indexHtml = indexHtml.replace(/<link[^>]*rel=["']manifest["'][^>]*>/gi, '');
-                console.log('✅ Riferimenti tecnici rimossi da HTML originale');
-                console.log('🔍 HTML originale (primi 500 caratteri):', indexHtml.substring(0, 500));
-            }
+            // Sostituzioni esattamente come nel basecode originale
             for (const [filename, blobUrl] of Object.entries(blobUrls)) {
                 if (filename !== 'index.html') {
-                    // Usa gli stessi pattern del basecode originale
                     const patterns = [
                         new RegExp(`(href|src)=["']${filename}["']`, 'g'),
                         new RegExp(`(href|src)=["']\\./${filename}["']`, 'g')
