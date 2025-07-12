@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -7,46 +7,89 @@ import {
   Button,
   Typography,
   Box,
+  Grid,
   Card,
   CardContent,
   Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
   Alert,
-  List,
-  ListItem,
-  ListItemText,
   Divider
 } from '@mui/material';
 import {
-  CloudDownload as DownloadIcon,
-  CloudUpload as UploadIcon,
-  Cancel as CancelIcon,
-  Info as InfoIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  CloudDownload as CloudIcon,
+  Storage as LocalIcon,
+  Merge as MergeIcon
 } from '@mui/icons-material';
+import { formatDistanceToNow } from 'date-fns';
+import { it } from 'date-fns/locale';
 
+/**
+ * Modal per la risoluzione dei conflitti di sincronizzazione
+ * Mostra le differenze tra dati locali e remoti e permette all'utente di scegliere
+ */
 export default function SyncConflictModal({ 
   open, 
   onClose, 
-  localData, 
-  remoteData, 
-  provider,
-  onResolve 
+  conflictData, 
+  onResolve, 
+  loading = false 
 }) {
-  const localAppsCount = localData?.length || 0;
-  const remoteAppsCount = remoteData?.data?.apps?.length || 0;
-  const lastRemoteSync = remoteData?.metadata?.timestamp ? new Date(remoteData.metadata.timestamp) : null;
+  const [selectedResolution, setSelectedResolution] = useState(null);
+
+  if (!conflictData) return null;
+
+  const { localData, remoteData, localTimestamp, remoteTimestamp } = conflictData;
+
+  // Statistiche dei dati
+  const localStats = {
+    apps: localData?.apps?.length || 0,
+    settings: localData?.settings ? Object.keys(localData.settings).length : 0,
+    timestamp: new Date(localTimestamp),
+    version: localData?.version || 'N/A'
+  };
+
+  const remoteStats = {
+    apps: remoteData?.apps?.length || 0,
+    settings: remoteData?.settings ? Object.keys(remoteData.settings).length : 0,
+    timestamp: new Date(remoteTimestamp),
+    version: remoteData?.version || 'N/A'
+  };
+
+  // Differenze nelle app
+  const getAppDifferences = () => {
+    const localApps = new Set((localData?.apps || []).map(app => app.name));
+    const remoteApps = new Set((remoteData?.apps || []).map(app => app.name));
+    
+    const onlyLocal = [...localApps].filter(name => !remoteApps.has(name));
+    const onlyRemote = [...remoteApps].filter(name => !localApps.has(name));
+    const common = [...localApps].filter(name => remoteApps.has(name));
+
+    return { onlyLocal, onlyRemote, common };
+  };
+
+  const appDiffs = getAppDifferences();
 
   const handleResolve = (resolution) => {
+    setSelectedResolution(resolution);
     onResolve(resolution);
-    onClose();
   };
 
-  const getProviderIcon = () => {
-    return provider === 'github' ? '🐙' : '🌐';
-  };
-
-  const getProviderName = () => {
-    return provider === 'github' ? 'GitHub Gist' : 'Google Drive';
+  const formatTime = (timestamp) => {
+    try {
+      return formatDistanceToNow(timestamp, { 
+        addSuffix: true, 
+        locale: it 
+      });
+    } catch (error) {
+      return timestamp.toLocaleString('it-IT');
+    }
   };
 
   return (
@@ -55,161 +98,266 @@ export default function SyncConflictModal({
       onClose={onClose}
       maxWidth="md"
       fullWidth
+      PaperProps={{
+        sx: { minHeight: '70vh' }
+      }}
     >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <WarningIcon color="warning" />
-        Conflitto di Sincronizzazione Rilevato
+      <DialogTitle>
+        <Box display="flex" alignItems="center" gap={2}>
+          <WarningIcon color="warning" />
+          <Typography variant="h6">
+            Conflitto di Sincronizzazione Rilevato
+          </Typography>
+        </Box>
       </DialogTitle>
-      
+
       <DialogContent>
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="body2">
-            Sono stati trovati dati sia localmente che su {getProviderName()}. 
-            Scegli come risolvere il conflitto:
+            Sono stati rilevati dati sia locali che remoti con modifiche recenti. 
+            Scegli quale versione mantenere o unisci i dati.
           </Typography>
         </Alert>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 3 }}>
-          {/* Dati Locali */}
-          <Card variant="outlined">
-            <CardContent>
-              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                📱 Dati Locali
+        <Grid container spacing={3}>
+          {/* Statistiche Generali */}
+          <Grid item xs={12}>
+            <Typography variant="h6" gutterBottom>
+              Confronto Dati
+            </Typography>
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Aspetto</TableCell>
+                    <TableCell align="center">
+                      <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+                        <LocalIcon fontSize="small" />
+                        Locale
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+                        <CloudIcon fontSize="small" />
+                        Google Drive
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow>
+                    <TableCell>Numero App</TableCell>
+                    <TableCell align="center">
+                      <Chip 
+                        label={localStats.apps} 
+                        color={localStats.apps > remoteStats.apps ? "success" : "default"}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip 
+                        label={remoteStats.apps} 
+                        color={remoteStats.apps > localStats.apps ? "success" : "default"}
+                        size="small"
+                      />
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Impostazioni</TableCell>
+                    <TableCell align="center">
+                      <Chip label={localStats.settings} size="small" />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip label={remoteStats.settings} size="small" />
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Ultima Modifica</TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2">
+                        {formatTime(localStats.timestamp)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2">
+                        {formatTime(remoteStats.timestamp)}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Versione</TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2">{localStats.version}</Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2">{remoteStats.version}</Typography>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Grid>
+
+          {/* Differenze nelle App */}
+          {(appDiffs.onlyLocal.length > 0 || appDiffs.onlyRemote.length > 0) && (
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Differenze nelle App
               </Typography>
               
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Chip 
-                  label={`${localAppsCount} app installate`} 
-                  color="primary" 
-                  size="small" 
-                />
-                <Chip 
-                  label="Dispositivo corrente" 
-                  variant="outlined" 
-                  size="small" 
-                />
-              </Box>
-
-              {localAppsCount > 0 && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    App più recenti:
-                  </Typography>
-                  <List dense>
-                    {localData.slice(0, 3).map((app, index) => (
-                      <ListItem key={index} sx={{ py: 0.5 }}>
-                        <ListItemText 
-                          primary={app.name}
-                          secondary={app.category || 'Senza categoria'}
-                        />
-                      </ListItem>
-                    ))}
-                    {localAppsCount > 3 && (
-                      <ListItem sx={{ py: 0.5 }}>
-                        <ListItemText 
-                          primary={`...e altre ${localAppsCount - 3} app`}
-                          sx={{ fontStyle: 'italic' }}
-                        />
-                      </ListItem>
-                    )}
-                  </List>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Dati Remoti */}
-          <Card variant="outlined">
-            <CardContent>
-              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                {getProviderIcon()} Dati {getProviderName()}
-              </Typography>
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Chip 
-                  label={`${remoteAppsCount} app salvate`} 
-                  color="secondary" 
-                  size="small" 
-                />
-                {lastRemoteSync && (
-                  <Chip 
-                    label={`Ultimo sync: ${lastRemoteSync.toLocaleDateString()}`}
-                    variant="outlined" 
-                    size="small" 
-                  />
+              <Grid container spacing={2}>
+                {appDiffs.onlyLocal.length > 0 && (
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle2" color="primary" gutterBottom>
+                          <LocalIcon fontSize="small" sx={{ mr: 1 }} />
+                          Solo in Locale ({appDiffs.onlyLocal.length})
+                        </Typography>
+                        <Box>
+                          {appDiffs.onlyLocal.map((appName, index) => (
+                            <Chip 
+                              key={index} 
+                              label={appName} 
+                              size="small" 
+                              sx={{ mr: 1, mb: 1 }}
+                              color="primary"
+                            />
+                          ))}
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
                 )}
-              </Box>
 
-              {remoteAppsCount > 0 && remoteData.data.apps && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    App salvate:
-                  </Typography>
-                  <List dense>
-                    {remoteData.data.apps.slice(0, 3).map((app, index) => (
-                      <ListItem key={index} sx={{ py: 0.5 }}>
-                        <ListItemText 
-                          primary={app.name}
-                          secondary={app.category || 'Senza categoria'}
-                        />
-                      </ListItem>
-                    ))}
-                    {remoteAppsCount > 3 && (
-                      <ListItem sx={{ py: 0.5 }}>
-                        <ListItemText 
-                          primary={`...e altre ${remoteAppsCount - 3} app`}
-                          sx={{ fontStyle: 'italic' }}
-                        />
-                      </ListItem>
-                    )}
-                  </List>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
+                {appDiffs.onlyRemote.length > 0 && (
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle2" color="secondary" gutterBottom>
+                          <CloudIcon fontSize="small" sx={{ mr: 1 }} />
+                          Solo in Google Drive ({appDiffs.onlyRemote.length})
+                        </Typography>
+                        <Box>
+                          {appDiffs.onlyRemote.map((appName, index) => (
+                            <Chip 
+                              key={index} 
+                              label={appName} 
+                              size="small" 
+                              sx={{ mr: 1, mb: 1 }}
+                              color="secondary"
+                            />
+                          ))}
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                )}
 
-        <Alert severity="info" sx={{ mb: 2 }}>
-          <Typography variant="body2">
-            💡 <strong>Suggerimento:</strong> Se non sei sicuro, scegli "Sostituisci con {getProviderName()}" 
-            se vuoi ripristinare un backup precedente, oppure "Sostituisci {getProviderName()}" 
-            se vuoi salvare le tue modifiche recenti.
-          </Typography>
-        </Alert>
+                {appDiffs.common.length > 0 && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>App in comune:</strong> {appDiffs.common.length} app presenti in entrambe le versioni
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </Grid>
+          )}
+
+          <Grid item xs={12}>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="h6" gutterBottom>
+              Scegli Risoluzione
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Seleziona come vuoi risolvere il conflitto:
+            </Typography>
+          </Grid>
+        </Grid>
       </DialogContent>
 
-      <DialogActions sx={{ p: 3, gap: 1 }}>
-        <Button
-          onClick={onClose}
-          startIcon={<CancelIcon />}
-          color="inherit"
-        >
-          Annulla
-        </Button>
-        
-        <Button
-          onClick={() => handleResolve('download')}
-          startIcon={<DownloadIcon />}
-          variant="outlined"
-          color="secondary"
-        >
-          Sostituisci con {getProviderName()}
-          <Typography variant="caption" sx={{ ml: 1 }}>
-            ({remoteAppsCount} app)
-          </Typography>
-        </Button>
-        
-        <Button
-          onClick={() => handleResolve('upload')}
-          startIcon={<UploadIcon />}
-          variant="contained"
-          color="primary"
-        >
-          Sostituisci {getProviderName()}
-          <Typography variant="caption" sx={{ ml: 1 }}>
-            ({localAppsCount} app)
-          </Typography>
-        </Button>
+      <DialogActions sx={{ p: 3, pt: 0 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={4}>
+            <Button
+              fullWidth
+              variant={selectedResolution === 'local' ? 'contained' : 'outlined'}
+              color="primary"
+              startIcon={<LocalIcon />}
+              onClick={() => handleResolve('local')}
+              disabled={loading}
+              sx={{ minHeight: 56 }}
+            >
+              <Box textAlign="center">
+                <Typography variant="body2" fontWeight="bold">
+                  Usa Locale
+                </Typography>
+                <Typography variant="caption">
+                  {localStats.apps} app
+                </Typography>
+              </Box>
+            </Button>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Button
+              fullWidth
+              variant={selectedResolution === 'remote' ? 'contained' : 'outlined'}
+              color="secondary"
+              startIcon={<CloudIcon />}
+              onClick={() => handleResolve('remote')}
+              disabled={loading}
+              sx={{ minHeight: 56 }}
+            >
+              <Box textAlign="center">
+                <Typography variant="body2" fontWeight="bold">
+                  Usa Google Drive
+                </Typography>
+                <Typography variant="caption">
+                  {remoteStats.apps} app
+                </Typography>
+              </Box>
+            </Button>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Button
+              fullWidth
+              variant={selectedResolution === 'merge' ? 'contained' : 'outlined'}
+              color="info"
+              startIcon={<MergeIcon />}
+              onClick={() => handleResolve('merge')}
+              disabled={loading}
+              sx={{ minHeight: 56 }}
+            >
+              <Box textAlign="center">
+                <Typography variant="body2" fontWeight="bold">
+                  Unisci Dati
+                </Typography>
+                <Typography variant="caption">
+                  Combina entrambi
+                </Typography>
+              </Box>
+            </Button>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Box display="flex" justifyContent="space-between">
+              <Button 
+                onClick={onClose}
+                disabled={loading}
+              >
+                Annulla
+              </Button>
+              {loading && (
+                <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                  Risoluzione in corso...
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
       </DialogActions>
     </Dialog>
   );

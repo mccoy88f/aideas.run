@@ -32,10 +32,9 @@ export default class GoogleDriveService {
     this.aideasFolderId = null;
     this.syncFileName = 'aideas-sync.json';
     
-    // Scopes richiesti
+    // Scopes richiesti (drive invece di drive.file per visibilità cartelle)
     this.scopes = [
-      'https://www.googleapis.com/auth/drive.file',
-      'https://www.googleapis.com/auth/drive.appdata',
+      'https://www.googleapis.com/auth/drive',
       'https://www.googleapis.com/auth/userinfo.profile'
     ];
 
@@ -940,9 +939,9 @@ export default class GoogleDriveService {
   }
 
   /**
-   * Sincronizzazione bidirezionale con Google Drive
+   * Sincronizzazione bidirezionale con Google Drive e gestione conflitti
    */
-  async syncBidirectional() {
+  async syncBidirectional(options = {}) {
     try {
       DEBUG.log('🔄 Avvio sincronizzazione bidirezionale Google Drive...');
       
@@ -956,6 +955,7 @@ export default class GoogleDriveService {
 
       let remoteData = null;
       let syncMessage = '';
+      let conflictResolution = options.conflictResolution || 'auto'; // 'auto', 'local', 'remote', 'ask'
 
       try {
         // Prova a scaricare dati remoti
@@ -1011,15 +1011,30 @@ export default class GoogleDriveService {
         }
       }
 
-      // Determina strategia di sincronizzazione
+      // Gestione conflitti e decisione di sincronizzazione
       let finalData = localData;
       
       if (remoteData) {
-        // Confronta timestamp per determinare quale versione è più recente
         const localTimestamp = localData.timestamp ? new Date(localData.timestamp).getTime() : 0;
         const remoteTimestamp = remoteData.timestamp ? new Date(remoteData.timestamp).getTime() : 0;
 
-        if (remoteTimestamp > localTimestamp) {
+        // Rileva conflitti (differenza significativa nei dati)
+        const hasConflict = this.detectSyncConflict(localData, remoteData);
+        
+        if (hasConflict && conflictResolution === 'ask') {
+          // Ritorna informazioni per permettere all'utente di scegliere
+          return {
+            conflict: true,
+            localData: localData,
+            remoteData: remoteData,
+            localTimestamp: new Date(localTimestamp).toISOString(),
+            remoteTimestamp: new Date(remoteTimestamp).toISOString()
+          };
+        }
+
+        // Risoluzione automatica o forzata
+        if (conflictResolution === 'remote' || 
+           (conflictResolution === 'auto' && remoteTimestamp > localTimestamp)) {
           DEBUG.log('📥 Dati remoti più recenti - download');
           finalData = remoteData;
           syncMessage = syncMessage || 'Dati scaricati da Google Drive';
@@ -1047,13 +1062,42 @@ export default class GoogleDriveService {
         success: true,
         message: syncMessage,
         syncedAt: new Date().toISOString(),
-        apps: finalData.apps?.length || 0
+        apps: finalData.apps?.length || 0,
+        conflict: false
       };
 
     } catch (error) {
       DEBUG.error('❌ Errore sincronizzazione bidirezionale Google Drive:', error);
       throw error;
     }
+  }
+
+  /**
+   * Rileva conflitti di sincronizzazione
+   */
+  detectSyncConflict(localData, remoteData) {
+    if (!localData || !remoteData) return false;
+    
+    // Confronta numero di app
+    const localApps = localData.apps?.length || 0;
+    const remoteApps = remoteData.apps?.length || 0;
+    
+    // Conflitto se differenza significativa nel numero di app
+    if (Math.abs(localApps - remoteApps) > 2) {
+      return true;
+    }
+    
+    // Confronta timestamp (conflitto se molto vicini nel tempo)
+    const localTime = localData.timestamp ? new Date(localData.timestamp).getTime() : 0;
+    const remoteTime = remoteData.timestamp ? new Date(remoteData.timestamp).getTime() : 0;
+    const timeDiff = Math.abs(localTime - remoteTime);
+    
+    // Conflitto se modificati nell'ultima ora (3600000 ms)
+    if (timeDiff < 3600000 && localApps !== remoteApps) {
+      return true;
+    }
+    
+    return false;
   }
 
   /**

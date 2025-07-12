@@ -611,9 +611,10 @@ class StorageService {
   // Esporta dati nel formato del backup manuale (compatibile con UI)
   async exportBackupData() {
     try {
-      const [apps, settingsArray] = await Promise.all([
+      const [apps, settingsArray, allAppFiles] = await Promise.all([
         this.db.apps.toArray(),
-        this.db.settings.toArray()
+        this.db.settings.toArray(),
+        this.db.appFiles.toArray() // Aggiungi tutti i file delle app
       ]);
 
       // Converti array di settings in oggetto
@@ -622,9 +623,24 @@ class StorageService {
         settings[item.key] = item.value;
       });
 
+      // Organizza i file per appId per una migliore struttura
+      const appFiles = {};
+      allAppFiles.forEach(file => {
+        if (!appFiles[file.appId]) {
+          appFiles[file.appId] = [];
+        }
+        appFiles[file.appId].push({
+          filename: file.filename,
+          content: file.content,
+          size: file.size,
+          mimeType: file.mimeType
+        });
+      });
+
       return {
         settings: settings,
         apps: apps,
+        appFiles: appFiles, // Aggiungi i file delle app
         timestamp: new Date().toISOString(),
         version: '1.0.0'
       };
@@ -640,7 +656,9 @@ class StorageService {
       DEBUG.log('📥 Importazione backup dati:', {
         hasSettings: !!backupData.settings,
         hasApps: !!backupData.apps,
+        hasAppFiles: !!backupData.appFiles,
         appsCount: backupData.apps?.length || 0,
+        appFilesCount: backupData.appFiles ? Object.keys(backupData.appFiles).length : 0,
         version: backupData.version
       });
 
@@ -653,7 +671,7 @@ class StorageService {
         throw new Error('Formato backup non valido - apps deve essere un array');
       }
 
-      await this.db.transaction('rw', [this.db.apps, this.db.settings], async () => {
+      await this.db.transaction('rw', [this.db.apps, this.db.settings, this.db.appFiles], async () => {
         // Importa settings
         if (backupData.settings && typeof backupData.settings === 'object') {
           const settingsArray = Object.entries(backupData.settings).map(([key, value]) => ({
@@ -670,19 +688,55 @@ class StorageService {
         // Importa apps
         if (backupData.apps && backupData.apps.length > 0) {
           await this.db.apps.clear();
-          await this.db.apps.bulkAdd(backupData.apps);
+          
+          // Mappa gli ID originali con i nuovi ID generati
+          const appIdMapping = {};
+          
+          for (const app of backupData.apps) {
+            const originalId = app.id;
+            // Rimuovi l'ID per permettere al database di generarne uno nuovo
+            const { id, ...appWithoutId } = app;
+            const newId = await this.db.apps.add(appWithoutId);
+            appIdMapping[originalId] = newId;
+          }
+          
           DEBUG.log('✅ Apps importate:', backupData.apps.length);
+
+          // Importa file delle app se presenti
+          if (backupData.appFiles && typeof backupData.appFiles === 'object') {
+            await this.db.appFiles.clear();
+            
+            let totalFilesImported = 0;
+            for (const [originalAppId, files] of Object.entries(backupData.appFiles)) {
+              const newAppId = appIdMapping[originalAppId];
+              if (newAppId && Array.isArray(files)) {
+                const filesToAdd = files.map(file => ({
+                  appId: newAppId,
+                  filename: file.filename,
+                  content: file.content,
+                  size: file.size || file.content.length,
+                  mimeType: file.mimeType || this.getMimeType(file.filename)
+                }));
+                
+                await this.db.appFiles.bulkAdd(filesToAdd);
+                totalFilesImported += filesToAdd.length;
+              }
+            }
+            
+            DEBUG.log('✅ File delle app importati:', totalFilesImported);
+          }
         }
       });
 
       // Registra evento di sync
       await this.addSyncEvent('backup_imported', {
         appsCount: backupData.apps?.length || 0,
+        appFilesCount: backupData.appFiles ? Object.keys(backupData.appFiles).length : 0,
         timestamp: backupData.timestamp,
         version: backupData.version
       });
 
-      DEBUG.log('✅ Backup importato con successo');
+      DEBUG.log('✅ Backup completo importato con successo');
       return true;
     } catch (error) {
       DEBUG.error('❌ Errore import backup:', error);

@@ -426,41 +426,6 @@ export default function SyncManagerMaterial({ open, onClose }) {
     }
   };
 
-  const handleConflictResolution = async (resolution) => {
-    try {
-      setProgress({ show: true, value: 0, text: 'Risoluzione conflitto in corso...' });
-
-      if (resolution === 'download') {
-        // Sostituisci dati locali con quelli remoti
-        setProgress({ show: true, value: 50, text: 'Importazione dati da remoto...' });
-        await StorageService.importBackupData(conflictData.remoteData);
-        setSuccess(`Dati locali sostituiti con quelli da ${provider === 'github' ? 'GitHub' : 'Google Drive'}!`);
-        await addToSyncHistory('sync', `Conflitto risolto: importati dati da ${provider}`);
-      } else if (resolution === 'upload') {
-        // Sostituisci dati remoti con quelli locali
-        setProgress({ show: true, value: 50, text: 'Caricamento dati locali...' });
-        const localData = await StorageService.exportBackupData();
-        
-        if (provider === 'googledrive') {
-          await googleService.uploadSyncData(localData);
-        } else if (provider === 'github') {
-          await githubService.uploadSyncData(localData, gistId);
-        }
-        
-        setSuccess(`Dati da ${provider === 'github' ? 'GitHub' : 'Google Drive'} sostituiti con quelli locali!`);
-        await addToSyncHistory('sync', `Conflitto risolto: caricati dati locali su ${provider}`);
-      }
-
-      setProgress({ show: false, value: 100, text: '' });
-      setConflictData(null);
-
-    } catch (error) {
-      DEBUG.error('Errore risoluzione conflitto:', error);
-      setError(`Errore durante la risoluzione del conflitto: ${error.message}`);
-      setProgress({ show: false, value: 0, text: '' });
-    }
-  };
-
   const enableSync = async () => {
     try {
       setProgress({ show: true, value: 0, text: 'Abilitazione sincronizzazione...' });
@@ -532,7 +497,17 @@ export default function SyncManagerMaterial({ open, onClose }) {
           result = await githubService.syncBidirectional();
         } else if (provider === 'googledrive') {
           googleService.configure(credentials.googledrive.clientId);
-          result = await googleService.syncBidirectional();
+          
+          // Prima prova con rilevamento conflitti
+          result = await googleService.syncBidirectional({ conflictResolution: 'ask' });
+          
+          // Se c'è un conflitto, mostra il modal di risoluzione
+          if (result.conflict) {
+            setProgress({ show: false, value: 0, text: '' });
+            setConflictData(result);
+            setConflictModalOpen(true);
+            return; // Esce dalla funzione, la risoluzione continuerà nel modal
+          }
         }
       } else {
         // Usa i metodi individuali per upload/download
@@ -673,6 +648,136 @@ export default function SyncManagerMaterial({ open, onClose }) {
     }
   };
 
+  const handleConflictResolution = async (resolution) => {
+    try {
+      setProgress({ show: true, value: 0, text: 'Risoluzione conflitto in corso...' });
+      setConflictModalOpen(false);
+
+      let result;
+
+      if (resolution === 'local') {
+        // Usa dati locali
+        setProgress({ show: true, value: 50, text: 'Caricamento dati locali...' });
+        
+        if (provider === 'googledrive') {
+          result = await googleService.syncBidirectional({ conflictResolution: 'local' });
+        } else if (provider === 'github') {
+          const localData = await StorageService.exportBackupData();
+          result = await githubService.uploadSyncData(localData, gistId);
+        }
+        
+        setSuccess('Dati locali caricati con successo!');
+        await addToSyncHistory('sync', `Conflitto risolto: usati dati locali`);
+        
+      } else if (resolution === 'remote') {
+        // Usa dati remoti
+        setProgress({ show: true, value: 50, text: 'Importazione dati remoti...' });
+        
+        if (provider === 'googledrive') {
+          result = await googleService.syncBidirectional({ conflictResolution: 'remote' });
+        } else if (provider === 'github') {
+          if (gistId) {
+            const remoteResult = await githubService.downloadSyncData(gistId);
+            if (remoteResult.data) {
+              await StorageService.importBackupData(remoteResult.data);
+            }
+          }
+        }
+        
+        setSuccess('Dati remoti importati con successo!');
+        await addToSyncHistory('sync', `Conflitto risolto: usati dati remoti`);
+        
+      } else if (resolution === 'merge') {
+        // Unisci dati (implementazione avanzata)
+        setProgress({ show: true, value: 50, text: 'Unione dati in corso...' });
+        
+        const mergedData = await mergeConflictData(conflictData);
+        
+        if (provider === 'googledrive') {
+          // Carica i dati uniti
+          await googleService.uploadSyncData(mergedData);
+          // Importa localmente i dati uniti
+          await StorageService.importBackupData(mergedData);
+        } else if (provider === 'github') {
+          // Carica su GitHub
+          result = await githubService.uploadSyncData(mergedData, gistId);
+          // Importa localmente
+          await StorageService.importBackupData(mergedData);
+        }
+        
+        setSuccess('Dati uniti con successo!');
+        await addToSyncHistory('sync', `Conflitto risolto: dati uniti`);
+      }
+
+      setProgress({ show: false, value: 100, text: '' });
+      setConflictData(null);
+
+    } catch (error) {
+      DEBUG.error('Errore risoluzione conflitto:', error);
+      setError(`Errore durante la risoluzione del conflitto: ${error.message}`);
+      setProgress({ show: false, value: 0, text: '' });
+    }
+  };
+
+  // Funzione per unire i dati in caso di conflitto
+  const mergeConflictData = async (conflictData) => {
+    const { localData, remoteData } = conflictData;
+    
+    // Crea un oggetto unito mantenendo la struttura del backup
+    const mergedData = {
+      version: localData.version || remoteData.version || '1.0.0',
+      timestamp: new Date().toISOString(),
+      settings: {
+        ...remoteData.settings,
+        ...localData.settings // I dati locali hanno precedenza per le impostazioni
+      },
+      apps: [],
+      appFiles: {}
+    };
+
+    // Unisci le app evitando duplicati per nome
+    const appsByName = new Map();
+    
+    // Aggiungi app remote
+    if (remoteData.apps) {
+      remoteData.apps.forEach(app => {
+        appsByName.set(app.name, { ...app, source: 'remote' });
+      });
+    }
+    
+    // Sovrascrivi/aggiungi app locali (hanno precedenza)
+    if (localData.apps) {
+      localData.apps.forEach(app => {
+        appsByName.set(app.name, { ...app, source: 'local' });
+      });
+    }
+    
+    mergedData.apps = Array.from(appsByName.values());
+    
+    // Unisci i file delle app
+    const allAppFiles = {};
+    
+    // Aggiungi file remoti
+    if (remoteData.appFiles) {
+      Object.assign(allAppFiles, remoteData.appFiles);
+    }
+    
+    // Sovrascrivi/aggiungi file locali (hanno precedenza)
+    if (localData.appFiles) {
+      Object.assign(allAppFiles, localData.appFiles);
+    }
+    
+    mergedData.appFiles = allAppFiles;
+    
+    DEBUG.log('📋 Dati uniti:', {
+      apps: mergedData.apps.length,
+      settings: Object.keys(mergedData.settings).length,
+      appFiles: Object.keys(mergedData.appFiles).length
+    });
+    
+    return mergedData;
+  };
+
   return (
     <Dialog 
       open={open} 
@@ -783,7 +888,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
           <Card sx={{ mb: 3, background: theme.palette.background.default, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2 }}>
-                Configura Sincronizzazione
+                Configurazione Sincronizzazione
               </Typography>
 
               <FormControl component="fieldset" sx={{ mb: 3 }}>
@@ -1137,10 +1242,9 @@ export default function SyncManagerMaterial({ open, onClose }) {
           setConflictModalOpen(false);
           setConflictData(null);
         }}
-        localData={conflictData?.localData}
-        remoteData={conflictData?.remoteData}
-        provider={conflictData?.provider}
+        conflictData={conflictData}
         onResolve={handleConflictResolution}
+        loading={progress.show}
       />
     </Dialog>
   );
