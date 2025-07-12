@@ -365,11 +365,11 @@ export default function SyncManagerMaterial({ open, onClose }) {
       try {
         if (provider === 'googledrive') {
           remoteData = await googleService.downloadSyncData();
-          hasRemoteData = remoteData && remoteData.data && remoteData.data.data && remoteData.data.data.apps;
+          hasRemoteData = remoteData && remoteData.data && remoteData.data.apps;
         } else if (provider === 'github') {
           if (gistId) {
             remoteData = await githubService.downloadSyncData(gistId);
-            hasRemoteData = remoteData && remoteData.data && remoteData.data.data && remoteData.data.data.apps;
+            hasRemoteData = remoteData && remoteData.data && remoteData.data.apps;
           }
         }
       } catch (error) {
@@ -383,7 +383,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
         // Conflitto rilevato - mostra modal di risoluzione
         setConflictData({
           localData: localApps,
-          remoteData: remoteData,
+          remoteData: remoteData.data, // Ora è direttamente il formato backup
           provider: provider
         });
         setConflictModalOpen(true);
@@ -410,8 +410,8 @@ export default function SyncManagerMaterial({ open, onClose }) {
         result = await githubService.downloadSyncData(gistId);
       }
 
-      if (result && result.data && result.data.data && result.data.data.apps) {
-        await StorageService.importData(result.data);
+      if (result && result.data && result.data.apps) {
+        await StorageService.importBackupData(result.data);
         setProgress({ show: false, value: 100, text: '' });
         setSuccess(`Sincronizzazione abilitata e dati scaricati da ${provider === 'github' ? 'GitHub' : 'Google Drive'}!`);
         await addToSyncHistory('sync', `Dati scaricati automaticamente da ${provider}`);
@@ -433,13 +433,13 @@ export default function SyncManagerMaterial({ open, onClose }) {
       if (resolution === 'download') {
         // Sostituisci dati locali con quelli remoti
         setProgress({ show: true, value: 50, text: 'Importazione dati da remoto...' });
-        await StorageService.importData(conflictData.remoteData.data);
+        await StorageService.importBackupData(conflictData.remoteData);
         setSuccess(`Dati locali sostituiti con quelli da ${provider === 'github' ? 'GitHub' : 'Google Drive'}!`);
         await addToSyncHistory('sync', `Conflitto risolto: importati dati da ${provider}`);
       } else if (resolution === 'upload') {
         // Sostituisci dati remoti con quelli locali
         setProgress({ show: true, value: 50, text: 'Caricamento dati locali...' });
-        const localData = await StorageService.exportAllData();
+        const localData = await StorageService.exportBackupData();
         
         if (provider === 'googledrive') {
           await googleService.uploadSyncData(localData);
@@ -569,7 +569,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
     
     if (direction === 'upload' || direction === 'bidirectional') {
       setProgress({ show: true, value: 30, text: 'Caricamento dati su GitHub...' });
-      const data = await StorageService.exportAllData();
+      const data = await StorageService.exportBackupData();
       const result = await githubService.uploadSyncData(data, gistId);
       
       if (result.gistId && !gistId) {
@@ -583,7 +583,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
       if (gistId) {
         const result = await githubService.downloadSyncData(gistId);
         if (result.data) {
-          await StorageService.importData(result.data);
+          await StorageService.importBackupData(result.data);
         }
       }
     }
@@ -603,7 +603,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
     
     if (direction === 'upload' || direction === 'bidirectional') {
       setProgress({ show: true, value: 30, text: 'Caricamento dati su Google Drive...' });
-      const data = await StorageService.exportAllData();
+      const data = await StorageService.exportBackupData();
       await googleService.uploadSyncData(data);
     }
     
@@ -611,7 +611,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
       setProgress({ show: true, value: 70, text: 'Scaricamento dati da Google Drive...' });
       const result = await googleService.downloadSyncData();
       if (result.data) {
-        await StorageService.importData(result.data);
+        await StorageService.importBackupData(result.data);
       }
     }
   };

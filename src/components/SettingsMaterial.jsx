@@ -167,12 +167,7 @@ const SettingsMaterial = ({
 
   const handleExportData = async () => {
     try {
-      const data = {
-        settings: localSettings,
-        apps: await StorageService.getAllApps(),
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-      };
+      const data = await StorageService.exportBackupData();
       
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -201,18 +196,8 @@ const SettingsMaterial = ({
         try {
           const data = JSON.parse(e.target.result);
           
-          // Validazione dati
-          if (!data.settings || !data.apps) {
-            throw new Error('Formato file non valido');
-          }
-          
-          // Importa impostazioni
-          await StorageService.setAllSettings(data.settings);
-          
-          // Importa app
-          for (const app of data.apps) {
-            await StorageService.installApp(app);
-          }
+          // Usa la nuova funzione di import che valida il formato
+          await StorageService.importBackupData(data);
           
           showToast('Dati importati con successo', 'success');
           
@@ -221,7 +206,7 @@ const SettingsMaterial = ({
           
         } catch (error) {
           console.error('Errore import dati:', error);
-          showToast('Errore durante l\'importazione', 'error');
+          showToast(`Errore durante l'importazione: ${error.message}`, 'error');
         }
       };
       reader.readAsText(file);

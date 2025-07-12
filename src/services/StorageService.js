@@ -608,7 +608,89 @@ class StorageService {
     }
   }
 
-  // Importa dati
+  // Esporta dati nel formato del backup manuale (compatibile con UI)
+  async exportBackupData() {
+    try {
+      const [apps, settingsArray] = await Promise.all([
+        this.db.apps.toArray(),
+        this.db.settings.toArray()
+      ]);
+
+      // Converti array di settings in oggetto
+      const settings = {};
+      settingsArray.forEach(item => {
+        settings[item.key] = item.value;
+      });
+
+      return {
+        settings: settings,
+        apps: apps,
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+      };
+    } catch (error) {
+      DEBUG.error('Errore export backup:', error);
+      throw error;
+    }
+  }
+
+  // Importa dati dal formato del backup manuale
+  async importBackupData(backupData) {
+    try {
+      DEBUG.log('📥 Importazione backup dati:', {
+        hasSettings: !!backupData.settings,
+        hasApps: !!backupData.apps,
+        appsCount: backupData.apps?.length || 0,
+        version: backupData.version
+      });
+
+      // Validazione formato
+      if (!backupData.settings || !backupData.apps) {
+        throw new Error('Formato backup non valido - settings o apps mancanti');
+      }
+
+      if (!Array.isArray(backupData.apps)) {
+        throw new Error('Formato backup non valido - apps deve essere un array');
+      }
+
+      await this.db.transaction('rw', [this.db.apps, this.db.settings], async () => {
+        // Importa settings
+        if (backupData.settings && typeof backupData.settings === 'object') {
+          const settingsArray = Object.entries(backupData.settings).map(([key, value]) => ({
+            key,
+            value,
+            lastModified: new Date()
+          }));
+          
+          await this.db.settings.clear();
+          await this.db.settings.bulkAdd(settingsArray);
+          DEBUG.log('✅ Settings importate:', Object.keys(backupData.settings).length);
+        }
+
+        // Importa apps
+        if (backupData.apps && backupData.apps.length > 0) {
+          await this.db.apps.clear();
+          await this.db.apps.bulkAdd(backupData.apps);
+          DEBUG.log('✅ Apps importate:', backupData.apps.length);
+        }
+      });
+
+      // Registra evento di sync
+      await this.addSyncEvent('backup_imported', {
+        appsCount: backupData.apps?.length || 0,
+        timestamp: backupData.timestamp,
+        version: backupData.version
+      });
+
+      DEBUG.log('✅ Backup importato con successo');
+      return true;
+    } catch (error) {
+      DEBUG.error('❌ Errore import backup:', error);
+      throw error;
+    }
+  }
+
+  // Importa dati (formato legacy per compatibilità)
   async importData(exportData) {
     try {
       if (!exportData.data) {

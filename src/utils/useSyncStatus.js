@@ -35,20 +35,65 @@ export function useSyncStatus() {
     (async () => {
       setIsEnabled(await StorageService.getSetting('syncEnabled', false));
       
-      // Correggi provider obsoleto "gist" -> "googledrive"
+      // Gestione migliore del provider
       let syncProvider = await StorageService.getSetting('syncProvider', 'github');
+      
+      // Correggi provider obsoleto "gist" -> "googledrive" (migrazione legacy)
       if (syncProvider === 'gist') {
-        console.log('🔧 Correzione provider obsoleto: gist -> googledrive');
+        console.log('🔧 Migrazione provider obsoleto: gist -> googledrive');
         syncProvider = 'googledrive';
         await StorageService.setSetting('syncProvider', 'googledrive');
+        console.log('✅ Provider aggiornato a googledrive');
       }
+      
+      // Verifica che il provider sia valido
+      const validProviders = ['github', 'googledrive'];
+      if (!validProviders.includes(syncProvider)) {
+        console.warn('⚠️ Provider non valido rilevato:', syncProvider);
+        syncProvider = 'github'; // Fallback a github
+        await StorageService.setSetting('syncProvider', syncProvider);
+        console.log('🔧 Provider ripristinato a github come fallback');
+      }
+      
       setProvider(syncProvider);
+      console.log('📋 Provider sincronizzazione caricato:', syncProvider);
       
       setLastSync(await StorageService.getSetting('lastSyncTime', null));
       setIntervalMinutes(await StorageService.getSetting('autoSyncInterval', DEFAULT_INTERVAL));
       setSyncHistory(await StorageService.getSetting('syncHistory', []));
     })();
   }, []);
+
+  // Funzione per cambiare provider con persistenza immediata
+  const updateProvider = async (newProvider) => {
+    console.log('🔄 Cambio provider da', provider, 'a', newProvider);
+    
+    // Valida il nuovo provider
+    const validProviders = ['github', 'googledrive'];
+    if (!validProviders.includes(newProvider)) {
+      console.error('❌ Provider non valido:', newProvider);
+      return false;
+    }
+    
+    try {
+      // Salva immediatamente nel storage
+      await StorageService.setSetting('syncProvider', newProvider);
+      
+      // Aggiorna lo stato locale
+      setProvider(newProvider);
+      
+      // Pulisci errori precedenti
+      setError(null);
+      
+      console.log('✅ Provider aggiornato con successo a:', newProvider);
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Errore durante aggiornamento provider:', error);
+      setError('Errore durante cambio provider');
+      return false;
+    }
+  };
 
   // Gestione auto-sync
   useEffect(() => {
@@ -143,14 +188,19 @@ export function useSyncStatus() {
     provider,
     isInProgress,
     lastSync,
-    nextSync,
     error,
     intervalMinutes,
+    nextSync,
     syncHistory,
-    setProvider: (p) => updateSettings({ provider: p }),
-    setIsEnabled: (v) => updateSettings({ isEnabled: v }),
-    setIntervalMinutes: (v) => updateSettings({ intervalMinutes: v }),
-    manualSync,
-    updateSettings
+    setIsEnabled: async (enabled) => {
+      setIsEnabled(enabled);
+      await StorageService.setSetting('syncEnabled', enabled);
+    },
+    setProvider: updateProvider, // Usa la nuova funzione con persistenza
+    setIntervalMinutes: async (minutes) => {
+      setIntervalMinutes(minutes);
+      await StorageService.setSetting('autoSyncInterval', minutes);
+    },
+    manualSync
   };
 } 

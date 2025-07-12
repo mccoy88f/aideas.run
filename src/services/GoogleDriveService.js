@@ -625,26 +625,76 @@ export default class GoogleDriveService {
 
       const syncFile = files[0];
       
+      // Verifica se il file ha dimensioni valide
+      if (syncFile.size === 0 || syncFile.size === '0') {
+        DEBUG.warn('⚠️ File di sincronizzazione vuoto rilevato');
+        throw new Error('File di sincronizzazione vuoto - probabilmente corrotto');
+      }
+      
       // Scarica contenuto file
       const response = await this.makeAuthenticatedRequest(
         `${GOOGLE_API_BASE}/files/${syncFile.id}?alt=media`
       );
 
       if (!response.ok) {
-        throw new Error('Errore download file');
+        throw new Error(`Errore download file: ${response.status} ${response.statusText}`);
       }
 
       const content = await response.text();
-      const syncData = JSON.parse(content);
-
-      // Validazione dati
-      if (!syncData.data || !syncData.data.apps) {
-        throw new Error('Formato dati non valido');
+      
+      // Validazione contenuto prima del parsing
+      if (!content || content.trim().length === 0) {
+        DEBUG.warn('⚠️ Contenuto file vuoto dopo download');
+        throw new Error('File di sincronizzazione vuoto - impossibile procedere');
       }
 
-      DEBUG.log('✅ Dati sincronizzazione scaricati:', {
-        apps: syncData.data.apps.length,
-        timestamp: syncData.timestamp
+      let syncData;
+      try {
+        syncData = JSON.parse(content);
+      } catch (parseError) {
+        DEBUG.error('❌ Errore parsing JSON:', parseError);
+        DEBUG.error('📄 Contenuto ricevuto (primi 200 caratteri):', content.substring(0, 200));
+        
+        // Verifica se il contenuto sembra essere HTML di errore
+        if (content.includes('<html>') || content.includes('<!DOCTYPE')) {
+          throw new Error('Ricevuto contenuto HTML invece di JSON - possibile errore di autenticazione');
+        }
+        
+        // Verifica se il contenuto è troncato
+        if (content.length > 0 && !content.trim().endsWith('}')) {
+          throw new Error('File di sincronizzazione troncato o corrotto - riprova la sincronizzazione');
+        }
+        
+        throw new Error(`Errore parsing dati sincronizzazione: ${parseError.message}`);
+      }
+
+      // Validazione struttura dati
+      if (!syncData || typeof syncData !== 'object') {
+        throw new Error('Formato dati sincronizzazione non valido - oggetto root mancante');
+      }
+
+      if (!syncData.settings || typeof syncData.settings !== 'object') {
+        throw new Error('Formato dati sincronizzazione non valido - settings mancanti');
+      }
+
+      if (!syncData.apps || !Array.isArray(syncData.apps)) {
+        throw new Error('Formato dati sincronizzazione non valido - apps mancanti o non array');
+      }
+
+      if (!syncData.timestamp) {
+        throw new Error('Formato dati sincronizzazione non valido - timestamp mancante');
+      }
+
+      if (!syncData.version) {
+        throw new Error('Formato dati sincronizzazione non valido - version mancante');
+      }
+
+      DEBUG.log('✅ Dati sincronizzazione scaricati e validati:', {
+        apps: syncData.apps.length,
+        settingsCount: Object.keys(syncData.settings).length,
+        timestamp: syncData.timestamp,
+        version: syncData.version,
+        fileSize: syncFile.size
       });
 
       return {
@@ -662,7 +712,11 @@ export default class GoogleDriveService {
       operationName: 'Download sincronizzazione Google Drive',
       retryStrategy: 'NETWORK_ERROR',
       maxRetries: 3,
-      timeout: 30000
+      timeout: 30000,
+      validateResult: (result) => {
+        // Validazione aggiuntiva del risultato
+        return result && result.success && result.data && result.data.settings && result.data.apps;
+      }
     });
   }
 
@@ -681,14 +735,8 @@ export default class GoogleDriveService {
         await this.initializeAIdeasFolder();
       }
 
-      // Prepara dati con metadata
-      const syncData = {
-        timestamp: new Date().toISOString(),
-        user: this.userInfo?.name || 'Unknown',
-        data: data
-      };
-
-      const content = JSON.stringify(syncData, null, 2);
+      // Usa direttamente il formato di backup manuale
+      const content = JSON.stringify(data, null, 2);
       const blob = new Blob([content], { type: 'application/json' });
 
       // Cerca file esistente
@@ -740,7 +788,9 @@ export default class GoogleDriveService {
 
       DEBUG.log('✅ Dati sincronizzazione caricati:', {
         fileId: result.id,
-        apps: data.apps.length
+        apps: data.apps?.length || 0,
+        hasSettings: !!data.settings,
+        timestamp: data.timestamp
       });
 
       return {
@@ -896,38 +946,89 @@ export default class GoogleDriveService {
     try {
       DEBUG.log('🔄 Avvio sincronizzazione bidirezionale Google Drive...');
       
-      if (!this.isAuthenticated) {
-        throw new Error('Non autenticato con Google Drive');
+      if (!await this.checkAuthentication()) {
+        throw new Error('Autenticazione richiesta');
       }
 
-      // 1. Scarica dati remoti
-      const remoteData = await this.downloadSyncData();
-      
-      // 2. Ottieni dati locali
-      const StorageService = (await import('../services/StorageService.js')).default;
-      const localData = await StorageService.exportData();
-      
-      // 3. Determina quale sia più recente
-      let finalData = localData;
-      let syncMessage = 'Dati locali caricati su Google Drive';
-      
-      if (remoteData && remoteData.data && remoteData.lastModified) {
-        const remoteDate = new Date(remoteData.lastModified);
-        const localDate = new Date(localData.exportedAt || 0);
+      // Carica dati locali usando il formato di backup manuale
+      const StorageService = (await import('./StorageService.js')).default;
+      const localData = await StorageService.exportBackupData();
+
+      let remoteData = null;
+      let syncMessage = '';
+
+      try {
+        // Prova a scaricare dati remoti
+        const downloadResult = await this.downloadSyncData();
+        remoteData = downloadResult.data;
         
-        if (remoteDate > localDate) {
-          // Dati remoti più recenti - importa
-          await StorageService.importData(remoteData.data);
-          finalData = remoteData.data;
-          syncMessage = 'Dati più recenti scaricati da Google Drive';
+        DEBUG.log('📥 Dati remoti scaricati:', {
+          apps: remoteData.apps?.length || 0,
+          hasSettings: !!remoteData.settings,
+          timestamp: remoteData.timestamp
+        });
+
+      } catch (downloadError) {
+        DEBUG.warn('⚠️ Errore download dati remoti:', downloadError.message);
+        
+        // Gestione errori specifici
+        if (downloadError.message.includes('File di sincronizzazione non trovato')) {
+          DEBUG.log('📤 Primo sync - caricamento dati locali');
+          syncMessage = 'Primo sync: dati locali caricati su Google Drive';
+          
+        } else if (downloadError.message.includes('vuoto') || downloadError.message.includes('corrotto')) {
+          DEBUG.warn('🔧 File corrotto rilevato - tentativo di recupero');
+          
+          // Prova a recuperare il file di sincronizzazione
+          const recoveryResult = await this.recoverSyncFile();
+          if (recoveryResult.success) {
+            DEBUG.log('✅ Recupero completato, riprovo download');
+            const retryResult = await this.downloadSyncData();
+            remoteData = retryResult.data;
+            syncMessage = 'Dati recuperati e sincronizzati';
+          } else {
+            DEBUG.log('📤 Recupero fallito - ricreazione file con dati locali');
+            syncMessage = 'File corrotto sostituito con dati locali';
+          }
+          
+        } else {
+          // Altri errori - rilancia
+          throw downloadError;
         }
       }
+
+      // Determina strategia di sincronizzazione
+      let finalData = localData;
       
-      // 4. Carica la versione finale su Google Drive
+      if (remoteData) {
+        // Confronta timestamp per determinare quale versione è più recente
+        const localTimestamp = localData.timestamp ? new Date(localData.timestamp).getTime() : 0;
+        const remoteTimestamp = remoteData.timestamp ? new Date(remoteData.timestamp).getTime() : 0;
+
+        if (remoteTimestamp > localTimestamp) {
+          DEBUG.log('📥 Dati remoti più recenti - download');
+          finalData = remoteData;
+          syncMessage = syncMessage || 'Dati scaricati da Google Drive';
+          
+          // Aggiorna dati locali
+          await StorageService.importBackupData(finalData);
+          
+        } else {
+          DEBUG.log('📤 Dati locali più recenti - upload');
+          finalData = localData;
+          syncMessage = syncMessage || 'Dati caricati su Google Drive';
+        }
+      }
+
+      // Carica dati aggiornati
       await this.uploadSyncData(finalData);
-      
-      DEBUG.log('✅ Sincronizzazione bidirezionale completata');
-      
+
+      DEBUG.log('✅ Sincronizzazione bidirezionale completata:', {
+        apps: finalData.apps?.length || 0,
+        hasSettings: !!finalData.settings,
+        message: syncMessage
+      });
+
       return {
         success: true,
         message: syncMessage,
@@ -938,6 +1039,88 @@ export default class GoogleDriveService {
     } catch (error) {
       DEBUG.error('❌ Errore sincronizzazione bidirezionale Google Drive:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Tenta di recuperare un file di sincronizzazione corrotto
+   */
+  async recoverSyncFile() {
+    try {
+      DEBUG.log('🔧 Tentativo di recupero file sincronizzazione...');
+      
+      if (!this.aideasFolderId) {
+        await this.initializeAIdeasFolder();
+      }
+
+      // Cerca tutti i file nella cartella AIdeas
+      const files = await this.searchFiles({
+        parents: [this.aideasFolderId]
+      });
+
+      DEBUG.log('📂 File trovati nella cartella AIdeas:', files.length);
+
+      // Cerca file di backup o versioni precedenti
+      const backupFiles = files.filter(file => 
+        file.name.includes('aideas-sync') || 
+        file.name.includes('backup') ||
+        file.name.includes('.json')
+      );
+
+      if (backupFiles.length === 0) {
+        DEBUG.warn('⚠️ Nessun file di backup trovato');
+        return { success: false, reason: 'NO_BACKUP_FILES' };
+      }
+
+      // Ordina per data di modifica (più recente prima)
+      backupFiles.sort((a, b) => new Date(b.modifiedTime) - new Date(a.modifiedTime));
+
+      // Prova a recuperare dal file più recente
+      for (const file of backupFiles) {
+        try {
+          DEBUG.log('🔄 Tentativo recupero da:', file.name);
+          
+          const response = await this.makeAuthenticatedRequest(
+            `${GOOGLE_API_BASE}/files/${file.id}?alt=media`
+          );
+
+          if (!response.ok) continue;
+
+          const content = await response.text();
+          if (!content || content.trim().length === 0) continue;
+
+          const data = JSON.parse(content);
+          
+          // Verifica che abbia la struttura corretta del backup manuale
+          if (data.settings && typeof data.settings === 'object' && 
+              data.apps && Array.isArray(data.apps) && 
+              data.timestamp && data.version) {
+            DEBUG.log('✅ Dati validi trovati in:', file.name);
+            
+            // Ricrea il file di sincronizzazione principale
+            await this.uploadSyncData(data);
+            
+            return { 
+              success: true, 
+              recoveredFrom: file.name,
+              apps: data.apps.length,
+              settings: Object.keys(data.settings).length,
+              version: data.version
+            };
+          }
+          
+        } catch (parseError) {
+          DEBUG.warn('⚠️ File non valido:', file.name, parseError.message);
+          continue;
+        }
+      }
+
+      DEBUG.warn('⚠️ Nessun file di recupero valido trovato');
+      return { success: false, reason: 'NO_VALID_BACKUP' };
+
+    } catch (error) {
+      DEBUG.error('❌ Errore durante recupero:', error);
+      return { success: false, reason: 'RECOVERY_ERROR', error: error.message };
     }
   }
 

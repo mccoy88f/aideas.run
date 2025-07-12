@@ -647,19 +647,23 @@ export default class GitHubService {
 
   /**
    * Upload dati di sync su Gist
-   * @param {Object} syncData - Dati da sincronizzare
-   * @param {string} gistId - ID Gist esistente (opzionale)
-   * @returns {Promise<Object>} Risultato operazione
+   * @param {Object} syncData - Dati da sincronizzare (formato backup manuale)
+   * @param {string} gistId - ID del Gist esistente (opzionale)
+   * @returns {Promise<Object>} Risultato dell'upload
    */
   async uploadSyncData(syncData, gistId = null) {
     return await ErrorHandler.withRetry(async () => {
-      // Validazione dati
+      // Validazione dati (formato backup manuale)
       if (!syncData || typeof syncData !== 'object') {
         throw new Error('Dati sync non validi');
       }
 
-      if (!syncData.data || !syncData.data.apps) {
+      if (!syncData.apps || !Array.isArray(syncData.apps)) {
         throw new Error('Dati sync incompleti: mancano le app');
+      }
+
+      if (!syncData.settings || typeof syncData.settings !== 'object') {
+        throw new Error('Dati sync incompleti: mancano le settings');
       }
 
       // Crea backup automatico prima dell'upload
@@ -674,8 +678,8 @@ export default class GitHubService {
           },
           'aideas-meta.json': {
             content: JSON.stringify({
-              version: '1.0.0',
-              timestamp: new Date().toISOString(),
+              version: syncData.version || '1.0.0',
+              timestamp: syncData.timestamp || new Date().toISOString(),
               device: navigator.userAgent,
               checksum: await this.generateChecksum(syncData),
               backupId: backupId
@@ -727,7 +731,7 @@ export default class GitHubService {
       context: { 
         gistId: gistId,
         dataSize: JSON.stringify(syncData || {}).length,
-        appsCount: syncData?.data?.apps?.length || 0
+        appsCount: syncData?.apps?.length || 0
       },
       rollbackFn: async (error, context) => {
         DEBUG.warn(`🔄 Rollback upload GitHub - tentativo ripristino backup`);
@@ -773,13 +777,25 @@ export default class GitHubService {
         throw new Error('Dati sync corrotti o non validi');
       }
 
-      // Validazione struttura dati
+      // Validazione struttura dati (formato backup manuale)
       if (!syncData || typeof syncData !== 'object') {
         throw new Error('Formato dati sync non valido');
       }
 
-      if (!syncData.data || !syncData.data.apps) {
+      if (!syncData.apps || !Array.isArray(syncData.apps)) {
         throw new Error('Dati sync incompleti: mancano le app');
+      }
+
+      if (!syncData.settings || typeof syncData.settings !== 'object') {
+        throw new Error('Dati sync incompleti: mancano le settings');
+      }
+
+      if (!syncData.timestamp) {
+        throw new Error('Dati sync incompleti: mancante timestamp');
+      }
+
+      if (!syncData.version) {
+        throw new Error('Dati sync incompleti: mancante version');
       }
 
       let metadata = null;
@@ -801,14 +817,14 @@ export default class GitHubService {
       }
 
       // Validazione aggiuntiva sui dati delle app
-      if (syncData.data.apps && Array.isArray(syncData.data.apps)) {
-        const invalidApps = syncData.data.apps.filter(app => !app.name || !app.type);
+      if (syncData.apps && Array.isArray(syncData.apps)) {
+        const invalidApps = syncData.apps.filter(app => !app.name || !app.type);
         if (invalidApps.length > 0) {
           DEBUG.warn(`⚠️ Trovate ${invalidApps.length} app con dati incompleti`);
         }
       }
 
-      DEBUG.success(`✅ Scaricati dati sync da GitHub Gist: ${syncData.data.apps.length} app`);
+      DEBUG.success(`✅ Scaricati dati sync da GitHub Gist: ${syncData.apps.length} app, ${Object.keys(syncData.settings).length} settings`);
 
       return {
         success: true,
@@ -821,7 +837,8 @@ export default class GitHubService {
         },
         validation: {
           checksumValid,
-          appsCount: syncData.data.apps.length,
+          appsCount: syncData.apps.length,
+          settingsCount: Object.keys(syncData.settings).length,
           hasMetadata: !!metadata
         }
       };
@@ -838,7 +855,7 @@ export default class GitHubService {
         // Non c'è rollback per un download, ma possiamo loggare per debug
       },
       validateResult: (result) => {
-        return result && result.success && result.data && result.data.data && result.data.data.apps;
+        return result && result.success && result.data && result.data.apps && result.data.settings;
       }
     });
   }
@@ -907,14 +924,103 @@ export default class GitHubService {
    */
   async syncBidirectional() {
     try {
-      // Per ora, ritorna un messaggio di successo
-      // La logica completa sarà implementata quando necessario
+      DEBUG.log('🔄 Avvio sincronizzazione bidirezionale GitHub...');
+      
+      if (!await this.isAuthenticated()) {
+        throw new Error('Autenticazione richiesta');
+      }
+
+      // Carica dati locali usando il formato di backup manuale
+      const StorageService = (await import('./StorageService.js')).default;
+      const localData = await StorageService.exportBackupData();
+
+      // Ottieni il gistId salvato
+      const gistId = await StorageService.getSetting('githubGistId');
+      
+      let remoteData = null;
+      let syncMessage = '';
+
+      try {
+        // Prova a scaricare dati remoti se esiste un gistId
+        if (gistId) {
+          const downloadResult = await this.downloadSyncData(gistId);
+          remoteData = downloadResult.data;
+          
+          DEBUG.log('📥 Dati remoti scaricati:', {
+            apps: remoteData.apps?.length || 0,
+            hasSettings: !!remoteData.settings,
+            timestamp: remoteData.timestamp
+          });
+        }
+
+      } catch (downloadError) {
+        DEBUG.warn('⚠️ Errore download dati remoti:', downloadError.message);
+        
+        // Gestione errori specifici
+        if (downloadError.message.includes('ID Gist non valido') || 
+            downloadError.message.includes('Gist non valido') || 
+            downloadError.status === 404) {
+          DEBUG.log('📤 Primo sync o Gist non trovato - caricamento dati locali');
+          syncMessage = 'Primo sync: dati locali caricati su GitHub';
+          
+        } else if (downloadError.message.includes('corrotti') || downloadError.message.includes('non validi')) {
+          DEBUG.warn('🔧 Dati corrotti rilevati - ricreazione');
+          syncMessage = 'Dati corrotti sostituiti con dati locali';
+          
+        } else {
+          // Altri errori - rilancia
+          throw downloadError;
+        }
+      }
+
+      // Determina strategia di sincronizzazione
+      let finalData = localData;
+      
+      if (remoteData) {
+        // Confronta timestamp per determinare quale versione è più recente
+        const localTimestamp = localData.timestamp ? new Date(localData.timestamp).getTime() : 0;
+        const remoteTimestamp = remoteData.timestamp ? new Date(remoteData.timestamp).getTime() : 0;
+
+        if (remoteTimestamp > localTimestamp) {
+          DEBUG.log('📥 Dati remoti più recenti - download');
+          finalData = remoteData;
+          syncMessage = syncMessage || 'Dati scaricati da GitHub';
+          
+          // Aggiorna dati locali
+          await StorageService.importBackupData(finalData);
+          
+        } else {
+          DEBUG.log('📤 Dati locali più recenti - upload');
+          finalData = localData;
+          syncMessage = syncMessage || 'Dati caricati su GitHub';
+        }
+      }
+
+      // Carica dati aggiornati
+      const uploadResult = await this.uploadSyncData(finalData, gistId);
+      
+      // Salva il gistId se è nuovo
+      if (uploadResult.gistId && !gistId) {
+        await StorageService.setSetting('githubGistId', uploadResult.gistId);
+      }
+
+      DEBUG.log('✅ Sincronizzazione bidirezionale completata:', {
+        apps: finalData.apps?.length || 0,
+        hasSettings: !!finalData.settings,
+        message: syncMessage,
+        gistId: uploadResult.gistId
+      });
+
       return {
         success: true,
-        message: 'Sincronizzazione GitHub completata'
+        message: syncMessage,
+        syncedAt: new Date().toISOString(),
+        apps: finalData.apps?.length || 0,
+        gistId: uploadResult.gistId
       };
+
     } catch (error) {
-      DEBUG.error('Errore sincronizzazione bidirezionale GitHub:', error);
+      DEBUG.error('❌ Errore sincronizzazione bidirezionale GitHub:', error);
       throw error;
     }
   }
