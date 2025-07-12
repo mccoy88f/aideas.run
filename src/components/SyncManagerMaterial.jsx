@@ -48,6 +48,7 @@ import GitHubService from '../services/GitHubService.js';
 import GoogleDriveService from '../services/GoogleDriveService.js';
 import StorageService from '../services/StorageService.js';
 import ErrorHandler from '../services/ErrorHandler.js';
+import SyncConflictModal from './SyncConflictModal.jsx';
 import { useTheme } from '@mui/material/styles';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
 
@@ -64,6 +65,8 @@ export default function SyncManagerMaterial({ open, onClose }) {
   const [progress, setProgress] = useState({ show: false, value: 0, text: '' });
   const [success, setSuccess] = useState(null);
   const [gistId, setGistId] = useState(null);
+  const [conflictData, setConflictData] = useState(null);
+  const [conflictModalOpen, setConflictModalOpen] = useState(false);
 
   const [githubService] = useState(new GitHubService());
   const [googleService] = useState(new GoogleDriveService());
@@ -205,6 +208,147 @@ export default function SyncManagerMaterial({ open, onClose }) {
     }
   };
 
+  const addToSyncHistory = async (type, message) => {
+    try {
+      const history = await StorageService.getSetting('syncHistory', []);
+      const newEntry = {
+        id: Date.now(),
+        type,
+        message,
+        timestamp: new Date().toISOString(),
+        provider
+      };
+      
+      history.unshift(newEntry);
+      
+      // Mantieni solo gli ultimi 20 entry
+      const trimmedHistory = history.slice(0, 20);
+      await StorageService.setSetting('syncHistory', trimmedHistory);
+      
+      // Aggiorna lo stato locale se disponibile
+      // setSyncHistory(trimmedHistory);
+    } catch (error) {
+      console.error('Errore aggiunta cronologia sync:', error);
+    }
+  };
+
+  const checkForSyncConflicts = async () => {
+    try {
+      setProgress({ show: true, value: 0, text: 'Controllo conflitti di sincronizzazione...' });
+      
+      // Controlla se ci sono dati locali
+      const localApps = await StorageService.getAllApps();
+      const hasLocalData = localApps && localApps.length > 0;
+      
+      if (!hasLocalData) {
+        // Nessun dato locale, prova a scaricare da remoto
+        await downloadDataIfAvailable();
+        return;
+      }
+
+      // Controlla se ci sono dati remoti
+      let remoteData = null;
+      let hasRemoteData = false;
+
+      try {
+        if (provider === 'googledrive') {
+          remoteData = await googleService.downloadSyncData();
+          hasRemoteData = remoteData && remoteData.data && remoteData.data.data && remoteData.data.data.apps;
+        } else if (provider === 'github') {
+          if (gistId) {
+            remoteData = await githubService.downloadSyncData(gistId);
+            hasRemoteData = remoteData && remoteData.data && remoteData.data.data && remoteData.data.data.apps;
+          }
+        }
+      } catch (error) {
+        console.warn('Nessun dato remoto trovato o errore download:', error.message);
+        hasRemoteData = false;
+      }
+
+      setProgress({ show: false, value: 100, text: '' });
+
+      if (hasRemoteData) {
+        // Conflitto rilevato - mostra modal di risoluzione
+        setConflictData({
+          localData: localApps,
+          remoteData: remoteData,
+          provider: provider
+        });
+        setConflictModalOpen(true);
+      } else {
+        // Nessun conflitto, solo dati locali
+        setSuccess('Sincronizzazione abilitata! Solo dati locali presenti.');
+      }
+
+    } catch (error) {
+      console.error('Errore controllo conflitti:', error);
+      setProgress({ show: false, value: 0, text: '' });
+      setSuccess('Sincronizzazione abilitata! Errore nel controllo conflitti, dati locali preservati.');
+    }
+  };
+
+  const downloadDataIfAvailable = async () => {
+    try {
+      setProgress({ show: true, value: 30, text: 'Scaricamento dati da remoto...' });
+      
+      let result = null;
+      if (provider === 'googledrive') {
+        result = await googleService.downloadSyncData();
+      } else if (provider === 'github' && gistId) {
+        result = await githubService.downloadSyncData(gistId);
+      }
+
+      if (result && result.data && result.data.data && result.data.data.apps) {
+        await StorageService.importData(result.data);
+        setProgress({ show: false, value: 100, text: '' });
+        setSuccess(`Sincronizzazione abilitata e dati scaricati da ${provider === 'github' ? 'GitHub' : 'Google Drive'}!`);
+        await addToSyncHistory('sync', `Dati scaricati automaticamente da ${provider}`);
+      } else {
+        setProgress({ show: false, value: 100, text: '' });
+        setSuccess(`Sincronizzazione abilitata! Nessun dato trovato su ${provider === 'github' ? 'GitHub' : 'Google Drive'}.`);
+      }
+    } catch (error) {
+      console.warn('Errore download automatico:', error);
+      setProgress({ show: false, value: 100, text: '' });
+      setSuccess('Sincronizzazione abilitata! Errore nel download automatico dei dati.');
+    }
+  };
+
+  const handleConflictResolution = async (resolution) => {
+    try {
+      setProgress({ show: true, value: 0, text: 'Risoluzione conflitto in corso...' });
+
+      if (resolution === 'download') {
+        // Sostituisci dati locali con quelli remoti
+        setProgress({ show: true, value: 50, text: 'Importazione dati da remoto...' });
+        await StorageService.importData(conflictData.remoteData.data);
+        setSuccess(`Dati locali sostituiti con quelli da ${provider === 'github' ? 'GitHub' : 'Google Drive'}!`);
+        await addToSyncHistory('sync', `Conflitto risolto: importati dati da ${provider}`);
+      } else if (resolution === 'upload') {
+        // Sostituisci dati remoti con quelli locali
+        setProgress({ show: true, value: 50, text: 'Caricamento dati locali...' });
+        const localData = await StorageService.exportAllData();
+        
+        if (provider === 'googledrive') {
+          await googleService.uploadSyncData(localData);
+        } else if (provider === 'github') {
+          await githubService.uploadSyncData(localData, gistId);
+        }
+        
+        setSuccess(`Dati da ${provider === 'github' ? 'GitHub' : 'Google Drive'} sostituiti con quelli locali!`);
+        await addToSyncHistory('sync', `Conflitto risolto: caricati dati locali su ${provider}`);
+      }
+
+      setProgress({ show: false, value: 100, text: '' });
+      setConflictData(null);
+
+    } catch (error) {
+      console.error('Errore risoluzione conflitto:', error);
+      setError(`Errore durante la risoluzione del conflitto: ${error.message}`);
+      setProgress({ show: false, value: 0, text: '' });
+    }
+  };
+
   const enableSync = async () => {
     if (!await testConnection()) return;
 
@@ -222,41 +366,10 @@ export default function SyncManagerMaterial({ open, onClose }) {
       setSetupMode(false);
 
       // Aggiungi alla cronologia
-      addToHistory('enabled', 'Sincronizzazione abilitata');
+      await addToSyncHistory('enabled', 'Sincronizzazione abilitata');
 
-      // Se è Google Drive, prova a scaricare dati esistenti
-      if (syncStatus.provider === 'googledrive') {
-        try {
-          setProgress({ show: true, value: 0, text: 'Controllo dati esistenti su Google Drive...' });
-          
-          // Controlla se ci sono dati locali
-          const localApps = await StorageService.getAllApps();
-          const hasLocalData = localApps && localApps.length > 0;
-          
-          if (!hasLocalData) {
-            setProgress({ show: true, value: 30, text: 'Scaricamento dati da Google Drive...' });
-            
-            const result = await googleService.downloadSyncData();
-            
-            if (result.data && result.data.data && result.data.data.apps) {
-              await StorageService.importData(result.data);
-              setProgress({ show: false, value: 100, text: '' });
-              setSuccess('Sincronizzazione abilitata e dati scaricati da Google Drive!');
-              addToHistory('sync', 'Dati scaricati automaticamente da Google Drive');
-            } else {
-              setProgress({ show: false, value: 100, text: '' });
-              setSuccess('Sincronizzazione abilitata! Nessun dato trovato su Google Drive.');
-            }
-          } else {
-            setProgress({ show: false, value: 100, text: '' });
-            setSuccess('Sincronizzazione abilitata! Dati locali già presenti.');
-          }
-        } catch (downloadError) {
-          console.warn('Errore download automatico:', downloadError);
-          setProgress({ show: false, value: 100, text: '' });
-          setSuccess('Sincronizzazione abilitata! Errore nel download automatico dei dati.');
-        }
-      }
+      // Controllo conflitti per provider abilitati
+      await checkForSyncConflicts();
 
     } catch (error) {
       console.error('Errore abilitazione sync:', error);
@@ -268,9 +381,9 @@ export default function SyncManagerMaterial({ open, onClose }) {
   const disableSync = async () => {
     try {
       await StorageService.setSetting('syncEnabled', false);
-      setSyncStatus(prev => ({ ...prev, isEnabled: false }));
+      setIsEnabled(false);
       setSuccess('Sincronizzazione disabilitata');
-      addToHistory('disabled', 'Sincronizzazione disabilitata');
+      await addToSyncHistory('disabled', 'Sincronizzazione disabilitata');
     } catch (error) {
       console.error('Errore disabilitazione sync:', error);
       setError(`Errore disabilitazione: ${error.message}`);
@@ -304,7 +417,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
       await StorageService.setSetting('lastSyncTime', now.toISOString());
       setSyncStatus(prev => ({ ...prev, lastSync: now, isInProgress: false }));
 
-      addToHistory('sync', `Sincronizzazione ${direction}: ${result.message}`);
+      await addToSyncHistory('sync', `Sincronizzazione ${direction}: ${result.message}`);
 
     } catch (error) {
       console.error('Errore sincronizzazione:', error);
@@ -400,7 +513,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
       
       setProgress({ show: false, value: 100, text: '' });
       setSuccess('Backup creato con successo');
-      addToHistory('backup', 'Backup locale creato');
+      await addToSyncHistory('backup', 'Backup locale creato');
     } catch (error) {
       console.error('Errore creazione backup:', error);
       setError(`Errore backup: ${error.message}`);
@@ -821,6 +934,19 @@ export default function SyncManagerMaterial({ open, onClose }) {
           Chiudi
         </Button>
       </DialogActions>
+
+      {/* Modal di gestione conflitti */}
+      <SyncConflictModal
+        open={conflictModalOpen}
+        onClose={() => {
+          setConflictModalOpen(false);
+          setConflictData(null);
+        }}
+        localData={conflictData?.localData}
+        remoteData={conflictData?.remoteData}
+        provider={conflictData?.provider}
+        onResolve={handleConflictResolution}
+      />
     </Dialog>
   );
 } 

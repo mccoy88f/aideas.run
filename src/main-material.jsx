@@ -214,15 +214,15 @@ function AIdeasApp() {
       // Inizializza servizio routing app
       console.log('🛣️ Inizializzazione AppRouteService...');
       try {
-        const appRouteService = new AppRouteService();
+        // AppRouteService è esportato come singleton, non come classe
         // Inizializza in modo asincrono per evitare errori
         setTimeout(() => {
-          appRouteService.initialize().catch(error => {
+          AppRouteService.initialize().catch(error => {
             console.error('Errore inizializzazione AppRouteService:', error);
           });
         }, 100);
       } catch (error) {
-        console.error('Errore creazione AppRouteService:', error);
+        console.error('Errore inizializzazione AppRouteService:', error);
       }
 
       // Removed PWA auto-generation - not needed
@@ -335,31 +335,68 @@ function AIdeasApp() {
       const syncEnabled = await StorageService.getSetting('syncEnabled', false);
       const syncProvider = await StorageService.getSetting('syncProvider', 'github');
       
+      DEBUG.log('📡 Caricamento info utente:', { syncEnabled, syncProvider });
+
       if (syncEnabled) {
         if (syncProvider === 'googledrive') {
           const googleService = new GoogleDriveService();
-          googleService.configure(import.meta.env.VITE_GOOGLE_CLIENT_ID, import.meta.env.VITE_GOOGLE_CLIENT_SECRET);
+          const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+          const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
+          
+          if (!clientId) {
+            DEBUG.warn('⚠️ Google Client ID non configurato');
+            return;
+          }
+          
+          googleService.configure(clientId, clientSecret);
           
           const authenticated = await googleService.isAuthenticated();
+          DEBUG.log('🔐 Google Drive autenticato:', authenticated);
+          
           if (authenticated) {
-            const user = await googleService.getUserInfo();
-            setUserInfo(user);
-            setIsAuthenticated(true);
-            console.log('👤 Utente Google Drive caricato:', user);
+            try {
+              const user = await googleService.getUserInfo();
+              setUserInfo(user);
+              setIsAuthenticated(true);
+              DEBUG.success('👤 Utente Google Drive caricato:', user.name);
+            } catch (userError) {
+              DEBUG.error('❌ Errore caricamento utente Google:', userError);
+              // L'autenticazione è valida ma getUserInfo fallisce - problema token
+              setIsAuthenticated(false);
+            }
+          } else {
+            DEBUG.warn('⚠️ Google Drive non autenticato - richiesta nuova autenticazione');
+            setIsAuthenticated(false);
           }
         } else if (syncProvider === 'github') {
           const githubService = new GitHubService();
           const authenticated = await githubService.isAuthenticated();
+          DEBUG.log('🔐 GitHub autenticato:', authenticated);
+          
           if (authenticated) {
-            const user = await githubService.getUserInfo();
-            setUserInfo(user);
-            setIsAuthenticated(true);
-            console.log('👤 Utente GitHub caricato:', user);
+            try {
+              const user = await githubService.getUserInfo();
+              setUserInfo(user);
+              setIsAuthenticated(true);
+              DEBUG.success('👤 Utente GitHub caricato:', user.login);
+            } catch (userError) {
+              DEBUG.error('❌ Errore caricamento utente GitHub:', userError);
+              setIsAuthenticated(false);
+            }
+          } else {
+            DEBUG.warn('⚠️ GitHub non autenticato');
+            setIsAuthenticated(false);
           }
         }
+      } else {
+        DEBUG.log('📡 Sincronizzazione disabilitata');
+        setIsAuthenticated(false);
+        setUserInfo(null);
       }
     } catch (error) {
-      console.error('Errore caricamento info utente:', error);
+      DEBUG.error('❌ Errore caricamento info utente:', error);
+      setIsAuthenticated(false);
+      setUserInfo(null);
     }
   };
 
@@ -476,8 +513,7 @@ function AIdeasApp() {
               showToast('Errore nel caricamento dell\'app o file index.html non trovato', 'error');
             }
           } else {
-            // Per nuova finestra, usa AppRouteService
-            const AppRouteService = (await import('./services/AppRouteService.js')).default;
+            // Per nuova finestra, usa AppRouteService (già importato come singleton)
             try {
               await AppRouteService.openAppInNewTab(appId);
               showToast(`Avviata: ${app.name}`, 'success');
