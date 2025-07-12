@@ -1272,23 +1272,44 @@ function AIdeasApp() {
 
   const handleShowAppInfo = async (app) => {
     try {
-      console.log('🔍 Richiesta informazioni app:', app.name);
-      
-      // Carica i file dell'app dal database usando il metodo aggiornato
-      const appWithFiles = await StorageService.getAppWithFiles(app.id);
-      
-      if (appWithFiles) {
+      if (app.type === 'zip') {
+        // Carica i file per le app ZIP
+        const files = await StorageService.getAppFiles(app.id);
+        const appWithFiles = { ...app, files: files || [] };
         setAppInfoData(appWithFiles);
-        setAppInfoModalOpen(true);
-        console.log(`📁 Caricati ${appWithFiles.files?.length || 0} file per app ${app.name}`);
       } else {
-        console.warn('App non trovata o senza dati');
-        showToast('App non trovata', 'error');
+        setAppInfoData(app);
+      }
+      setAppInfoModalOpen(true);
+    } catch (error) {
+      console.error('Errore caricamento info app:', error);
+      showToast('Errore nel caricamento delle informazioni dell\'app', 'error');
+    }
+  };
+
+  /**
+   * Callback chiamato dopo una sincronizzazione riuscita
+   * Ricarica le app e le impostazioni per riflettere i cambiamenti
+   */
+  const handleSyncComplete = async (syncResult) => {
+    try {
+      DEBUG.log('🔄 Ricaricamento app dopo sincronizzazione:', syncResult);
+      
+      // Ricarica le app dal database
+      await loadApps();
+      
+      // Ricarica anche le impostazioni in caso siano cambiate
+      await loadUserSettings();
+      
+      // Mostra messaggio di successo se non già mostrato
+      if (syncResult?.message) {
+        showToast(syncResult.message, 'success');
       }
       
+      DEBUG.log('✅ Ricaricamento completato dopo sincronizzazione');
     } catch (error) {
-      console.error('Errore caricamento informazioni app:', error);
-      showToast('Errore durante il caricamento delle informazioni', 'error');
+      DEBUG.error('❌ Errore ricaricamento dopo sincronizzazione:', error);
+      showToast('Errore nel ricaricamento dopo sincronizzazione', 'error');
     }
   };
 
@@ -1726,6 +1747,7 @@ function AIdeasApp() {
       <SyncManagerMaterial
         open={syncManagerOpen}
         onClose={() => setSyncManagerOpen(false)}
+        onSyncComplete={handleSyncComplete}
       />
 
       {/* AppImporterMaterial come modale di importazione */}

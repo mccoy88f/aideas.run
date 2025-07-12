@@ -53,7 +53,7 @@ import { useTheme } from '@mui/material/styles';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
 import { DEBUG } from '../utils/debug.js';
 
-export default function SyncManagerMaterial({ open, onClose }) {
+export default function SyncManagerMaterial({ open, onClose, onSyncComplete }) {
   const [setupMode, setSetupMode] = useState(false);
   const [credentials, setCredentials] = useState({
     github: { token: '' },
@@ -542,6 +542,11 @@ export default function SyncManagerMaterial({ open, onClose }) {
       
       await addToSyncHistory('sync', `Sincronizzazione ${direction} completata`);
 
+      // Notifica il componente principale della sincronizzazione completata
+      if (onSyncComplete) {
+        await onSyncComplete(result || { message: `Sincronizzazione ${direction} completata con successo!` });
+      }
+
     } catch (error) {
       DEBUG.error('Errore sincronizzazione:', error);
       setError(`Errore sincronizzazione: ${error.message}`);
@@ -573,6 +578,13 @@ export default function SyncManagerMaterial({ open, onClose }) {
         const result = await githubService.downloadSyncData(gistId);
         if (result.data) {
           await StorageService.importBackupData(result.data);
+          
+          // Notifica il componente principale del download completato
+          if (onSyncComplete) {
+            await onSyncComplete({ 
+              message: `Dati scaricati da GitHub (${result.data.apps?.length || 0} app)` 
+            });
+          }
         }
       }
     }
@@ -601,6 +613,13 @@ export default function SyncManagerMaterial({ open, onClose }) {
       const result = await googleService.downloadSyncData();
       if (result.data) {
         await StorageService.importBackupData(result.data);
+        
+        // Notifica il componente principale del download completato
+        if (onSyncComplete) {
+          await onSyncComplete({ 
+            message: `Dati scaricati da Google Drive (${result.data.apps?.length || 0} app)` 
+          });
+        }
       }
     }
   };
@@ -675,6 +694,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
         setSuccess('Sincronizzazione annullata. I dati rimangono solo locali.');
         setConflictData(null);
         await addToSyncHistory('info', 'Prima sincronizzazione annullata: dati mantenuti solo locali');
+        // Non chiamare onSyncComplete qui perché non ci sono stati cambiamenti
         return;
       }
 
@@ -711,29 +731,37 @@ export default function SyncManagerMaterial({ open, onClose }) {
         await addToSyncHistory('sync', `Conflitto risolto: usati dati remoti`);
         
       } else if (resolution === 'merge') {
-        // Unisci dati (implementazione avanzata)
-        setProgress({ show: true, value: 50, text: 'Unione dati in corso...' });
-        
-        const mergedData = await mergeConflictData(conflictData);
+        // Unisci dati usando la logica granulare migliorata
+        setProgress({ show: true, value: 50, text: 'Unione intelligente dati in corso...' });
         
         if (provider === 'googledrive') {
-          // Carica i dati uniti
-          await googleService.uploadSyncData(mergedData);
-          // Importa localmente i dati uniti
-          await StorageService.importBackupData(mergedData);
+          // Usa la nuova logica granulare del GoogleDriveService
+          result = await googleService.syncBidirectional({ 
+            conflictResolution: 'merge',
+            mergeOptions: {
+              preferLocal: true,  // Privilegi i dati locali in caso di conflitto
+              preferRemoteSettings: false  // Usa impostazioni locali
+            }
+          });
         } else if (provider === 'github') {
-          // Carica su GitHub
+          // Usa il metodo legacy per GitHub
+          const mergedData = await mergeConflictData(conflictData);
           result = await githubService.uploadSyncData(mergedData, gistId);
-          // Importa localmente
           await StorageService.importBackupData(mergedData);
         }
         
-        setSuccess('Dati uniti con successo!');
-        await addToSyncHistory('sync', `Conflitto risolto: dati uniti`);
+        setSuccess('Dati combinati intelligentemente con successo!');
+        await addToSyncHistory('sync', `Conflitto risolto: dati combinati intelligentemente`);
       }
 
       setProgress({ show: false, value: 100, text: '' });
       setConflictData(null);
+
+      // Notifica il componente principale della sincronizzazione completata
+      // Solo se ci sono stati cambiamenti effettivi (non per 'cancel')
+      if (onSyncComplete && result) {
+        await onSyncComplete(result);
+      }
 
     } catch (error) {
       DEBUG.error('Errore risoluzione conflitto:', error);
@@ -742,11 +770,82 @@ export default function SyncManagerMaterial({ open, onClose }) {
     }
   };
 
-  // Funzione per unire i dati in caso di conflitto
+  // Funzione per unire i dati in caso di conflitto (legacy per GitHub)
   const mergeConflictData = async (conflictData) => {
-    const { localData, remoteData } = conflictData;
+    const { localData, remoteData, appComparison } = conflictData;
     
-    // Crea un oggetto unito mantenendo la struttura del backup
+    // Se abbiamo il confronto granulare, usalo
+    if (appComparison) {
+      return mergeConflictDataGranular(localData, remoteData, appComparison);
+    }
+    
+    // Fallback per compatibilità con il metodo legacy
+    return mergeConflictDataLegacy(localData, remoteData);
+  };
+
+  // Funzione per unire i dati usando il confronto granulare
+  const mergeConflictDataGranular = async (localData, remoteData, appComparison) => {
+    const mergedData = {
+      version: localData.version || remoteData.version || '1.0.0',
+      timestamp: new Date().toISOString(),
+      settings: {
+        ...remoteData.settings,
+        ...localData.settings // I dati locali hanno precedenza per le impostazioni
+      },
+      apps: [],
+      appFiles: {}
+    };
+
+    // Aggiungi app identiche
+    appComparison.identical.forEach(id => {
+      const app = localData.apps.find(a => a.id === id);
+      if (app) mergedData.apps.push(app);
+    });
+
+    // Aggiungi app solo locali
+    appComparison.onlyLocal.forEach(app => {
+      mergedData.apps.push(app);
+    });
+
+    // Aggiungi app solo remote
+    appComparison.onlyRemote.forEach(app => {
+      mergedData.apps.push(app);
+    });
+
+    // Gestisci conflitti: privilegi app locali (più recenti)
+    appComparison.conflicts.forEach(conflict => {
+      const useLocal = conflict.localTime > conflict.remoteTime;
+      mergedData.apps.push(useLocal ? conflict.local : conflict.remote);
+    });
+
+    // Unisci i file delle app
+    const allAppFiles = {};
+    
+    // Aggiungi file remoti
+    if (remoteData.appFiles) {
+      Object.assign(allAppFiles, remoteData.appFiles);
+    }
+    
+    // Sovrascrivi/aggiungi file locali (hanno precedenza)
+    if (localData.appFiles) {
+      Object.assign(allAppFiles, localData.appFiles);
+    }
+    
+    mergedData.appFiles = allAppFiles;
+    
+    DEBUG.log('📋 Dati uniti con logica granulare:', {
+      apps: mergedData.apps.length,
+      onlyLocal: appComparison.onlyLocal.length,
+      onlyRemote: appComparison.onlyRemote.length,
+      conflicts: appComparison.conflicts.length,
+      identical: appComparison.identical.length
+    });
+    
+    return mergedData;
+  };
+
+  // Funzione per unire i dati (metodo legacy)
+  const mergeConflictDataLegacy = async (localData, remoteData) => {
     const mergedData = {
       version: localData.version || remoteData.version || '1.0.0',
       timestamp: new Date().toISOString(),
@@ -792,7 +891,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
     
     mergedData.appFiles = allAppFiles;
     
-    DEBUG.log('📋 Dati uniti:', {
+    DEBUG.log('📋 Dati uniti con logica legacy:', {
       apps: mergedData.apps.length,
       settings: Object.keys(mergedData.settings).length,
       appFiles: Object.keys(mergedData.appFiles).length

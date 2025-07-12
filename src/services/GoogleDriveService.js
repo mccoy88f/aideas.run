@@ -939,6 +939,160 @@ export default class GoogleDriveService {
   }
 
   /**
+   * Verifica se questo dispositivo ha mai sincronizzato
+   */
+  hasDeviceEverSynced() {
+    const syncStatus = localStorage.getItem('aideas_device_sync_status');
+    return syncStatus === 'true';
+  }
+
+  /**
+   * Marca il dispositivo come sincronizzato
+   */
+  markDeviceAsSynced() {
+    localStorage.setItem('aideas_device_sync_status', 'true');
+    DEBUG.log('✅ Dispositivo marcato come sincronizzato');
+  }
+
+  /**
+   * Confronta le app locali e remote in modo granulare
+   */
+  compareAppsGranular(localApps, remoteApps) {
+    const localMap = new Map();
+    const remoteMap = new Map();
+    
+    // Crea mappe per confronto efficiente
+    (localApps || []).forEach(app => {
+      localMap.set(app.id, app);
+    });
+    
+    (remoteApps || []).forEach(app => {
+      remoteMap.set(app.id, app);
+    });
+    
+    const comparison = {
+      onlyLocal: [],     // App presenti solo in locale
+      onlyRemote: [],    // App presenti solo in remoto
+      conflicts: [],     // App presenti in entrambi ma diverse
+      identical: [],     // App identiche
+      totalLocal: localApps?.length || 0,
+      totalRemote: remoteApps?.length || 0
+    };
+    
+    // Analizza app locali
+    localMap.forEach((localApp, id) => {
+      if (remoteMap.has(id)) {
+        const remoteApp = remoteMap.get(id);
+        // Confronta timestamp di installazione/modifica
+        const localTime = new Date(localApp.installDate || localApp.createdAt || 0).getTime();
+        const remoteTime = new Date(remoteApp.installDate || remoteApp.createdAt || 0).getTime();
+        
+        if (localTime !== remoteTime || localApp.name !== remoteApp.name) {
+          comparison.conflicts.push({
+            id,
+            local: localApp,
+            remote: remoteApp,
+            localTime,
+            remoteTime
+          });
+        } else {
+          comparison.identical.push(id);
+        }
+      } else {
+        comparison.onlyLocal.push(localApp);
+      }
+    });
+    
+    // Analizza app remote non ancora processate
+    remoteMap.forEach((remoteApp, id) => {
+      if (!localMap.has(id)) {
+        comparison.onlyRemote.push(remoteApp);
+      }
+    });
+    
+    DEBUG.log('📊 Confronto granulare app:', {
+      onlyLocal: comparison.onlyLocal.length,
+      onlyRemote: comparison.onlyRemote.length,
+      conflicts: comparison.conflicts.length,
+      identical: comparison.identical.length
+    });
+    
+    return comparison;
+  }
+
+  /**
+   * Rileva se è la prima sincronizzazione del dispositivo
+   */
+  isFirstDeviceSync(localData, remoteData) {
+    // Se il dispositivo non ha mai sincronizzato
+    if (!this.hasDeviceEverSynced()) {
+      const localApps = localData.apps?.length || 0;
+      const remoteApps = remoteData?.apps?.length || 0;
+      
+      // Prima sincronizzazione del dispositivo con dati sia locali che remoti
+      if (localApps > 0 && remoteApps > 0) {
+        return true;
+      }
+      
+      // Prima sincronizzazione con solo dati locali (remoto vuoto o inesistente)
+      if (localApps > 0 && remoteApps === 0) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Crea dati sincronizzati combinando intelligentemente locale e remoto
+   */
+  mergeAppsIntelligently(localData, remoteData, userChoices = {}) {
+    const comparison = this.compareAppsGranular(localData.apps, remoteData.apps);
+    const mergedApps = [];
+    
+    // Aggiungi app identiche
+    comparison.identical.forEach(id => {
+      const app = localData.apps.find(a => a.id === id);
+      if (app) mergedApps.push(app);
+    });
+    
+    // Aggiungi app solo locali (se non escluse dall'utente)
+    comparison.onlyLocal.forEach(app => {
+      if (userChoices.excludeLocal !== true) {
+        mergedApps.push(app);
+      }
+    });
+    
+    // Aggiungi app solo remote (se non escluse dall'utente)
+    comparison.onlyRemote.forEach(app => {
+      if (userChoices.excludeRemote !== true) {
+        mergedApps.push(app);
+      }
+    });
+    
+    // Gestisci conflitti
+    comparison.conflicts.forEach(conflict => {
+      const useLocal = userChoices.preferLocal === true || 
+                      (userChoices.preferLocal !== false && conflict.localTime > conflict.remoteTime);
+      
+      mergedApps.push(useLocal ? conflict.local : conflict.remote);
+    });
+    
+    // Combina settings (priorità a locale se non specificato diversamente)
+    const mergedSettings = userChoices.preferRemoteSettings === true ? 
+                          (remoteData.settings || localData.settings) : 
+                          (localData.settings || remoteData.settings);
+    
+    return {
+      ...localData,
+      apps: mergedApps,
+      settings: mergedSettings,
+      timestamp: new Date().toISOString(),
+      syncedAt: new Date().toISOString()
+    };
+  }
+
+  /**
    * Sincronizzazione bidirezionale con Google Drive e gestione conflitti
    */
   async syncBidirectional(options = {}) {
@@ -986,13 +1140,13 @@ export default class GoogleDriveService {
         
         // Gestione errori specifici
         if (errorMessage.includes('File di sincronizzazione non trovato')) {
-          DEBUG.log('📤 Prima sincronizzazione rilevata');
+          DEBUG.log('📤 File di sincronizzazione non trovato su Google Drive');
           
-          // Se è la prima sincronizzazione, interroga sempre l'utente (con o senza dati locali)
+          // Prima sincronizzazione assoluta (no file sul drive)
           if (conflictResolution === 'ask') {
             const localApps = localData.apps?.length || 0;
             
-            DEBUG.log('🔄 Prima sincronizzazione - modal richiesto', { 
+            DEBUG.log('🔄 Prima sincronizzazione assoluta - modal richiesto', { 
               localApps, 
               conflictResolution 
             });
@@ -1000,6 +1154,7 @@ export default class GoogleDriveService {
             return {
               conflict: true,
               isFirstSync: true,
+              isFirstDeviceSync: true,
               localData: localData,
               remoteData: null,
               localTimestamp: localData.timestamp,
@@ -1034,6 +1189,27 @@ export default class GoogleDriveService {
         }
       }
 
+      // Controllo prima sincronizzazione del dispositivo
+      const isFirstDeviceSync = this.isFirstDeviceSync(localData, remoteData);
+      
+      if (isFirstDeviceSync && conflictResolution === 'ask') {
+        DEBUG.log('🔄 Prima sincronizzazione dispositivo rilevata - modal richiesto');
+        
+        const comparison = this.compareAppsGranular(localData.apps, remoteData.apps);
+        
+        return {
+          conflict: true,
+          isFirstSync: false,
+          isFirstDeviceSync: true,
+          localData: localData,
+          remoteData: remoteData,
+          appComparison: comparison,
+          localTimestamp: localData.timestamp,
+          remoteTimestamp: remoteData.timestamp,
+          message: 'Prima sincronizzazione dispositivo: scegli come combinare i dati locali e quelli di Google Drive'
+        };
+      }
+
       // Gestione conflitti e decisione di sincronizzazione
       let finalData = localData;
       
@@ -1043,65 +1219,94 @@ export default class GoogleDriveService {
         const localApps = localData.apps?.length || 0;
         const remoteApps = remoteData.apps?.length || 0;
 
-        // Rileva conflitti (differenza significativa nei dati)
-        const hasConflict = this.detectSyncConflict(localData, remoteData);
+        // Rileva conflitti usando la nuova logica granulare
+        const comparison = this.compareAppsGranular(localData.apps, remoteData.apps);
+        const hasConflict = comparison.conflicts.length > 0 || 
+                           comparison.onlyLocal.length > 0 || 
+                           comparison.onlyRemote.length > 0;
         
         if (hasConflict && conflictResolution === 'ask') {
-          // Ritorna informazioni per permettere all'utente di scegliere
+          DEBUG.log('🔄 Conflitto rilevato - modal richiesto');
+          
+          // Ritorna informazioni dettagliate per permettere all'utente di scegliere
           return {
             conflict: true,
+            isFirstSync: false,
+            isFirstDeviceSync: false,
             localData: localData,
             remoteData: remoteData,
+            appComparison: comparison,
             localTimestamp: new Date(localTimestamp).toISOString(),
-            remoteTimestamp: new Date(remoteTimestamp).toISOString()
+            remoteTimestamp: new Date(remoteTimestamp).toISOString(),
+            message: 'Conflitto rilevato: scegli come risolvere le differenze tra i dati'
           };
         }
 
-        // Logica di risoluzione migliorata
-        let useRemoteData = false;
-        
-        if (conflictResolution === 'remote') {
-          useRemoteData = true;
-        } else if (conflictResolution === 'local') {
-          useRemoteData = false;
-        } else if (conflictResolution === 'auto') {
-          // Logica intelligente per nuove sessioni
+        // Logica di risoluzione automatica migliorata
+        if (conflictResolution === 'auto') {
           if (localApps === 0 && remoteApps > 0) {
             // Database locale vuoto e remoto ha dati -> usa remoto
-            useRemoteData = true;
+            finalData = remoteData;
+            syncMessage = 'Database locale vuoto: dati ripristinati da Google Drive';
+            await StorageService.importBackupData(finalData);
             DEBUG.log('🔄 Database locale vuoto, ripristino da remoto');
+            
           } else if (localApps > 0 && remoteApps === 0) {
             // Database locale ha dati e remoto è vuoto -> usa locale
-            useRemoteData = false;
+            finalData = localData;
+            syncMessage = 'Database remoto vuoto: dati locali caricati su Google Drive';
             DEBUG.log('🔄 Database remoto vuoto, caricamento dati locali');
-          } else if (Math.abs(localApps - remoteApps) > 5) {
-            // Grande differenza nel numero di app -> usa quello con più dati
-            useRemoteData = remoteApps > localApps;
-            DEBUG.log(`🔄 Grande differenza nel numero di app (${localApps} vs ${remoteApps}), uso quello con più dati`);
+            
+          } else if (hasConflict) {
+            // Conflitti rilevati -> merge intelligente
+            finalData = this.mergeAppsIntelligently(localData, remoteData, {
+              preferLocal: localTimestamp > remoteTimestamp,
+              preferRemoteSettings: remoteTimestamp > localTimestamp
+            });
+            syncMessage = 'Dati combinati intelligentemente';
+            await StorageService.importBackupData(finalData);
+            DEBUG.log('🔄 Merge intelligente completato');
+            
           } else {
-            // Usa timestamp solo se entrambi hanno dati significativi
-            useRemoteData = remoteTimestamp > localTimestamp;
-            DEBUG.log(`🔄 Confronto timestamp: locale=${new Date(localTimestamp).toISOString()}, remoto=${new Date(remoteTimestamp).toISOString()}`);
+            // Nessun conflitto significativo -> usa il più recente
+            const useRemoteData = remoteTimestamp > localTimestamp;
+            
+            if (useRemoteData) {
+              finalData = remoteData;
+              syncMessage = 'Dati remoti più recenti applicati';
+              await StorageService.importBackupData(finalData);
+              DEBUG.log('📥 Uso dati remoti (più recenti)');
+            } else {
+              finalData = localData;
+              syncMessage = 'Dati locali più recenti caricati';
+              DEBUG.log('📤 Uso dati locali (più recenti)');
+            }
           }
-        }
-
-        if (useRemoteData) {
-          DEBUG.log('📥 Uso dati remoti');
+        } else if (conflictResolution === 'remote') {
           finalData = remoteData;
-          syncMessage = syncMessage || 'Dati scaricati da Google Drive';
-          
-          // Aggiorna dati locali
+          syncMessage = 'Dati remoti applicati (scelta utente)';
           await StorageService.importBackupData(finalData);
+          DEBUG.log('📥 Uso dati remoti (scelta utente)');
           
-        } else {
-          DEBUG.log('📤 Uso dati locali');
+        } else if (conflictResolution === 'local') {
           finalData = localData;
-          syncMessage = syncMessage || 'Dati caricati su Google Drive';
+          syncMessage = 'Dati locali caricati (scelta utente)';
+          DEBUG.log('📤 Uso dati locali (scelta utente)');
+          
+        } else if (conflictResolution === 'merge') {
+          // Merge con preferenze specifiche dall'utente
+          finalData = this.mergeAppsIntelligently(localData, remoteData, options.mergeOptions || {});
+          syncMessage = 'Dati combinati secondo le preferenze utente';
+          await StorageService.importBackupData(finalData);
+          DEBUG.log('🔄 Merge con preferenze utente completato');
         }
       }
 
       // Carica dati aggiornati
       await this.uploadSyncData(finalData);
+      
+      // Marca il dispositivo come sincronizzato
+      this.markDeviceAsSynced();
 
       DEBUG.log('✅ Sincronizzazione bidirezionale completata:', {
         apps: finalData.apps?.length || 0,
@@ -1124,31 +1329,17 @@ export default class GoogleDriveService {
   }
 
   /**
-   * Rileva conflitti di sincronizzazione
+   * Rileva conflitti di sincronizzazione (mantenuto per compatibilità)
    */
   detectSyncConflict(localData, remoteData) {
     if (!localData || !remoteData) return false;
     
-    // Confronta numero di app
-    const localApps = localData.apps?.length || 0;
-    const remoteApps = remoteData.apps?.length || 0;
+    const comparison = this.compareAppsGranular(localData.apps, remoteData.apps);
     
-    // Conflitto se differenza significativa nel numero di app
-    if (Math.abs(localApps - remoteApps) > 2) {
-      return true;
-    }
-    
-    // Confronta timestamp (conflitto se molto vicini nel tempo)
-    const localTime = localData.timestamp ? new Date(localData.timestamp).getTime() : 0;
-    const remoteTime = remoteData.timestamp ? new Date(remoteData.timestamp).getTime() : 0;
-    const timeDiff = Math.abs(localTime - remoteTime);
-    
-    // Conflitto se modificati nell'ultima ora (3600000 ms)
-    if (timeDiff < 3600000 && localApps !== remoteApps) {
-      return true;
-    }
-    
-    return false;
+    // Conflitto se ci sono differenze significative
+    return comparison.conflicts.length > 0 || 
+           comparison.onlyLocal.length > 0 || 
+           comparison.onlyRemote.length > 0;
   }
 
   /**

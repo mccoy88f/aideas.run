@@ -46,7 +46,15 @@ export default function SyncConflictModal({
 
   if (!conflictData) return null;
 
-  const { localData, remoteData, localTimestamp, remoteTimestamp, isFirstSync } = conflictData;
+  const { 
+    localData, 
+    remoteData, 
+    localTimestamp, 
+    remoteTimestamp, 
+    isFirstSync, 
+    isFirstDeviceSync,
+    appComparison 
+  } = conflictData;
 
   // Statistiche dei dati
   const localStats = {
@@ -63,8 +71,21 @@ export default function SyncConflictModal({
     version: remoteData?.version || 'N/A'
   };
 
-  // Differenze nelle app
+  // Differenze nelle app (usa appComparison se disponibile, altrimenti calcola manualmente)
   const getAppDifferences = () => {
+    if (appComparison) {
+      return {
+        onlyLocal: appComparison.onlyLocal.map(app => app.name),
+        onlyRemote: appComparison.onlyRemote.map(app => app.name),
+        common: appComparison.identical.map(id => {
+          const app = localData?.apps?.find(a => a.id === id);
+          return app ? app.name : id;
+        }),
+        conflicts: appComparison.conflicts
+      };
+    }
+    
+    // Fallback per compatibilità
     const localApps = new Set((localData?.apps || []).map(app => app.name));
     const remoteApps = new Set((remoteData?.apps || []).map(app => app.name));
     
@@ -72,7 +93,7 @@ export default function SyncConflictModal({
     const onlyRemote = [...remoteApps].filter(name => !localApps.has(name));
     const common = [...localApps].filter(name => remoteApps.has(name));
 
-    return { onlyLocal, onlyRemote, common };
+    return { onlyLocal, onlyRemote, common, conflicts: [] };
   };
 
   const appDiffs = getAppDifferences();
@@ -93,6 +114,23 @@ export default function SyncConflictModal({
     }
   };
 
+  // Determina il tipo di sincronizzazione
+  const getModalTitle = () => {
+    if (isFirstSync) return 'Prima Sincronizzazione';
+    if (isFirstDeviceSync) return 'Prima Sincronizzazione Dispositivo';
+    return 'Conflitto di Sincronizzazione Rilevato';
+  };
+
+  const getModalDescription = () => {
+    if (isFirstSync) {
+      return 'Hai app installate localmente ma Google Drive è vuoto. Scegli se caricare i dati locali su Google Drive o mantenere solo i dati locali.';
+    }
+    if (isFirstDeviceSync) {
+      return 'Hai attivato la sincronizzazione dopo aver installato app, ma Google Drive contiene già dei dati. Scegli come combinare i dati locali con quelli di Google Drive.';
+    }
+    return 'Sono stati rilevati dati sia locali che remoti con modifiche recenti. Scegli quale versione mantenere o unisci i dati.';
+  };
+
   return (
     <Dialog 
       open={open} 
@@ -107,18 +145,15 @@ export default function SyncConflictModal({
         <Box display="flex" alignItems="center" gap={2}>
           <WarningIcon color="warning" />
           <Typography variant="h6">
-            {isFirstSync ? 'Prima Sincronizzazione' : 'Conflitto di Sincronizzazione Rilevato'}
+            {getModalTitle()}
           </Typography>
         </Box>
       </DialogTitle>
 
       <DialogContent>
-        <Alert severity={isFirstSync ? "info" : "warning"} sx={{ mb: 3 }}>
+        <Alert severity={isFirstSync || isFirstDeviceSync ? "info" : "warning"} sx={{ mb: 3 }}>
           <Typography variant="body2">
-            {isFirstSync 
-              ? 'Hai app installate localmente ma Google Drive è vuoto. Scegli se caricare i dati locali su Google Drive o mantenere solo i dati locali.'
-              : 'Sono stati rilevati dati sia locali che remoti con modifiche recenti. Scegli quale versione mantenere o unisci i dati.'
-            }
+            {getModalDescription()}
           </Typography>
         </Alert>
 
@@ -183,7 +218,7 @@ export default function SyncConflictModal({
                     </TableCell>
                     <TableCell align="center">
                       <Typography variant="body2">
-                        {isFirstSync || !remoteStats.timestamp ? 'Mai sincronizzato' : formatTime(remoteStats.timestamp)}
+                        {(isFirstSync || !remoteStats.timestamp) ? 'Mai sincronizzato' : formatTime(remoteStats.timestamp)}
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -201,8 +236,104 @@ export default function SyncConflictModal({
             </TableContainer>
           </Grid>
 
-          {/* Differenze nelle App */}
-          {!isFirstSync && (appDiffs.onlyLocal.length > 0 || appDiffs.onlyRemote.length > 0) && (
+          {/* Dettagli Granulari delle Differenze */}
+          {appComparison && (
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Dettagli Differenze App
+              </Typography>
+              
+              <Grid container spacing={2}>
+                {appDiffs.onlyLocal.length > 0 && (
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle2" color="primary" gutterBottom>
+                          <LocalIcon fontSize="small" sx={{ mr: 1 }} />
+                          Solo in Locale ({appDiffs.onlyLocal.length})
+                        </Typography>
+                        <Box>
+                          {appDiffs.onlyLocal.map((appName, index) => (
+                            <Chip 
+                              key={index} 
+                              label={appName} 
+                              size="small" 
+                              sx={{ mr: 1, mb: 1 }}
+                              color="primary"
+                            />
+                          ))}
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                )}
+
+                {appDiffs.onlyRemote.length > 0 && (
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle2" color="secondary" gutterBottom>
+                          <CloudIcon fontSize="small" sx={{ mr: 1 }} />
+                          Solo in Google Drive ({appDiffs.onlyRemote.length})
+                        </Typography>
+                        <Box>
+                          {appDiffs.onlyRemote.map((appName, index) => (
+                            <Chip 
+                              key={index} 
+                              label={appName} 
+                              size="small" 
+                              sx={{ mr: 1, mb: 1 }}
+                              color="secondary"
+                            />
+                          ))}
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                )}
+
+                {appDiffs.conflicts.length > 0 && (
+                  <Grid item xs={12}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle2" color="warning" gutterBottom>
+                          <WarningIcon fontSize="small" sx={{ mr: 1 }} />
+                          App con Conflitti ({appDiffs.conflicts.length})
+                        </Typography>
+                        <Box>
+                          {appDiffs.conflicts.map((conflict, index) => (
+                            <Box key={index} sx={{ mb: 1 }}>
+                              <Chip 
+                                label={conflict.local.name} 
+                                size="small" 
+                                color="warning"
+                                sx={{ mr: 1 }}
+                              />
+                              <Typography variant="caption" color="text.secondary">
+                                (Locale: {formatTime(new Date(conflict.localTime))}, 
+                                Remote: {formatTime(new Date(conflict.remoteTime))})
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                )}
+
+                {appDiffs.common.length > 0 && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>App identiche:</strong> {appDiffs.common.length} app presenti in entrambe le versioni senza conflitti
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Differenze nelle App (legacy per compatibilità) */}
+          {!appComparison && !isFirstSync && (appDiffs.onlyLocal.length > 0 || appDiffs.onlyRemote.length > 0) && (
             <Grid item xs={12}>
               <Typography variant="h6" gutterBottom>
                 Differenze nelle App
@@ -271,11 +402,13 @@ export default function SyncConflictModal({
           <Grid item xs={12}>
             <Divider sx={{ my: 2 }} />
             <Typography variant="h6" gutterBottom>
-              {isFirstSync ? 'Scegli Azione' : 'Scegli Risoluzione'}
+              {isFirstSync || isFirstDeviceSync ? 'Scegli Azione' : 'Scegli Risoluzione'}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               {isFirstSync 
                 ? 'Vuoi caricare i tuoi dati locali su Google Drive?'
+                : isFirstDeviceSync
+                ? 'Come vuoi combinare i dati locali con quelli di Google Drive?'
                 : 'Seleziona come vuoi risolvere il conflitto:'
               }
             </Typography>
@@ -285,29 +418,29 @@ export default function SyncConflictModal({
 
       <DialogActions sx={{ p: 3, pt: 0 }}>
         <Grid container spacing={2}>
-          <Grid item xs={12} md={isFirstSync ? 6 : 4}>
+          <Grid item xs={12} md={(isFirstSync || isFirstDeviceSync) ? 6 : 4}>
             <Button
               fullWidth
               variant={selectedResolution === 'local' ? 'contained' : 'outlined'}
               color="primary"
-              startIcon={isFirstSync ? <CloudIcon /> : <LocalIcon />}
+              startIcon={<LocalIcon />}
               onClick={() => handleResolve('local')}
               disabled={loading}
               sx={{ minHeight: 56 }}
             >
               <Box textAlign="center">
                 <Typography variant="body2" fontWeight="bold">
-                  {isFirstSync ? 'Carica su Google Drive' : 'Usa Locale'}
+                  {isFirstSync ? 'Carica su Google Drive' : 'Usa Solo Locale'}
                 </Typography>
                 <Typography variant="caption">
-                  {isFirstSync ? `${localStats.apps} app → Google Drive` : `${localStats.apps} app`}
+                  {isFirstSync ? `${localStats.apps} app → Google Drive` : `${localStats.apps} app locali`}
                 </Typography>
               </Box>
             </Button>
           </Grid>
 
           {!isFirstSync && (
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={isFirstDeviceSync ? 6 : 4}>
               <Button
                 fullWidth
                 variant={selectedResolution === 'remote' ? 'contained' : 'outlined'}
@@ -319,36 +452,61 @@ export default function SyncConflictModal({
               >
                 <Box textAlign="center">
                   <Typography variant="body2" fontWeight="bold">
-                    Usa Google Drive
+                    Usa Solo Google Drive
                   </Typography>
                   <Typography variant="caption">
-                    {remoteStats.apps} app
+                    {remoteStats.apps} app remote
                   </Typography>
                 </Box>
               </Button>
             </Grid>
           )}
 
-          <Grid item xs={12} md={isFirstSync ? 6 : 4}>
-            <Button
-              fullWidth
-              variant={selectedResolution === (isFirstSync ? 'cancel' : 'merge') ? 'contained' : 'outlined'}
-              color={isFirstSync ? "secondary" : "info"}
-              startIcon={isFirstSync ? <LocalIcon /> : <MergeIcon />}
-              onClick={() => handleResolve(isFirstSync ? 'cancel' : 'merge')}
-              disabled={loading}
-              sx={{ minHeight: 56 }}
-            >
-              <Box textAlign="center">
-                <Typography variant="body2" fontWeight="bold">
-                  {isFirstSync ? 'Mantieni solo locale' : 'Unisci Dati'}
-                </Typography>
-                <Typography variant="caption">
-                  {isFirstSync ? 'Non sincronizzare' : 'Combina entrambi'}
-                </Typography>
-              </Box>
-            </Button>
-          </Grid>
+          {!isFirstSync && (
+            <Grid item xs={12} md={isFirstDeviceSync ? 12 : 4}>
+              <Button
+                fullWidth
+                variant={selectedResolution === 'merge' ? 'contained' : 'outlined'}
+                color="info"
+                startIcon={<MergeIcon />}
+                onClick={() => handleResolve('merge')}
+                disabled={loading}
+                sx={{ minHeight: 56 }}
+              >
+                <Box textAlign="center">
+                  <Typography variant="body2" fontWeight="bold">
+                    Combina Intelligentemente
+                  </Typography>
+                  <Typography variant="caption">
+                    {appDiffs.onlyLocal.length + appDiffs.onlyRemote.length + appDiffs.common.length} app totali
+                  </Typography>
+                </Box>
+              </Button>
+            </Grid>
+          )}
+
+          {isFirstSync && (
+            <Grid item xs={12} md={6}>
+              <Button
+                fullWidth
+                variant={selectedResolution === 'cancel' ? 'contained' : 'outlined'}
+                color="secondary"
+                startIcon={<CancelIcon />}
+                onClick={() => handleResolve('cancel')}
+                disabled={loading}
+                sx={{ minHeight: 56 }}
+              >
+                <Box textAlign="center">
+                  <Typography variant="body2" fontWeight="bold">
+                    Mantieni solo locale
+                  </Typography>
+                  <Typography variant="caption">
+                    Non sincronizzare
+                  </Typography>
+                </Box>
+              </Button>
+            </Grid>
+          )}
 
           <Grid item xs={12}>
             <Box display="flex" justifyContent="space-between">
