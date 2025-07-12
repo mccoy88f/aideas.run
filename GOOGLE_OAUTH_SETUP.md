@@ -1,135 +1,164 @@
-# 🔧 Configurazione Google OAuth per AIdeas
+# Google OAuth2 Setup per AIdeas
 
-## Problema attuale
-L'applicazione mostra l'errore "Accesso bloccato: errore di autorizzazione" quando si tenta di usare Google Drive per la sincronizzazione.
+## Problema Comune: "Configurazione OAuth2 non valida"
 
-## Cause possibili
+Se ricevi l'errore:
+```
+❌ Configurazione OAuth2 non valida: La tua app Google deve essere configurata come "Public client" per funzionare senza client_secret. Verifica la configurazione OAuth2 nella Google Cloud Console.
+```
 
-### 1. **App OAuth non configurata correttamente**
-- Client ID mancante o errato
-- Redirect URI non configurato
-- Scopes non autorizzati
+Segui questa guida per configurare correttamente l'app.
 
-### 2. **App non verificata da Google**
-- Per app in produzione, Google richiede la verifica
-- App in sviluppo possono usare solo utenti test
+## 🔧 Configurazione Corretta (App Web Pubblica)
 
-### 3. **Configurazione OAuth incompleta**
-- Manca la configurazione delle credenziali
-- Variabili d'ambiente non impostate
+### 1. Accedi alla Google Cloud Console
+- Vai su [Google Cloud Console](https://console.cloud.google.com/)
+- Seleziona il tuo progetto o creane uno nuovo
 
-## Soluzione temporanea
+### 2. Abilita le API necessarie
+```bash
+# API da abilitare:
+- Google Drive API
+- Google OAuth2 API
+```
 
-Per ora, Google Drive è **temporaneamente disabilitato** nell'interfaccia. Usa **GitHub Gist** per la sincronizzazione cloud.
+### 3. Configura OAuth2 Consent Screen
+1. Vai su **APIs & Services > OAuth consent screen**
+2. Scegli **External** (per app pubbliche)
+3. Compila i campi obbligatori:
+   - **App name**: AIdeas
+   - **User support email**: la tua email
+   - **Developer contact information**: la tua email
 
-## Configurazione completa Google OAuth (per sviluppatori)
-
-### 1. Crea progetto Google Cloud
-
-1. Vai su [Google Cloud Console](https://console.cloud.google.com)
-2. Crea un nuovo progetto o seleziona uno esistente
-3. Abilita le API necessarie:
-   - Google Drive API
-   - Google+ API (per user info)
-
-### 2. Configura OAuth 2.0
-
-1. Vai in "APIs & Services" > "Credentials"
-2. Click "Create Credentials" > "OAuth 2.0 Client ID"
-3. Configura:
-   - **Application type**: Web application
-   - **Name**: AIdeas Sync
-   - **Authorized JavaScript origins**:
-     ```
-     http://localhost:3000
-     https://aideas.run
-     ```
-   - **Authorized redirect URIs**:
-     ```
-     http://localhost:3000/auth/google.html
-     https://aideas.run/auth/google.html
-     ```
-
-### 3. Ottieni credenziali
-
-1. Copia il **Client ID** generato
-2. Aggiungi al file `.env.local`:
-   ```bash
-   VITE_GOOGLE_CLIENT_ID=your_client_id_here
+### 4. Crea Credenziali OAuth2 (IMPORTANTE)
+1. Vai su **APIs & Services > Credentials**
+2. Click **Create Credentials > OAuth 2.0 Client IDs**
+3. **Application type**: **Web application** ⚠️
+4. **Name**: AIdeas Web Client
+5. **Authorized JavaScript origins**:
+   ```
+   https://aideas.run
+   https://www.aideas.run
+   http://localhost:3001 (per sviluppo)
+   ```
+6. **Authorized redirect URIs**:
+   ```
+   https://aideas.run/auth/google.html
+   https://www.aideas.run/auth/google.html
+   http://localhost:3001/auth/google.html (per sviluppo)
    ```
 
-### 4. Configura scopes
+### 5. ⚠️ CONFIGURAZIONE CRITICA per App Pubbliche
 
-Gli scopes necessari sono:
-- `https://www.googleapis.com/auth/drive.file` - Accesso ai file dell'app
-- `https://www.googleapis.com/auth/drive.appdata` - Dati dell'applicazione
-- `https://www.googleapis.com/auth/userinfo.profile` - Info utente
+**MOLTO IMPORTANTE**: Dopo aver creato le credenziali:
 
-### 5. Test in sviluppo
+1. **Scarica il JSON delle credenziali**
+2. **NON usare client_secret** - AIdeas è progettato per funzionare senza
+3. **Copia solo il Client ID** dal file JSON
 
-1. Aggiungi il tuo email come "Test User" nell'app OAuth
-2. Usa solo account Google autorizzati per i test
-3. Verifica che il redirect funzioni correttamente
+### 6. Configura le Variabili d'Ambiente
 
-### 6. Produzione
-
-Per l'uso in produzione:
-1. Verifica l'app con Google (richiede review)
-2. Configura domini autorizzati
-3. Imposta policy di sicurezza appropriate
-
-## File di configurazione
-
-### Variabili d'ambiente necessarie
+Nel tuo deployment (GitHub Actions/Netlify/Vercel):
 
 ```bash
-# .env.local
-VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
-VITE_GOOGLE_CLIENT_SECRET=your_google_client_secret_here  # Opzionale per PKCE
+VITE_GOOGLE_CLIENT_ID=il_tuo_client_id_qui.apps.googleusercontent.com
+# NON configurare VITE_GOOGLE_CLIENT_SECRET per app pubbliche
 ```
 
-### Configurazione OAuth nel codice
+## 🔍 Verifica Configurazione
 
+### Controllo Rapido
+1. Il Client ID termina con `.apps.googleusercontent.com`?
+2. **Non** hai configurato `VITE_GOOGLE_CLIENT_SECRET`?
+3. L'app type è **Web application**?
+4. Gli origins e redirect URIs sono corretti?
+
+### Test di Configurazione
 ```javascript
-// src/services/GoogleDriveService.js
-configure(clientId, clientSecret = null) {
-  this.clientId = clientId;
-  this.clientSecret = clientSecret;
-}
+// Console del browser - verifica variabili
+console.log('Client ID:', import.meta.env.VITE_GOOGLE_CLIENT_ID);
+console.log('Client Secret dovrebbe essere undefined:', import.meta.env.VITE_GOOGLE_CLIENT_SECRET);
 ```
 
-## Troubleshooting
+## 🔄 Processo OAuth2 per App Pubbliche
 
-### Errore "invalid_request"
-- Verifica che Client ID sia corretto
-- Controlla che redirect URI sia autorizzato
-- Assicurati che l'app sia configurata come "Web application"
+AIdeas usa il flusso **Authorization Code** senza `client_secret`:
 
-### Errore "access_denied"
-- L'utente ha negato i permessi
-- Scopes non autorizzati
-- App non verificata (per utenti non test)
+```mermaid
+sequenceDiagram
+    participant U as Utente
+    participant A as AIdeas
+    participant G as Google
+    
+    U->>A: Click "Connetti Google Drive"
+    A->>G: Redirect OAuth2 (senza client_secret)
+    G->>U: Login/Consenso
+    G->>A: Authorization Code
+    A->>G: Exchange Code for Tokens (senza client_secret)
+    G->>A: Access + Refresh Tokens
+    A->>A: Salva tokens in localStorage
+```
 
-### Errore "redirect_uri_mismatch"
-- Redirect URI non corrisponde a quello configurato
-- Verifica le impostazioni in Google Cloud Console
+## 🚨 Errori Comuni e Soluzioni
 
-## Note per sviluppatori
+### "Client authentication failed"
+**Causa**: App configurata come "Confidential" invece di "Public"
+**Soluzione**: Ricrea le credenziali come "Web application" senza client_secret
 
-1. **PKCE (Proof Key for Code Exchange)** è implementato per sicurezza
-2. **Refresh tokens** sono gestiti automaticamente
-3. **Token storage** è crittografato in localStorage
-4. **Error handling** include retry automatico
+### "redirect_uri_mismatch"
+**Causa**: URI di redirect non configurati
+**Soluzione**: Aggiungi tutti gli URI necessari nella sezione "Authorized redirect URIs"
 
-## Riabilitazione Google Drive
+### "origin_mismatch"
+**Causa**: JavaScript origins non configurati
+**Soluzione**: Aggiungi il dominio nella sezione "Authorized JavaScript origins"
 
-Una volta configurato correttamente:
+### "access_denied"
+**Causa**: Utente ha negato i permessi o app non pubblicata
+**Soluzione**: 
+1. Verifica OAuth consent screen
+2. Aggiungi utenti di test se l'app è in modalità test
 
-1. Rimuovi `disabled` dal MenuItem Google Drive
-2. Aggiorna la logica in `handleProviderChange`
-3. Testa l'autenticazione completa
-4. Verifica la sincronizzazione
+## 🔒 Sicurezza per App Pubbliche
 
----
+### Perché senza client_secret?
+- **Single Page Applications (SPA)** come AIdeas non possono mantenere segreti
+- Il codice JavaScript è visibile nel browser
+- Google supporta il flusso OAuth2 senza client_secret per SPA
 
-**Nota**: Google Drive rimarrà disabilitato finché non sarà configurato correttamente per evitare errori agli utenti. 
+### Meccanismi di Sicurezza
+1. **CORS**: Restrizioni Cross-Origin
+2. **Origins Autorizzati**: Solo domini specifici
+3. **Redirect URIs**: Solo URI pre-autorizzati
+4. **Short-lived tokens**: Token di accesso con scadenza
+5. **Refresh tokens**: Per rinnovo sicuro
+
+## 📝 Checklist Finale
+
+- [ ] Progetto Google Cloud creato
+- [ ] Drive API abilitata
+- [ ] OAuth consent screen configurato
+- [ ] Credenziali create come "Web application"
+- [ ] JavaScript origins configurati
+- [ ] Redirect URIs configurati
+- [ ] Solo Client ID copiato (NO client_secret)
+- [ ] Variabile VITE_GOOGLE_CLIENT_ID impostata
+- [ ] Test di autenticazione completato
+
+## 🆘 Debug Avanzato
+
+Se i problemi persistono:
+
+1. **Verifica Network Tab** del browser durante l'autenticazione
+2. **Controlla Console** per errori JavaScript
+3. **Testa manualmente** l'URL OAuth2 generato
+4. **Verifica timestamp** - orologio di sistema sincronizzato?
+
+## 📞 Supporto
+
+Se dopo aver seguito questa guida il problema persiste:
+
+1. Verifica che il progetto Google Cloud sia attivo
+2. Controlla i quota limits delle API
+3. Aspetta qualche minuto per la propagazione delle modifiche
+4. Prova in modalità incognito per escludere problemi di cache 

@@ -285,7 +285,21 @@ export default class GoogleDriveService {
 
       // Messaggio di errore specifico per client_secret mancante
       if (errorMessage.includes('client_secret') || errorMessage.includes('Client authentication failed')) {
-        throw new Error(`Configurazione OAuth2 non valida: La tua app Google deve essere configurata come "Public client" per funzionare senza client_secret. Verifica la configurazione OAuth2 nella Google Cloud Console.`);
+        throw new Error(`🔧 Configurazione OAuth2 non valida
+
+❌ La tua app Google deve essere configurata come "Web application" per applicazioni pubbliche.
+
+📋 Passaggi per risolvere:
+1. Vai su Google Cloud Console
+2. APIs & Services > Credentials  
+3. Crea/Modifica OAuth 2.0 Client ID
+4. Tipo: "Web application" (NON Desktop/Mobile)
+5. NON usare client_secret per app web pubbliche
+6. Configura origins: https://aideas.run
+
+📖 Guida completa: https://github.com/mccoy88f/aideas.run/blob/main/GOOGLE_OAUTH_SETUP.md
+
+🔍 Errore tecnico: ${errorMessage}`);
       }
 
       throw new Error(`Token exchange failed: ${errorMessage}`);
@@ -414,7 +428,21 @@ export default class GoogleDriveService {
 
         // Messaggio di errore specifico per client_secret mancante
         if (errorMessage.includes('client_secret') || errorMessage.includes('Client authentication failed')) {
-          throw new Error(`Configurazione OAuth2 non valida: La tua app Google deve essere configurata come "Public client" per funzionare senza client_secret. Verifica la configurazione OAuth2 nella Google Cloud Console.`);
+          throw new Error(`🔧 Configurazione OAuth2 non valida
+
+❌ La tua app Google deve essere configurata come "Web application" per applicazioni pubbliche.
+
+📋 Passaggi per risolvere:
+1. Vai su Google Cloud Console
+2. APIs & Services > Credentials  
+3. Crea/Modifica OAuth 2.0 Client ID
+4. Tipo: "Web application" (NON Desktop/Mobile)
+5. NON usare client_secret per app web pubbliche
+6. Configura origins: https://aideas.run
+
+📖 Guida completa: https://github.com/mccoy88f/aideas.run/blob/main/GOOGLE_OAUTH_SETUP.md
+
+🔍 Errore tecnico: ${errorMessage}`);
         }
 
         throw new Error(`Token refresh failed: ${errorMessage}`);
@@ -837,5 +865,138 @@ export default class GoogleDriveService {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }
+
+  /**
+   * Diagnostica configurazione OAuth2
+   * Fornisce informazioni dettagliate sulla configurazione corrente
+   */
+  async diagnoseConfiguration() {
+    const diagnosis = {
+      status: 'unknown',
+      issues: [],
+      recommendations: [],
+      configuration: {},
+      checks: {}
+    };
+
+    try {
+      // Verifica Client ID
+      diagnosis.configuration.clientId = this.clientId ? `${this.clientId.substring(0, 15)}...` : 'NON_CONFIGURATO';
+      diagnosis.configuration.hasClientSecret = !!this.clientSecret;
+      diagnosis.configuration.redirectUri = this.redirectUri;
+      diagnosis.configuration.currentOrigin = window.location.origin;
+
+      // Check 1: Client ID presente
+      if (!this.clientId) {
+        diagnosis.issues.push('❌ Client ID Google non configurato');
+        diagnosis.recommendations.push('Configura VITE_GOOGLE_CLIENT_ID nelle variabili d\'ambiente');
+        diagnosis.checks.clientId = false;
+      } else if (!this.clientId.endsWith('.apps.googleusercontent.com')) {
+        diagnosis.issues.push('❌ Client ID formato non valido');
+        diagnosis.recommendations.push('Il Client ID deve terminare con .apps.googleusercontent.com');
+        diagnosis.checks.clientId = false;
+      } else {
+        diagnosis.checks.clientId = true;
+      }
+
+      // Check 2: Client Secret (dovrebbe essere assente per app pubbliche)
+      if (this.clientSecret) {
+        diagnosis.issues.push('⚠️ Client Secret configurato per app pubblica');
+        diagnosis.recommendations.push('Rimuovi VITE_GOOGLE_CLIENT_SECRET - non necessario per SPA');
+        diagnosis.checks.clientSecret = false;
+      } else {
+        diagnosis.checks.clientSecret = true;
+      }
+
+      // Check 3: Redirect URI valido
+      if (!this.redirectUri.includes(window.location.origin)) {
+        diagnosis.issues.push('⚠️ Redirect URI potrebbe non corrispondere all\'origin corrente');
+        diagnosis.recommendations.push(`Verifica che ${this.redirectUri} sia configurato in Google Cloud Console`);
+        diagnosis.checks.redirectUri = false;
+      } else {
+        diagnosis.checks.redirectUri = true;
+      }
+
+      // Check 4: HTTPS in produzione
+      if (window.location.protocol === 'http:' && !window.location.hostname.includes('localhost')) {
+        diagnosis.issues.push('⚠️ Connessione HTTP non sicura in produzione');
+        diagnosis.recommendations.push('Google OAuth2 richiede HTTPS per domini pubblici');
+        diagnosis.checks.https = false;
+      } else {
+        diagnosis.checks.https = true;
+      }
+
+      // Determina status generale
+      const criticalIssues = diagnosis.issues.filter(issue => issue.startsWith('❌')).length;
+      const warnings = diagnosis.issues.filter(issue => issue.startsWith('⚠️')).length;
+
+      if (criticalIssues > 0) {
+        diagnosis.status = 'error';
+      } else if (warnings > 0) {
+        diagnosis.status = 'warning';
+      } else {
+        diagnosis.status = 'ok';
+      }
+
+      // Aggiungi informazioni sulla configurazione Google Cloud Console
+      diagnosis.recommendations.push(
+        '📖 Guida completa: https://github.com/mccoy88f/aideas.run/blob/main/GOOGLE_OAUTH_SETUP.md'
+      );
+
+      DEBUG.log('🔍 Diagnostica OAuth2 completata:', diagnosis);
+      
+      return diagnosis;
+
+    } catch (error) {
+      DEBUG.error('❌ Errore durante diagnostica:', error);
+      diagnosis.status = 'error';
+      diagnosis.issues.push(`❌ Errore durante diagnostica: ${error.message}`);
+      return diagnosis;
+    }
+  }
+
+  /**
+   * Test di connettività OAuth2 (senza autenticazione completa)
+   */
+  async testOAuthConfiguration() {
+    try {
+      const diagnosis = await this.diagnoseConfiguration();
+      
+      if (diagnosis.status === 'error') {
+        throw new Error(`Configurazione non valida: ${diagnosis.issues.join(', ')}`);
+      }
+
+      // Test URL OAuth2 (senza eseguire l'autenticazione)
+      const state = this.generateRandomString(32);
+      const authParams = new URLSearchParams({
+        client_id: this.clientId,
+        redirect_uri: this.redirectUri,
+        response_type: 'code',
+        scope: this.scopes.join(' '),
+        access_type: 'offline',
+        prompt: 'consent',
+        state: state
+      });
+
+      const authUrl = `${GOOGLE_OAUTH_BASE}/auth?${authParams.toString()}`;
+      
+      DEBUG.log('✅ Test configurazione OAuth2 - URL generato correttamente');
+      
+      return {
+        success: true,
+        authUrl: authUrl,
+        diagnosis: diagnosis,
+        message: 'Configurazione OAuth2 valida. URL di autenticazione generato correttamente.'
+      };
+
+    } catch (error) {
+      DEBUG.error('❌ Test configurazione OAuth2 fallito:', error);
+      return {
+        success: false,
+        error: error.message,
+        diagnosis: await this.diagnoseConfiguration()
+      };
+    }
   }
 }
