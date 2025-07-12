@@ -58,8 +58,8 @@ export default function SyncManagerMaterial({ open, onClose }) {
   const [credentials, setCredentials] = useState({
     github: { token: '' },
     googledrive: { 
-      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '', 
-      clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '' 
+      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+      // Non usiamo più client_secret per app web pubbliche
     }
   });
 
@@ -147,11 +147,11 @@ export default function SyncManagerMaterial({ open, onClose }) {
         DEBUG.warn('GitHub non autenticato:', error.message);
       }
 
-      // Controlla Google Drive
+      // Controlla Google Drive (senza client_secret)
       try {
         const clientId = credentials.googledrive.clientId;
         if (clientId) {
-          googleService.configure(clientId, credentials.googledrive.clientSecret);
+          googleService.configure(clientId); // Solo clientId per app web pubbliche
           newStatus.googledrive = await googleService.checkAuthentication();
         }
       } catch (error) {
@@ -192,7 +192,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
       
       DEBUG.log('🔐 Avvio autenticazione Google Drive...');
       
-      googleService.configure(clientId, credentials.googledrive.clientSecret);
+      googleService.configure(clientId); // Solo clientId per app web pubbliche
       
       // Prova prima a verificare se è già autenticato
       const alreadyAuthenticated = await googleService.checkAuthentication();
@@ -288,7 +288,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
         const clientId = credentials.googledrive.clientId;
         if (!clientId) throw new Error('Client ID Google richiesto');
         
-        googleService.configure(clientId, credentials.googledrive.clientSecret);
+        googleService.configure(clientId);
         isConnected = await googleService.checkAuthentication();
       }
 
@@ -480,7 +480,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
         const clientId = credentials.googledrive.clientId;
         if (!clientId) throw new Error('Client ID Google richiesto');
         
-        googleService.configure(clientId, credentials.googledrive.clientSecret);
+        googleService.configure(clientId);
         isAuthenticated = await googleService.checkAuthentication();
       }
 
@@ -532,7 +532,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
           await githubService.authenticate(credentials.github.token);
           result = await githubService.syncBidirectional();
         } else if (provider === 'googledrive') {
-          googleService.configure(credentials.googledrive.clientId, credentials.googledrive.clientSecret);
+          googleService.configure(credentials.googledrive.clientId);
           result = await googleService.syncBidirectional();
         }
       } else {
@@ -594,7 +594,7 @@ export default function SyncManagerMaterial({ open, onClose }) {
     const clientId = credentials.googledrive.clientId;
     if (!clientId) throw new Error('Client ID Google richiesto');
     
-    googleService.configure(clientId, credentials.googledrive.clientSecret);
+    googleService.configure(clientId);
     
     // Verifica autenticazione
     const isAuthenticated = await googleService.checkAuthentication();

@@ -280,50 +280,17 @@ const SettingsMaterial = ({
     setProvider(newProvider);
     setHasChanges(true); // Marca come modificato
     
-    // Se la sincronizzazione è abilitata, gestisci l'autenticazione
+    // Mostra solo messaggi informativi, senza avviare automaticamente l'autenticazione
     if (isEnabled) {
-      try {
-        if (newProvider === 'github') {
-          // Per GitHub Gist, mostra istruzioni per inserire il codice
-          const gistCode = prompt('Inserisci il codice Gist per la sincronizzazione:');
-          if (gistCode) {
-            // Salva il codice Gist
-            await StorageService.setSetting('githubGistCode', gistCode);
-            showToast('Codice Gist salvato', 'success');
-          }
-        } else if (newProvider === 'googledrive') {
-          // Per Google Drive, avvia il processo di autenticazione
-          try {
-            const googleService = new GoogleDriveService();
-            const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-            
-            if (!clientId) {
-              showToast('Client ID Google non configurato. Contatta l\'amministratore.', 'error');
-              return;
-            }
-            
-            googleService.configure(clientId);
-            const isAuthenticated = await googleService.checkAuthentication();
-            if (!isAuthenticated) {
-              const result = await googleService.authenticate();
-              if (result.success) {
-                showToast('Autenticazione Google completata con successo!', 'success');
-                // Ricarica le info utente
-                await loadUserInfo();
-              }
-            } else {
-              showToast('Google Drive già autenticato', 'info');
-            }
-          } catch (error) {
-            console.error('Errore autenticazione Google:', error);
-            showToast('Errore avvio autenticazione Google: ' + error.message, 'error');
-          }
-        }
-      } catch (error) {
-        console.error('Errore configurazione provider:', error);
-        showToast('Errore durante la configurazione del provider', 'error');
+      if (newProvider === 'github') {
+        showToast('Provider cambiato a GitHub. Usa il pulsante "Sincronizza ora" per configurare la connessione.', 'info');
+      } else if (newProvider === 'googledrive') {
+        showToast('Provider cambiato a Google Drive. Usa il pulsante "Sincronizza ora" per configurare la connessione.', 'info');
       }
     }
+    
+    // Aggiorna le informazioni utente per riflettere il nuovo provider
+    await loadUserInfo();
   };
 
 

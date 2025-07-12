@@ -230,7 +230,7 @@ export default class GoogleDriveService {
   }
 
   /**
-   * Scambia authorization code con token (versione semplificata)
+   * Scambia il codice di autorizzazione con i token di accesso
    */
   async exchangeCodeForTokens(code) {
     DEBUG.log('🔄 Scambio codice con token...');
@@ -242,15 +242,20 @@ export default class GoogleDriveService {
       redirect_uri: this.redirectUri
     };
 
-    // Aggiungi client_secret solo se disponibile
+    // Per app web pubbliche, non aggiungiamo client_secret
+    // Solo se esplicitamente configurato (app confidenziali)
     if (this.clientSecret) {
       tokenParams.client_secret = this.clientSecret;
+      DEBUG.log('🔄 Usando client_secret per app confidenziale');
+    } else {
+      DEBUG.log('🔄 Usando configurazione app web pubblica (senza client_secret)');
     }
 
     DEBUG.log('🔄 Parametri token:', {
       client_id: this.clientId.substring(0, 10) + '...',
       redirect_uri: this.redirectUri,
-      hasClientSecret: !!this.clientSecret
+      hasClientSecret: !!this.clientSecret,
+      appType: this.clientSecret ? 'confidenziale' : 'pubblica'
     });
 
     const response = await fetch(GOOGLE_TOKEN_URL, {
@@ -277,6 +282,11 @@ export default class GoogleDriveService {
         statusText: response.statusText,
         error: errorMessage
       });
+
+      // Messaggio di errore specifico per client_secret mancante
+      if (errorMessage.includes('client_secret') || errorMessage.includes('Client authentication failed')) {
+        throw new Error(`Configurazione OAuth2 non valida: La tua app Google deve essere configurata come "Public client" per funzionare senza client_secret. Verifica la configurazione OAuth2 nella Google Cloud Console.`);
+      }
 
       throw new Error(`Token exchange failed: ${errorMessage}`);
     }
@@ -369,8 +379,12 @@ export default class GoogleDriveService {
         grant_type: 'refresh_token'
       };
 
+      // Per app web pubbliche, non aggiungiamo client_secret
       if (this.clientSecret) {
         tokenParams.client_secret = this.clientSecret;
+        DEBUG.log('🔄 Refresh con client_secret per app confidenziale');
+      } else {
+        DEBUG.log('🔄 Refresh per app web pubblica (senza client_secret)');
       }
 
       const response = await fetch(GOOGLE_TOKEN_URL, {
@@ -382,7 +396,28 @@ export default class GoogleDriveService {
       });
 
       if (!response.ok) {
-        throw new Error('Token refresh failed');
+        const errorText = await response.text();
+        let errorMessage;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error_description || errorData.error || 'Errore sconosciuto';
+        } catch {
+          errorMessage = errorText || 'Errore sconosciuto';
+        }
+
+        DEBUG.error('❌ Errore refresh token:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorMessage
+        });
+
+        // Messaggio di errore specifico per client_secret mancante
+        if (errorMessage.includes('client_secret') || errorMessage.includes('Client authentication failed')) {
+          throw new Error(`Configurazione OAuth2 non valida: La tua app Google deve essere configurata come "Public client" per funzionare senza client_secret. Verifica la configurazione OAuth2 nella Google Cloud Console.`);
+        }
+
+        throw new Error(`Token refresh failed: ${errorMessage}`);
       }
 
       const tokens = await response.json();

@@ -387,14 +387,13 @@ function AIdeasApp() {
         if (syncProvider === 'googledrive') {
           const googleService = new GoogleDriveService();
           const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-          const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
           
           if (!clientId) {
             DEBUG.warn('⚠️ Google Client ID non configurato');
             return;
           }
           
-          googleService.configure(clientId, clientSecret);
+          googleService.configure(clientId);
           
           // Usa checkAuthentication invece di isAuthenticated (obsoleto)
           const authenticated = await googleService.checkAuthentication();
