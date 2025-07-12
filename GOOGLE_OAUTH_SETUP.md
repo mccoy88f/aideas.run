@@ -35,12 +35,14 @@ Segui questa guida per configurare correttamente l'app.
 2. Click **Create Credentials > OAuth 2.0 Client IDs**
 3. **Application type**: **Web application** ⚠️
 4. **Name**: AIdeas Web Client
-5. **Authorized JavaScript origins**:
+5. **⚡ Authorized JavaScript origins** (PROBLEMA PIÙ COMUNE):
    ```
    https://aideas.run
    https://www.aideas.run
    http://localhost:3001 (per sviluppo)
    ```
+   **🚨 ATTENZIONE**: Questo è il punto che più spesso viene dimenticato!
+   **✅ Deve includere ESATTAMENTE il dominio dove gira la tua app**
 6. **Authorized redirect URIs**:
    ```
    https://aideas.run/auth/google.html
@@ -109,9 +111,13 @@ sequenceDiagram
 **Causa**: URI di redirect non configurati
 **Soluzione**: Aggiungi tutti gli URI necessari nella sezione "Authorized redirect URIs"
 
-### "origin_mismatch"
-**Causa**: JavaScript origins non configurati
-**Soluzione**: Aggiungi il dominio nella sezione "Authorized JavaScript origins"
+### "origin_mismatch" ⚡ (ERRORE PIÙ FREQUENTE)
+**Causa**: JavaScript origins non configurati o errati
+**Soluzione**: 
+1. Vai su Google Cloud Console > Credentials
+2. Modifica le credenziali OAuth2
+3. Aggiungi ESATTAMENTE il dominio nella sezione "Authorized JavaScript origins"
+4. Esempio: `https://aideas.run` (NON `https://aideas.run/` con slash finale)
 
 ### "access_denied"
 **Causa**: Utente ha negato i permessi o app non pubblicata

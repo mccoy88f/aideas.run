@@ -302,6 +302,25 @@ export default class GoogleDriveService {
 🔍 Errore tecnico: ${errorMessage}`);
       }
 
+      // Errore origin_mismatch - il più comune secondo l'utente
+      if (errorMessage.includes('origin_mismatch') || errorMessage.includes('Unauthorized')) {
+        throw new Error(`🚨 ERRORE PIÙ COMUNE: origin_mismatch
+
+❌ Le "Origini JavaScript autorizzate" NON sono configurate correttamente!
+
+📋 Risolvi così:
+1. Vai su Google Cloud Console > Credentials
+2. Modifica le credenziali OAuth2 
+3. Aggiungi ESATTAMENTE: ${window.location.origin}
+4. Salva e riprova
+
+⚠️ ATTENZIONE: NON aggiungere "/" alla fine dell'URL!
+✅ Corretto: ${window.location.origin}
+❌ Errato: ${window.location.origin}/
+
+🔗 Guida completa: https://github.com/mccoy88f/aideas.run/blob/main/GOOGLE_OAUTH_SETUP.md`);
+      }
+
       throw new Error(`Token exchange failed: ${errorMessage}`);
     }
 
