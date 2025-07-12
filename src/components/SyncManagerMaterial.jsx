@@ -47,6 +47,7 @@ import {
 import GitHubService from '../services/GitHubService.js';
 import GoogleDriveService from '../services/GoogleDriveService.js';
 import StorageService from '../services/StorageService.js';
+import ErrorHandler from '../services/ErrorHandler.js';
 import { useTheme } from '@mui/material/styles';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
 

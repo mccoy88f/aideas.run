@@ -445,6 +445,187 @@ export const FEATURE_FLAGS = {
   ENABLE_EXPERIMENTAL_FEATURES: false
 };
 
+// Messaggi di errore dettagliati con categorizzazione
+export const ERROR_CATEGORIES = {
+  NETWORK: {
+    name: 'Errore di Rete',
+    description: 'Problemi di connessione internet',
+    icon: '🌐',
+    color: 'error'
+  },
+  AUTHENTICATION: {
+    name: 'Autenticazione',
+    description: 'Problemi di login o credenziali',
+    icon: '🔐',
+    color: 'warning'
+  },
+  STORAGE: {
+    name: 'Archiviazione',
+    description: 'Problemi di database o spazio',
+    icon: '💾',
+    color: 'error'
+  },
+  VALIDATION: {
+    name: 'Validazione',
+    description: 'Dati non validi o mancanti',
+    icon: '⚠️',
+    color: 'warning'
+  },
+  RATE_LIMIT: {
+    name: 'Limite Richieste',
+    description: 'Troppe richieste al server',
+    icon: '⏳',
+    color: 'info'
+  },
+  TEMPORARY: {
+    name: 'Errore Temporaneo',
+    description: 'Problema temporaneo del sistema',
+    icon: '🔄',
+    color: 'info'
+  },
+  UNKNOWN: {
+    name: 'Errore Sconosciuto',
+    description: 'Errore non identificato',
+    icon: '❓',
+    color: 'error'
+  }
+};
+
+// Messaggi di errore dettagliati con soluzioni
+export const DETAILED_ERROR_MESSAGES = {
+  // Errori di sincronizzazione
+  SYNC_NETWORK_ERROR: {
+    title: 'Errore di Connessione',
+    message: 'Impossibile connettersi al servizio di sincronizzazione',
+    solution: 'Verifica la connessione internet e riprova',
+    actions: ['Riprova', 'Verifica connessione']
+  },
+  SYNC_AUTH_ERROR: {
+    title: 'Errore di Autenticazione',
+    message: 'Credenziali non valide o scadute',
+    solution: 'Riconfigurata le credenziali di accesso',
+    actions: ['Riautentica', 'Controlla credenziali']
+  },
+  SYNC_QUOTA_ERROR: {
+    title: 'Quota Superata',
+    message: 'Limite di richieste API superato',
+    solution: 'Attendi qualche minuto prima di riprovare',
+    actions: ['Riprova più tardi', 'Controlla quota']
+  },
+  SYNC_DATA_CORRUPTION: {
+    title: 'Dati Corrotti',
+    message: 'I dati di sincronizzazione sono corrotti o incompleti',
+    solution: 'Prova a scaricare un backup precedente',
+    actions: ['Ripristina backup', 'Contatta supporto']
+  },
+
+  // Errori di installazione app
+  INSTALL_INVALID_DATA: {
+    title: 'Dati App Non Validi',
+    message: 'I dati dell\'app non sono in formato valido',
+    solution: 'Verifica che il file sia un\'app valida',
+    actions: ['Controlla file', 'Prova altro file']
+  },
+  INSTALL_STORAGE_FULL: {
+    title: 'Spazio Insufficiente',
+    message: 'Non c\'è abbastanza spazio per installare l\'app',
+    solution: 'Libera spazio eliminando app non utilizzate',
+    actions: ['Libera spazio', 'Elimina app']
+  },
+  INSTALL_DUPLICATE_APP: {
+    title: 'App Già Installata',
+    message: 'Un\'app con questo nome è già installata',
+    solution: 'Usa un nome diverso o aggiorna l\'app esistente',
+    actions: ['Cambia nome', 'Aggiorna esistente']
+  },
+  INSTALL_MISSING_FILES: {
+    title: 'File Mancanti',
+    message: 'Il file ZIP non contiene tutti i file necessari',
+    solution: 'Assicurati che il ZIP contenga almeno un file HTML',
+    actions: ['Controlla ZIP', 'Aggiungi file mancanti']
+  },
+
+  // Errori di rete
+  NETWORK_OFFLINE: {
+    title: 'Modalità Offline',
+    message: 'Non sei connesso a internet',
+    solution: 'Verifica la connessione internet',
+    actions: ['Controlla connessione', 'Riprova online']
+  },
+  NETWORK_TIMEOUT: {
+    title: 'Timeout di Connessione',
+    message: 'L\'operazione ha richiesto troppo tempo',
+    solution: 'Riprova con una connessione più stabile',
+    actions: ['Riprova', 'Controlla connessione']
+  },
+  NETWORK_CORS_ERROR: {
+    title: 'Errore CORS',
+    message: 'Il server non consente richieste da questa origine',
+    solution: 'Controlla le impostazioni del server',
+    actions: ['Contatta amministratore', 'Usa proxy']
+  },
+
+  // Errori generici
+  GENERIC_ERROR: {
+    title: 'Errore Generico',
+    message: 'Si è verificato un errore imprevisto',
+    solution: 'Riprova o riavvia l\'applicazione',
+    actions: ['Riprova', 'Riavvia app']
+  }
+};
+
+// Suggerimenti per la risoluzione automatica
+export const ERROR_RECOVERY_SUGGESTIONS = {
+  NETWORK_ERROR: [
+    'Verifica la connessione internet',
+    'Disabilita VPN o proxy temporaneamente',
+    'Riprova tra qualche minuto',
+    'Controlla le impostazioni del firewall'
+  ],
+  STORAGE_ERROR: [
+    'Libera spazio sul dispositivo',
+    'Chiudi altre applicazioni',
+    'Riavvia il browser',
+    'Pulisci la cache del browser'
+  ],
+  AUTH_ERROR: [
+    'Verifica nome utente e password',
+    'Controlla se l\'account è attivo',
+    'Rigenera token di accesso',
+    'Verifica permessi dell\'applicazione'
+  ],
+  SYNC_ERROR: [
+    'Verifica la connessione al servizio',
+    'Controlla le credenziali',
+    'Attendi e riprova più tardi',
+    'Contatta il supporto se persiste'
+  ]
+};
+
+// Codici di errore HTTP comuni
+export const HTTP_ERROR_CODES = {
+  400: 'Richiesta non valida',
+  401: 'Non autorizzato',
+  403: 'Accesso negato',
+  404: 'Risorsa non trovata',
+  408: 'Timeout della richiesta',
+  409: 'Conflitto',
+  429: 'Troppe richieste',
+  500: 'Errore interno del server',
+  502: 'Gateway non valido',
+  503: 'Servizio non disponibile',
+  504: 'Timeout del gateway'
+};
+
+// Configurazione monitoraggio errori
+export const ERROR_MONITORING = {
+  MAX_ERROR_HISTORY: 100,
+  ERROR_REPORT_INTERVAL: 60000, // 1 minuto
+  CRITICAL_ERROR_THRESHOLD: 5, // 5 errori critici in 5 minuti
+  AUTO_RECOVERY_ENABLED: true,
+  OFFLINE_QUEUE_SIZE: 50
+};
+
 // Export default configuration object
 export default {
   APP_INFO,
@@ -476,5 +657,10 @@ export default {
   ANIMATION_CONFIG,
   DEFAULT_SETTINGS,
   REGEX_PATTERNS,
-  FEATURE_FLAGS
+  FEATURE_FLAGS,
+  ERROR_CATEGORIES,
+  DETAILED_ERROR_MESSAGES,
+  ERROR_RECOVERY_SUGGESTIONS,
+  HTTP_ERROR_CODES,
+  ERROR_MONITORING
 };

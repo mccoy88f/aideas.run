@@ -1,4 +1,5 @@
 import { DEBUG } from '../utils/debug.js';
+import ErrorHandler from './ErrorHandler.js';
 /**
  * AIdeas - Google Drive Service
  * Gestione sincronizzazione con Google Drive
@@ -722,7 +723,24 @@ export default class GoogleDriveService {
    * @returns {Promise<Object>} Risultato operazione
    */
   async uploadSyncData(syncData) {
-    try {
+    return await ErrorHandler.withRetry(async () => {
+      // Validazione dati
+      if (!syncData || typeof syncData !== 'object') {
+        throw new Error('Dati sync non validi');
+      }
+
+      if (!syncData.data || !syncData.data.apps) {
+        throw new Error('Dati sync incompleti: mancano le app');
+      }
+
+      // Verifica autenticazione
+      if (!await this.isAuthenticated()) {
+        throw new Error('Autenticazione Google Drive richiesta');
+      }
+
+      // Crea backup automatico prima dell'upload
+      const backupId = await ErrorHandler.createBackup('Google Drive Upload', syncData);
+
       if (!this.aideasFolder) {
         await this.initializeAIdeasFolder();
       }
@@ -732,7 +750,8 @@ export default class GoogleDriveService {
         version: '1.0.0',
         timestamp: new Date().toISOString(),
         device: navigator.userAgent,
-        checksum: await this.generateChecksum(syncData)
+        checksum: await this.generateChecksum(syncData),
+        backupId: backupId
       };
 
       // Cerca file sync esistenti
@@ -744,8 +763,22 @@ export default class GoogleDriveService {
       if (existingSyncFiles.length > 0) {
         // Aggiorna file esistente
         const existingFile = existingSyncFiles[0];
-        syncFile = await this.updateFile(existingFile.id, syncContent, 'application/json');
-        DEBUG.log('✅ File sync aggiornato:', syncFile.name);
+        try {
+          syncFile = await this.updateFile(existingFile.id, syncContent, 'application/json');
+          DEBUG.success('✅ File sync aggiornato:', syncFile.name);
+        } catch (updateError) {
+          // Se l'aggiornamento fallisce, prova a ricreare il file
+          DEBUG.warn('⚠️ Aggiornamento fallito, ricreazione file sync');
+          syncFile = await this.uploadFile(
+            'aideas-sync.json',
+            syncContent,
+            'application/json',
+            this.aideasFolder.id,
+            {
+              description: 'AIdeas Sync Data - Apps and Settings'
+            }
+          );
+        }
       } else {
         // Crea nuovo file
         syncFile = await this.uploadFile(
@@ -757,7 +790,7 @@ export default class GoogleDriveService {
             description: 'AIdeas Sync Data - Apps and Settings'
           }
         );
-        DEBUG.log('✅ Nuovo file sync creato:', syncFile.name);
+        DEBUG.success('✅ Nuovo file sync creato:', syncFile.name);
       }
 
       // Cerca file metadati esistenti
@@ -766,24 +799,36 @@ export default class GoogleDriveService {
       });
 
       let metaFile;
-      if (existingMetaFiles.length > 0) {
-        // Aggiorna file metadati esistente
-        const existingMetaFile = existingMetaFiles[0];
-        metaFile = await this.updateFile(existingMetaFile.id, JSON.stringify(metadata, null, 2), 'application/json');
-        DEBUG.log('✅ File metadati aggiornato:', metaFile.name);
-      } else {
-        // Crea nuovo file metadati
-        metaFile = await this.uploadFile(
-          'aideas-meta.json',
-          JSON.stringify(metadata, null, 2),
-          'application/json',
-          this.aideasFolder.id,
-          {
-            description: 'AIdeas Sync Metadata'
-          }
-        );
-        DEBUG.log('✅ Nuovo file metadati creato:', metaFile.name);
+      try {
+        if (existingMetaFiles.length > 0) {
+          // Aggiorna file metadati esistente
+          const existingMetaFile = existingMetaFiles[0];
+          metaFile = await this.updateFile(existingMetaFile.id, JSON.stringify(metadata, null, 2), 'application/json');
+          DEBUG.success('✅ File metadati aggiornato:', metaFile.name);
+        } else {
+          // Crea nuovo file metadati
+          metaFile = await this.uploadFile(
+            'aideas-meta.json',
+            JSON.stringify(metadata, null, 2),
+            'application/json',
+            this.aideasFolder.id,
+            {
+              description: 'AIdeas Sync Metadata'
+            }
+          );
+          DEBUG.success('✅ Nuovo file metadati creato:', metaFile.name);
+        }
+      } catch (metaError) {
+        DEBUG.warn('⚠️ Errore salvataggio metadati:', metaError);
+        // Non bloccare l'operazione se i metadati falliscono
       }
+
+      // Validazione risultato
+      if (!syncFile || !syncFile.id) {
+        throw new Error('Upload non riuscito: file sync non creato');
+      }
+
+      DEBUG.success(`✅ Dati sincronizzati su Google Drive: ${syncData.data.apps.length} app`);
 
       return {
         success: true,
@@ -792,17 +837,30 @@ export default class GoogleDriveService {
           name: syncFile.name,
           size: syncContent.length
         },
-        metaFile: {
+        metaFile: metaFile ? {
           id: metaFile.id,
           name: metaFile.name
-        },
-        metadata
+        } : null,
+        metadata,
+        backupId: backupId
       };
 
-    } catch (error) {
-      DEBUG.error('Errore upload sync data:', error);
-      throw error;
-    }
+    }, {
+      operationName: 'Upload sincronizzazione Google Drive',
+      retryStrategy: 'RATE_LIMIT',
+      timeout: 60000,
+      context: { 
+        dataSize: JSON.stringify(syncData || {}).length,
+        appsCount: syncData?.data?.apps?.length || 0
+      },
+      rollbackFn: async (error, context) => {
+        DEBUG.warn(`🔄 Rollback upload Google Drive - tentativo ripristino backup`);
+        // Il backup viene mantenuto per recovery manuale
+      },
+      validateResult: (result) => {
+        return result && result.success && result.syncFile && result.syncFile.id;
+      }
+    });
   }
 
   /**
@@ -810,7 +868,12 @@ export default class GoogleDriveService {
    * @returns {Promise<Object>} Dati scaricati
    */
   async downloadSyncData() {
-    try {
+    return await ErrorHandler.withRetry(async () => {
+      // Verifica autenticazione
+      if (!await this.isAuthenticated()) {
+        throw new Error('Autenticazione Google Drive richiesta');
+      }
+
       if (!this.aideasFolder) {
         await this.initializeAIdeasFolder();
       }
@@ -821,18 +884,41 @@ export default class GoogleDriveService {
       });
 
       if (syncFiles.length === 0) {
-        throw new Error('File sync non trovato');
+        throw new Error('File sync non trovato su Google Drive');
       }
 
       const syncFile = syncFiles[0];
       
-      // Scarica contenuto sync
+      // Verifica integrità file
+      if (!syncFile.id) {
+        throw new Error('File sync corrotto: ID mancante');
+      }
+
+      // Scarica contenuto sync con validazione
       const syncBlob = await this.downloadFile(syncFile.id);
       const syncContent = await syncBlob.text();
-      const syncData = JSON.parse(syncContent);
+      
+      // Parsing sicuro dei dati
+      let syncData;
+      try {
+        syncData = JSON.parse(syncContent);
+      } catch (parseError) {
+        throw new Error('Dati sync corrotti o non validi');
+      }
+
+      // Validazione struttura dati
+      if (!syncData || typeof syncData !== 'object') {
+        throw new Error('Formato dati sync non valido');
+      }
+
+      if (!syncData.data || !syncData.data.apps) {
+        throw new Error('Dati sync incompleti: mancano le app');
+      }
 
       // Prova a scaricare metadati
       let metadata = null;
+      let checksumValid = true;
+      
       try {
         const metaFiles = await this.listFiles(this.aideasFolder.id, {
           nameContains: 'aideas-meta.json'
@@ -843,15 +929,26 @@ export default class GoogleDriveService {
           const metaContent = await metaBlob.text();
           metadata = JSON.parse(metaContent);
 
-          // Verifica checksum
+          // Verifica checksum per integrità dati
           const currentChecksum = await this.generateChecksum(syncData);
           if (metadata.checksum && metadata.checksum !== currentChecksum) {
-            DEBUG.warn('⚠️ Checksum sync data non corrisponde');
+            checksumValid = false;
+            DEBUG.warn('⚠️ Checksum sync data non corrisponde - possibile corruzione');
           }
         }
       } catch (metaError) {
-        DEBUG.warn('Warning: impossibile caricare metadati sync');
+        DEBUG.warn('⚠️ Errore caricamento metadati, continuo senza validazione');
       }
+
+      // Validazione aggiuntiva sui dati delle app
+      if (syncData.data.apps && Array.isArray(syncData.data.apps)) {
+        const invalidApps = syncData.data.apps.filter(app => !app.name || !app.type);
+        if (invalidApps.length > 0) {
+          DEBUG.warn(`⚠️ Trovate ${invalidApps.length} app con dati incompleti`);
+        }
+      }
+
+      DEBUG.success(`✅ Scaricati dati sync da Google Drive: ${syncData.data.apps.length} app`);
 
       return {
         success: true,
@@ -862,13 +959,27 @@ export default class GoogleDriveService {
           name: syncFile.name,
           size: syncFile.size,
           modifiedTime: syncFile.modifiedTime
+        },
+        validation: {
+          checksumValid,
+          appsCount: syncData.data.apps.length,
+          hasMetadata: !!metadata
         }
       };
 
-    } catch (error) {
-      DEBUG.error('Errore download sync data:', error);
-      throw error;
-    }
+    }, {
+      operationName: 'Download sincronizzazione Google Drive',
+      retryStrategy: 'RATE_LIMIT',
+      timeout: 45000,
+      context: {},
+      rollbackFn: async (error, context) => {
+        DEBUG.warn(`⚠️ Errore download da Google Drive`);
+        // Non c'è rollback per un download, ma possiamo loggare per debug
+      },
+      validateResult: (result) => {
+        return result && result.success && result.data && result.data.data && result.data.data.apps;
+      }
+    });
   }
 
   /**

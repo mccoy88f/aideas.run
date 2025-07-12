@@ -1,6 +1,7 @@
 import Dexie from 'dexie';
 import { getEmojiByCategory } from '../utils/constants.js';
 import { DEBUG } from '../utils/debug.js';
+import ErrorHandler from './ErrorHandler.js';
 
 /**
  * AIdeas Storage Service - Gestione IndexedDB con Dexie.js
@@ -59,7 +60,18 @@ class StorageService {
 
   // Installa una nuova app
   async installApp(appData) {
-    try {
+    return await ErrorHandler.withRetry(async () => {
+      // Validazione dati di input
+      if (!appData.name || !appData.name.trim()) {
+        throw new Error('Nome app richiesto');
+      }
+
+      // Controlla se esiste già un'app con lo stesso nome
+      const existingApp = await this.db.apps.where('name').equals(appData.name).first();
+      if (existingApp) {
+        throw new Error(`App con nome "${appData.name}" già installata`);
+      }
+
       // Assegna automaticamente un'emoji se non c'è icona
       let icon = appData.icon;
       if (!icon) {
@@ -88,7 +100,13 @@ class StorageService {
       
       // Salva i file se è un'app ZIP
       if (appData.files && appData.files.length > 0) {
-        await this.saveAppFiles(appId, appData.files);
+        try {
+          await this.saveAppFiles(appId, appData.files);
+        } catch (fileError) {
+          // Rollback: rimuovi l'app se il salvataggio dei file fallisce
+          await this.db.apps.delete(appId);
+          throw new Error(`Errore salvataggio file: ${fileError.message}`);
+        }
       }
 
       // Genera automaticamente i file PWA (tranne per app URL importate)
@@ -101,13 +119,29 @@ class StorageService {
       }
 
       // Registra evento sync
-      await this.addSyncEvent('app_installed', { appId, app });
+      try {
+        await this.addSyncEvent('app_installed', { appId, app });
+      } catch (syncError) {
+        DEBUG.warn('Errore registrazione evento sync:', syncError);
+        // Non bloccare l'installazione se il sync fallisce
+      }
 
+      DEBUG.success(`✅ App "${appData.name}" installata con successo (ID: ${appId})`);
       return appId;
-    } catch (error) {
-      DEBUG.error('Errore installazione app:', error);
-      throw new Error(`Impossibile installare l'app: ${error.message}`);
-    }
+      
+    }, {
+      operationName: `Installazione app: ${appData.name}`,
+      retryStrategy: 'STORAGE_ERROR',
+      timeout: 15000,
+      context: { appName: appData.name, appType: appData.type },
+      rollbackFn: async (error, context) => {
+        DEBUG.warn(`🔄 Rollback installazione app: ${context.appName}`);
+        // Il rollback specifico è già gestito nel try-catch dei file
+      },
+      validateResult: (appId) => {
+        return appId && typeof appId === 'number' && appId > 0;
+      }
+    });
   }
 
   // Ottieni tutte le app

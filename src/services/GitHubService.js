@@ -1,4 +1,5 @@
 import { DEBUG } from '../utils/debug.js';
+import ErrorHandler from './ErrorHandler.js';
 /**
  * AIdeas - GitHub Service
  * Gestione sincronizzazione con GitHub Gists
@@ -651,7 +652,19 @@ export default class GitHubService {
    * @returns {Promise<Object>} Risultato operazione
    */
   async uploadSyncData(syncData, gistId = null) {
-    try {
+    return await ErrorHandler.withRetry(async () => {
+      // Validazione dati
+      if (!syncData || typeof syncData !== 'object') {
+        throw new Error('Dati sync non validi');
+      }
+
+      if (!syncData.data || !syncData.data.apps) {
+        throw new Error('Dati sync incompleti: mancano le app');
+      }
+
+      // Crea backup automatico prima dell'upload
+      const backupId = await ErrorHandler.createBackup('GitHub Upload', syncData);
+
       const gistContent = {
         description: 'AIdeas Sync Data',
         public: false,
@@ -664,7 +677,8 @@ export default class GitHubService {
               version: '1.0.0',
               timestamp: new Date().toISOString(),
               device: navigator.userAgent,
-              checksum: await this.generateChecksum(syncData)
+              checksum: await this.generateChecksum(syncData),
+              backupId: backupId
             }, null, 2)
           }
         }
@@ -672,22 +686,57 @@ export default class GitHubService {
 
       let result;
       if (gistId) {
-        result = await this.updateGist(gistId, gistContent);
+        // Verifica che il Gist esista prima di aggiornarlo
+        try {
+          await this.getGist(gistId);
+        } catch (error) {
+          if (error.status === 404) {
+            DEBUG.warn('Gist non trovato, creazione nuovo Gist');
+            result = await this.createGist(gistContent);
+          } else {
+            throw error;
+          }
+        }
+        
+        if (!result) {
+          result = await this.updateGist(gistId, gistContent);
+        }
       } else {
         result = await this.createGist(gistContent);
       }
 
+      // Validazione risultato
+      if (!result || !result.id) {
+        throw new Error('Risposta Gist non valida');
+      }
+
+      DEBUG.success(`✅ Dati sincronizzati su GitHub Gist: ${result.id}`);
+      
       return {
         success: true,
         gistId: result.id,
         url: result.html_url,
-        size: JSON.stringify(syncData).length
+        size: JSON.stringify(syncData).length,
+        backupId: backupId
       };
 
-    } catch (error) {
-      DEBUG.error('Errore upload sync data:', error);
-      throw error;
-    }
+    }, {
+      operationName: `Upload sincronizzazione GitHub${gistId ? ' (aggiornamento)' : ' (nuovo)'}`,
+      retryStrategy: 'RATE_LIMIT',
+      timeout: 45000,
+      context: { 
+        gistId: gistId,
+        dataSize: JSON.stringify(syncData || {}).length,
+        appsCount: syncData?.data?.apps?.length || 0
+      },
+      rollbackFn: async (error, context) => {
+        DEBUG.warn(`🔄 Rollback upload GitHub - tentativo ripristino backup`);
+        // Il backup viene mantenuto per recovery manuale
+      },
+      validateResult: (result) => {
+        return result && result.success && result.gistId;
+      }
+    });
   }
 
   /**
@@ -696,9 +745,19 @@ export default class GitHubService {
    * @returns {Promise<Object>} Dati scaricati
    */
   async downloadSyncData(gistId) {
-    try {
+    return await ErrorHandler.withRetry(async () => {
+      // Validazione parametri
+      if (!gistId || typeof gistId !== 'string') {
+        throw new Error('ID Gist non valido');
+      }
+
       const gist = await this.getGist(gistId);
       
+      // Verifica integrità Gist
+      if (!gist || !gist.files) {
+        throw new Error('Gist non valido o corrotto');
+      }
+
       const syncFile = gist.files['aideas-sync.json'];
       const metaFile = gist.files['aideas-meta.json'];
 
@@ -706,18 +765,50 @@ export default class GitHubService {
         throw new Error('File sync non trovato nel Gist');
       }
 
-      const syncData = JSON.parse(syncFile.content);
+      // Parsing sicuro dei dati
+      let syncData;
+      try {
+        syncData = JSON.parse(syncFile.content);
+      } catch (parseError) {
+        throw new Error('Dati sync corrotti o non validi');
+      }
+
+      // Validazione struttura dati
+      if (!syncData || typeof syncData !== 'object') {
+        throw new Error('Formato dati sync non valido');
+      }
+
+      if (!syncData.data || !syncData.data.apps) {
+        throw new Error('Dati sync incompleti: mancano le app');
+      }
+
       let metadata = null;
+      let checksumValid = true;
 
       if (metaFile) {
-        metadata = JSON.parse(metaFile.content);
-        
-        // Verifica checksum
-        const currentChecksum = await this.generateChecksum(syncData);
-        if (metadata.checksum && metadata.checksum !== currentChecksum) {
-          DEBUG.warn('⚠️ Checksum sync data non corrisponde');
+        try {
+          metadata = JSON.parse(metaFile.content);
+          
+          // Verifica checksum per integrità dati
+          const currentChecksum = await this.generateChecksum(syncData);
+          if (metadata.checksum && metadata.checksum !== currentChecksum) {
+            checksumValid = false;
+            DEBUG.warn('⚠️ Checksum sync data non corrisponde - possibile corruzione');
+          }
+        } catch (metaError) {
+          DEBUG.warn('⚠️ Errore parsing metadati, continuo senza validazione');
         }
       }
+
+      // Validazione aggiuntiva sui dati delle app
+      if (syncData.data.apps && Array.isArray(syncData.data.apps)) {
+        const invalidApps = syncData.data.apps.filter(app => !app.name || !app.type);
+        if (invalidApps.length > 0) {
+          DEBUG.warn(`⚠️ Trovate ${invalidApps.length} app con dati incompleti`);
+        }
+      }
+
+      DEBUG.success(`✅ Scaricati dati sync da GitHub Gist: ${syncData.data.apps.length} app`);
 
       return {
         success: true,
@@ -727,13 +818,29 @@ export default class GitHubService {
           id: gist.id,
           url: gist.html_url,
           updatedAt: gist.updated_at
+        },
+        validation: {
+          checksumValid,
+          appsCount: syncData.data.apps.length,
+          hasMetadata: !!metadata
         }
       };
 
-    } catch (error) {
-      DEBUG.error('Errore download sync data:', error);
-      throw error;
-    }
+    }, {
+      operationName: `Download sincronizzazione GitHub (${gistId})`,
+      retryStrategy: 'RATE_LIMIT',
+      timeout: 30000,
+      context: { 
+        gistId: gistId
+      },
+      rollbackFn: async (error, context) => {
+        DEBUG.warn(`⚠️ Errore download da GitHub - Gist: ${context.gistId}`);
+        // Non c'è rollback per un download, ma possiamo loggare per debug
+      },
+      validateResult: (result) => {
+        return result && result.success && result.data && result.data.data && result.data.data.apps;
+      }
+    });
   }
 
   /**
