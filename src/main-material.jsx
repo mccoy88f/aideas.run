@@ -379,7 +379,14 @@ function AIdeasApp() {
     try {
       // Controlla se la sincronizzazione è abilitata
       const syncEnabled = await StorageService.getSetting('syncEnabled', false);
-      const syncProvider = await StorageService.getSetting('syncProvider', 'github');
+      let syncProvider = await StorageService.getSetting('syncProvider', 'github');
+      
+      // Correggi provider obsoleto "gist" -> "googledrive"
+      if (syncProvider === 'gist') {
+        DEBUG.log('🔧 Correzione provider obsoleto durante caricamento: gist -> googledrive');
+        syncProvider = 'googledrive';
+        await StorageService.setSetting('syncProvider', 'googledrive');
+      }
       
       DEBUG.log('📡 Caricamento info utente:', { syncEnabled, syncProvider });
 
@@ -1284,6 +1291,19 @@ function AIdeasApp() {
       const googleService = GoogleDriveService.createConfiguredInstance();
       
       const result = await googleService.handleAuthCallback(code, state);
+      
+      // Correggi provider obsoleto "gist" -> "googledrive"
+      const currentProvider = await StorageService.getSetting('syncProvider', 'github');
+      if (currentProvider === 'gist') {
+        DEBUG.log('🔧 Correzione provider obsoleto: gist -> googledrive');
+        await StorageService.setSetting('syncProvider', 'googledrive');
+        await StorageService.setSetting('syncEnabled', true);
+      } else if (currentProvider !== 'googledrive') {
+        // Se non è Google Drive, imposta Google Drive come provider
+        await StorageService.setSetting('syncProvider', 'googledrive');
+        await StorageService.setSetting('syncEnabled', true);
+      }
+      
       showToast('Autenticazione Google completata!', 'success');
       
       // Carica le informazioni dell'utente

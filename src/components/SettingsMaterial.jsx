@@ -412,7 +412,13 @@ const SettingsMaterial = ({
 
   const enableCloudSync = async () => {
     try {
-      await StorageService.setSetting('syncProvider', cloudSyncConfig.selectedProvider);
+      // Assicurati che il provider sia corretto (converte valori obsoleti)
+      let finalProvider = cloudSyncConfig.selectedProvider;
+      if (finalProvider === 'gist') {
+        finalProvider = 'googledrive';
+      }
+      
+      await StorageService.setSetting('syncProvider', finalProvider);
       await StorageService.setSetting('syncEnabled', true);
       setIsEnabled(true);
       showToast('🔄 Sincronizzazione cloud abilitata!', 'success');

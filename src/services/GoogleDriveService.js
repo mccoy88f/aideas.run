@@ -427,10 +427,15 @@ export default class GoogleDriveService {
         }
       }
 
-      // Test della connettività
+      // Test della connettività e carica info utente
       const response = await this.makeAuthenticatedRequest(GOOGLE_USERINFO_URL);
       if (!response.ok) {
         return false;
+      }
+
+      // Carica le informazioni utente se non le abbiamo
+      if (!this.userInfo) {
+        await this.loadUserInfo();
       }
 
       this.isAuthenticated = true;
