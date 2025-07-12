@@ -36,6 +36,7 @@ export default class AppAnalyzer {
         timestamp: new Date().toISOString(),
         summary: {
           totalFiles: 0,
+          totalSize: 0,
           htmlFiles: 0,
           scriptFiles: 0,
           styleFiles: 0,
@@ -168,9 +169,11 @@ export default class AppAnalyzer {
 
     analysis.summary.totalFiles = 1;
     analysis.summary.htmlFiles = 1;
+    analysis.summary.totalSize = app.content.length;
 
     // Analizza il contenuto HTML
     const htmlAnalysis = await this.analyzeHtmlContent(app.content, 'main.html');
+    htmlAnalysis.size = app.content.length; // Assicura che la dimensione sia inclusa
     analysis.files.push(htmlAnalysis);
 
     // Estrai riferimenti
@@ -665,6 +668,10 @@ export default class AppAnalyzer {
    * @param {Object} fileAnalysis - Analisi del file
    */
   updateSummaryCounters(summary, fileAnalysis) {
+    // Aggiorna dimensione totale
+    summary.totalSize += fileAnalysis.size || 0;
+
+    // Aggiorna contatori per tipo
     switch (fileAnalysis.type) {
       case 'html':
         summary.htmlFiles++;

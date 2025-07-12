@@ -96,52 +96,131 @@ class AppRouteService {
      */
     async openAppInNewTab(appId) {
         try {
+            console.log(`📱 Apertura app ${appId} in nuova finestra`);
+            
             // Recupera i file dell'app
             const appData = await this.storageService.getAppData(appId);
+            console.log('📁 Dati app recuperati:', appData);
+            
             if (!appData || !appData.files || !appData.files['index.html']) {
                 throw new Error('App non trovata o file index.html mancante');
             }
 
-            // Crea blob URLs per tutti i file
+            // Crea blob URLs per tutti i file (esattamente come nel basecode originale)
             const blobUrls = {};
+            let fileCount = 0;
+            
             for (const [filename, fileData] of Object.entries(appData.files)) {
-                const isText = this.isTextFile(filename);
-                const mimeType = this.getMimeType(filename);
-                const blobUrl = this.createBlobUrl(fileData, isText, mimeType);
-                blobUrls[filename] = blobUrl;
-                this.blobUrls.set(filename, blobUrl);
+                try {
+                    let blob;
+                    
+                    // Controlla se il file è di testo o binario
+                    const isTextFile = this.isTextFile(filename);
+                    const mimeType = this.getMimeType(filename);
+                    
+                    if (isTextFile) {
+                        blob = new Blob([fileData], { type: mimeType });
+                    } else {
+                        // Per file binari, gestisci come nel basecode originale
+                        try {
+                            const binaryString = atob(fileData);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let i = 0; i < binaryString.length; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+                            blob = new Blob([bytes], { type: mimeType });
+                        } catch (decodeError) {
+                            // Se non è base64, trattalo come testo
+                            blob = new Blob([fileData], { type: mimeType });
+                        }
+                    }
+                    
+                    const blobUrl = URL.createObjectURL(blob);
+                    blobUrls[filename] = blobUrl;
+                    this.blobUrls.set(filename, blobUrl);
+                    fileCount++;
+                    
+                    console.log(`📄 Blob URL creato per: ${filename} (${mimeType})`);
+                } catch (error) {
+                    console.error(`❌ Errore creazione blob per ${filename}:`, error);
+                }
             }
 
-            // Modifica l'HTML principale per usare i blob URLs
+            // Modifica l'HTML principale per usare i blob URLs (esattamente come nel basecode originale)
             let indexHtml = appData.files['index.html'];
+            let replacementCount = 0;
+            
+            // PULIZIA HTML: Rimuovi elementi di AIdeas che causano conflitti
+            console.log('🧹 Pulizia HTML per nuova finestra...');
+            
+            // Rimuovi service worker registration
+            indexHtml = indexHtml.replace(/<script[^>]*>[\s\S]*?navigator\.serviceWorker[\s\S]*?<\/script>/gi, '');
+            indexHtml = indexHtml.replace(/navigator\.serviceWorker[\s\S]*?;/g, '');
+            
+            // Rimuovi riferimenti al manifest di AIdeas
+            indexHtml = indexHtml.replace(/<link[^>]*rel=["']manifest["'][^>]*>/gi, '');
+            
+            // Rimuovi meta tag PWA di AIdeas
+            indexHtml = indexHtml.replace(/<meta[^>]*name=["']theme-color["'][^>]*>/gi, '');
+            indexHtml = indexHtml.replace(/<meta[^>]*name=["']apple-mobile-web-app[^"']*["'][^>]*>/gi, '');
+            indexHtml = indexHtml.replace(/<meta[^>]*name=["']mobile-web-app-capable["'][^>]*>/gi, '');
+            
+            // Rimuovi script di inizializzazione UI di AIdeas
+            indexHtml = indexHtml.replace(/<script[^>]*src=["'][^"']*ui-loader[^"']*["'][^>]*><\/script>/gi, '');
+            indexHtml = indexHtml.replace(/<script[^>]*>[\s\S]*?initializeAIdeas[\s\S]*?<\/script>/gi, '');
+            
+            // Rimuovi elementi della barra dell'app di AIdeas
+            indexHtml = indexHtml.replace(/<div[^>]*class=["'][^"']*app-container[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, '');
+            indexHtml = indexHtml.replace(/<nav[^>]*class=["'][^"']*navbar[^"']*["'][^>]*>[\s\S]*?<\/nav>/gi, '');
+            indexHtml = indexHtml.replace(/<header[^>]*class=["'][^"']*header[^"']*["'][^>]*>[\s\S]*?<\/header>/gi, '');
+            
+            console.log('✅ HTML pulito dai riferimenti di AIdeas');
             
             // Sostituisci tutti i riferimenti relativi con blob URLs
             for (const [filename, blobUrl] of Object.entries(blobUrls)) {
                 if (filename !== 'index.html') {
-                    // Sostituisci sia con che senza "./" all'inizio
+                    // Usa gli stessi pattern del basecode originale
                     const patterns = [
                         new RegExp(`(href|src)=["']${filename}["']`, 'g'),
-                        new RegExp(`(href|src)=["']\\./${filename}["']`, 'g'),
-                        new RegExp(`(href|src)=["']\\.\\.\/${filename}["']`, 'g'),
-                        new RegExp(`(href|src)=["']\\/${filename}["']`, 'g'),
-                        new RegExp(`(href|src)=["']app:\\/\\/${filename}["']`, 'g')
+                        new RegExp(`(href|src)=["']\\./${filename}["']`, 'g')
                     ];
                     
                     patterns.forEach(pattern => {
+                        const beforeReplace = indexHtml;
                         indexHtml = indexHtml.replace(pattern, `$1="${blobUrl}"`);
+                        if (beforeReplace !== indexHtml) {
+                            replacementCount++;
+                            console.log(`🔄 Sostituito riferimento a ${filename} con blob URL`);
+                        }
                     });
                 }
             }
 
-            // Apri la nuova finestra
-            const subAppWindow = window.open('', 'subapp', 'width=1024,height=768,scrollbars=yes');
+            console.log(`✅ Creati ${fileCount} blob URLs, effettuate ${replacementCount} sostituzioni`);
+
+            // Apri la nuova finestra (esattamente come nel basecode originale)
+            const subAppWindow = window.open('', `app_${appId}`, 'width=1200,height=800,scrollbars=yes');
             
             if (subAppWindow) {
                 subAppWindow.document.write(indexHtml);
                 subAppWindow.document.close();
                 
-                // Cleanup URLs dopo un timeout
-                this.cleanupBlobUrls();
+                // Cleanup URLs quando la finestra si chiude (come nel basecode originale)
+                const checkClosed = setInterval(() => {
+                    if (subAppWindow.closed) {
+                        Object.values(blobUrls).forEach(url => URL.revokeObjectURL(url));
+                        clearInterval(checkClosed);
+                        console.log('🧹 Blob URLs puliti per finestra chiusa');
+                    }
+                }, 1000);
+                
+                // Cleanup di sicurezza dopo 10 minuti
+                setTimeout(() => {
+                    Object.values(blobUrls).forEach(url => URL.revokeObjectURL(url));
+                    clearInterval(checkClosed);
+                    console.log('🧹 Blob URLs puliti per timeout');
+                }, 600000);
+                
             } else {
                 throw new Error('Impossibile aprire la finestra. Controlla le impostazioni popup.');
             }

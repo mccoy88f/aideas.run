@@ -238,7 +238,7 @@ const AppInfoModal = ({ open, onClose, app }) => {
                 </AccordionSummary>
                 <AccordionDetails>
                   <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={6} md={4}>
                       <Paper sx={{ p: 2, textAlign: 'center' }}>
                         <Typography variant="h4" color="primary">
                           {analysis.summary.totalFiles}
@@ -246,7 +246,15 @@ const AppInfoModal = ({ open, onClose, app }) => {
                         <Typography variant="body2">File totali</Typography>
                       </Paper>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="h4" color="secondary.main">
+                          {formatFileSize(analysis.summary.totalSize || 0)}
+                        </Typography>
+                        <Typography variant="body2">Spazio occupato</Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
                       <Paper sx={{ p: 2, textAlign: 'center' }}>
                         <Typography variant="h4" color="warning.main">
                           {analysis.summary.externalReferences}
@@ -254,7 +262,7 @@ const AppInfoModal = ({ open, onClose, app }) => {
                         <Typography variant="body2">Riferimenti esterni</Typography>
                       </Paper>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={6} md={4}>
                       <Paper sx={{ p: 2, textAlign: 'center' }}>
                         <Typography variant="h4" color="info.main">
                           {analysis.summary.localReferences}
@@ -262,7 +270,7 @@ const AppInfoModal = ({ open, onClose, app }) => {
                         <Typography variant="body2">File locali</Typography>
                       </Paper>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={6} md={4}>
                       <Paper sx={{ p: 2, textAlign: 'center' }}>
                         <Typography variant="h4" color="success.main">
                           {analysis.permissions.length}

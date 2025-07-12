@@ -160,6 +160,29 @@ function AIdeasApp() {
     }
   }, [settings.bottomBar]);
 
+  // Effect per pulire i blob URLs quando il componente viene smontato
+  React.useEffect(() => {
+    return () => {
+      // Pulisci tutti i blob URLs quando il componente viene smontato
+      if (window.aideasBlobUrls) {
+        Object.keys(window.aideasBlobUrls).forEach(appId => {
+          cleanupBlobUrls(appId);
+        });
+      }
+    };
+  }, []);
+
+  // Effect per pulire i blob URLs quando il modale si chiude
+  React.useEffect(() => {
+    if (!launchModalOpen && launchingApp) {
+      // Pulisci i blob URLs dell'app che era in esecuzione
+      const appId = launchingApp.id;
+      if (appId) {
+        cleanupBlobUrls(appId);
+      }
+    }
+  }, [launchModalOpen, launchingApp]);
+
   React.useEffect(() => {
     // Gestione callback autenticazione Google
     const urlParams = new URLSearchParams(window.location.search);
@@ -399,6 +422,7 @@ function AIdeasApp() {
         // Determina modalità di apertura
         const openMode = app.openMode || settings.defaultOpenMode || 'modal';
         console.log(`🚀 Avvio app: ${app.name}, modalità: ${openMode}`);
+        console.log(`🔧 [DEBUG] Tipo app: "${app.type}", ha files: ${app.files?.length || 0}`);
         
         // Lancia l'app
         if (app.type === 'url' && app.url) {
@@ -434,7 +458,48 @@ function AIdeasApp() {
               showToast('Popup bloccato. Abilita i popup per questo sito.', 'error');
             }
           }
+        } else if (app.type === 'zip') {
+          // Gestisci app ZIP
+          if (openMode === 'modal') {
+            console.log(`🔧 [DEBUG] Avvio app ZIP in modale: ${app.name}`);
+            
+            // Carica i file e aggiorna l'app in memoria
+            const files = await StorageService.getAppFiles(appId);
+            console.log(`🔧 [DEBUG] File caricati per app ${appId}:`, files?.length || 0);
+            
+            const appWithFiles = { ...app, files };
+            
+            // Aggiorna l'app in memoria con i file caricati
+            const appIndex = apps.findIndex(a => a.id === appId);
+            if (appIndex !== -1) {
+              apps[appIndex] = appWithFiles;
+            }
+            
+            // Configura il servizio file e ottieni l'HTML modificato
+            const modifiedHtml = await setupLocalFileService(appId);
+            
+            if (modifiedHtml) {
+              setLaunchingApp({
+                ...appWithFiles,
+                content: modifiedHtml
+              });
+              setLaunchModalOpen(true);
+            } else {
+              showToast('Errore nel caricamento dell\'app o file index.html non trovato', 'error');
+            }
+          } else {
+            // Per nuova finestra, usa AppRouteService
+            const AppRouteService = (await import('./services/AppRouteService.js')).default;
+            try {
+              await AppRouteService.openAppInNewTab(appId);
+              showToast(`Avviata: ${app.name}`, 'success');
+            } catch (error) {
+              console.error('Errore apertura app in nuova finestra:', error);
+              showToast('Errore nell\'apertura dell\'app', 'error');
+            }
+          }
         } else {
+          console.log(`🔧 [DEBUG] Tipo app non supportato: "${app.type}"`);
           showToast('Tipo di app non supportato', 'error');
         }
       }
@@ -447,36 +512,134 @@ function AIdeasApp() {
   // Funzione per configurare il servizio file locali per le app ZIP
   const setupLocalFileService = async (appId) => {
     try {
-      const app = apps.find(a => a.id === appId);
-      if (!app || !app.files || app.files.length === 0) return;
+      console.log(`🔧 [DEBUG] Inizio setupLocalFileService per app ${appId}`);
+      
+      let app = apps.find(a => a.id === appId);
+      console.log(`🔧 [DEBUG] App trovata:`, !!app, app ? app.name : 'non trovata');
+      
+      if (!app) {
+        console.error(`❌ App ${appId} non trovata in apps`);
+        return null;
+      }
+      
+      console.log(`🔧 [DEBUG] App.files prima del caricamento:`, app.files?.length || 0);
+      
+      // Se l'app non ha i file caricati, caricali dal database
+      if (!app.files || app.files.length === 0) {
+        console.log(`🔧 [DEBUG] Caricamento file dal database per app ${appId}`);
+        const files = await StorageService.getAppFiles(appId);
+        console.log(`🔧 [DEBUG] File caricati dal database:`, files?.length || 0, files);
+        app = { ...app, files };
+      }
+      
+      if (!app.files || app.files.length === 0) {
+        console.error(`❌ Nessun file trovato per app ${appId}`);
+        return null;
+      }
 
       console.log(`📁 Configurando servizio file per app ${appId}:`, app.files.length, 'file');
+      console.log(`🔧 [DEBUG] Lista file:`, app.files.map(f => f.filename));
 
-      // Crea un handler per le richieste di file locali
-      const fileHandler = (request) => {
-        const url = new URL(request.url);
-        if (url.protocol === 'app:') {
-          const fileName = url.pathname.substring(1); // Rimuovi lo slash iniziale
-          const file = app.files.find(f => f.filename.endsWith(fileName));
+      // Crea blob URLs per tutti i file dell'app (esattamente come nel basecode originale)
+      const blobUrls = {};
+      for (const file of app.files) {
+        try {
+          let blob;
           
-          if (file) {
-            console.log(`📄 Servendo file locale: ${fileName}`);
-            return new Response(file.content, {
-              headers: {
-                'Content-Type': file.mimeType || 'application/octet-stream',
-                'Access-Control-Allow-Origin': '*'
+          // Controlla se il file è di testo o binario
+          const isTextFile = file.mimeType && (
+            file.mimeType.startsWith('text/') ||
+            file.mimeType.includes('javascript') ||
+            file.mimeType.includes('json') ||
+            file.mimeType.includes('css') ||
+            file.mimeType.includes('html') ||
+            file.mimeType.includes('xml')
+          );
+          
+          if (isTextFile) {
+            blob = new Blob([file.content], { type: file.mimeType });
+          } else {
+            // Per file binari, gestisci come nel basecode originale
+            try {
+              const binaryString = atob(file.content);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
               }
-            });
+              blob = new Blob([bytes], { type: file.mimeType });
+            } catch (decodeError) {
+              // Se non è base64, trattalo come testo
+              blob = new Blob([file.content], { type: file.mimeType || 'application/octet-stream' });
+            }
           }
+          
+          blobUrls[file.filename] = URL.createObjectURL(blob);
+          console.log(`📄 Blob URL creato per: ${file.filename} (${file.mimeType})`);
+        } catch (error) {
+          console.error(`Errore creazione blob per ${file.filename}:`, error);
         }
-        return null;
-      };
+      }
 
-      // Registra l'handler per questa sessione
-      window.aideasFileHandler = fileHandler;
+      // Trova il file index.html
+      const indexFile = app.files.find(f => f.filename === 'index.html');
+      if (!indexFile) {
+        console.warn('File index.html non trovato');
+        return null;
+      }
+
+      // Sostituisce i riferimenti relativi con blob URLs (ESATTAMENTE come nel basecode originale)
+      let indexHtml = indexFile.content;
+      let replacementCount = 0;
+      
+      for (const [filename, blobUrl] of Object.entries(blobUrls)) {
+        if (filename !== 'index.html') {
+          // Usa gli stessi pattern regex del basecode originale
+          const patterns = [
+            new RegExp(`(href|src)=["']${filename}["']`, 'g'),
+            new RegExp(`(href|src)=["']\\./${filename}["']`, 'g')
+          ];
+          
+          patterns.forEach(pattern => {
+            const beforeReplace = indexHtml;
+            indexHtml = indexHtml.replace(pattern, `$1="${blobUrl}"`);
+            if (beforeReplace !== indexHtml) {
+              replacementCount++;
+              console.log(`🔄 Sostituito riferimento a ${filename} con blob URL`);
+            }
+          });
+        }
+      }
+
+      // Salva i blob URLs per la pulizia successiva
+      if (!window.aideasBlobUrls) {
+        window.aideasBlobUrls = {};
+      }
+      window.aideasBlobUrls[appId] = blobUrls;
+
+      console.log('✅ Servizio file configurato con successo:', Object.keys(blobUrls).length, 'blob URLs');
+      console.log(`🔄 Effettuate ${replacementCount} sostituzioni di URL nell'HTML`);
+      
+      return indexHtml;
       
     } catch (error) {
       console.error('Errore configurazione servizio file:', error);
+      return null;
+    }
+  };
+
+  // Funzione per pulire i blob URLs quando non sono più necessari
+  const cleanupBlobUrls = (appId) => {
+    try {
+      if (window.aideasBlobUrls && window.aideasBlobUrls[appId]) {
+        const blobUrls = window.aideasBlobUrls[appId];
+        Object.values(blobUrls).forEach(url => {
+          URL.revokeObjectURL(url);
+        });
+        delete window.aideasBlobUrls[appId];
+        console.log(`🧹 Blob URLs puliti per app ${appId}`);
+      }
+    } catch (error) {
+      console.error('Errore pulizia blob URLs:', error);
     }
   };
 
@@ -748,7 +911,7 @@ function AIdeasApp() {
       
       // Imposta il contenuto HTML modificato per l'avvio dell'app
       metadata.content = modifiedHtmlContent;
-      metadata.type = 'html';
+      metadata.type = 'zip'; // Mantieni il tipo ZIP per preservare la gestione dei file
       
       console.log('✅ Metadati estratti da index.html:', {
         name: metadata.name,
@@ -1121,17 +1284,17 @@ function AIdeasApp() {
     try {
       console.log('🔍 Richiesta informazioni app:', app.name);
       
-      // Carica i file dell'app dal database se è di tipo ZIP
-      let appWithFiles = { ...app };
+      // Carica i file dell'app dal database usando il metodo aggiornato
+      const appWithFiles = await StorageService.getAppWithFiles(app.id);
       
-      if (app.type === 'zip') {
-        const files = await StorageService.getAppFiles(app.id);
-        appWithFiles.files = files;
-        console.log(`📁 Caricati ${files.length} file per app ${app.name}`);
+      if (appWithFiles) {
+        setAppInfoData(appWithFiles);
+        setAppInfoModalOpen(true);
+        console.log(`📁 Caricati ${appWithFiles.files?.length || 0} file per app ${app.name}`);
+      } else {
+        console.warn('App non trovata o senza dati');
+        showToast('App non trovata', 'error');
       }
-      
-      setAppInfoData(appWithFiles);
-      setAppInfoModalOpen(true);
       
     } catch (error) {
       console.error('Errore caricamento informazioni app:', error);

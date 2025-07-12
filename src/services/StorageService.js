@@ -147,6 +147,54 @@ class StorageService {
     }
   }
 
+  // Ottieni dati completi dell'app (app + file)
+  async getAppData(appId) {
+    try {
+      const app = await this.getApp(appId);
+      if (!app) {
+        return null;
+      }
+
+      const files = await this.getAppFiles(appId);
+      
+      // Converte l'array di file in un oggetto con filename come chiave
+      // compatibile con il formato del basecode originale
+      const filesObj = {};
+      files.forEach(file => {
+        filesObj[file.filename] = file.content;
+      });
+
+      // Restituisce i dati nel formato compatibile con il basecode
+      return {
+        ...app,
+        files: filesObj
+      };
+    } catch (error) {
+      console.error('Errore recupero dati app:', error);
+      return null;
+    }
+  }
+
+  // Ottieni app con i suoi file in formato dettagliato
+  async getAppWithFiles(appId) {
+    try {
+      const app = await this.getApp(appId);
+      if (!app) {
+        return null;
+      }
+
+      const files = await this.getAppFiles(appId);
+      
+      return {
+        ...app,
+        files: files
+      };
+    } catch (error) {
+      console.error('Errore recupero app con file:', error);
+      return null;
+    }
+  }
+
   // Aggiorna app
   async updateApp(appId, updates) {
     try {
