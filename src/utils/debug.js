@@ -10,20 +10,58 @@ export const DEBUG = {
   enabled: import.meta.env.DEV || localStorage.getItem('aideas_debug') === 'true',
   verbose: localStorage.getItem('aideas_verbose_logging') === 'true',
   
+  // Basic logging - only in development or debug mode
   log(...args) {
     if (this.enabled) {
-      console.log('[AIdeas Debug]', ...args);
+      console.log('🔍 [AIdeas]', ...args);
     }
   },
   
+  // Information logging - visible in verbose mode
+  info(...args) {
+    if (this.enabled && this.verbose) {
+      console.info('ℹ️ [AIdeas]', ...args);
+    }
+  },
+  
+  // Success logging - visible in verbose mode  
+  success(...args) {
+    if (this.enabled && this.verbose) {
+      console.log('✅ [AIdeas]', ...args);
+    }
+  },
+  
+  // Warnings - always visible in development
   warn(...args) {
     if (this.enabled) {
-      console.warn('[AIdeas Debug]', ...args);
+      console.warn('⚠️ [AIdeas]', ...args);
     }
   },
   
+  // Errors - always visible even in production
   error(...args) {
-    console.error('[AIdeas Debug]', ...args);
+    console.error('❌ [AIdeas]', ...args);
+  },
+  
+  // Service-specific logging for development
+  service(serviceName, ...args) {
+    if (this.enabled) {
+      console.log(`🔧 [${serviceName}]`, ...args);
+    }
+  },
+  
+  // Network requests logging
+  network(method, url, ...args) {
+    if (this.enabled && this.verbose) {
+      console.log(`🌐 [Network] ${method}`, url, ...args);
+    }
+  },
+  
+  // Performance logging
+  perf(label, value) {
+    if (this.enabled && this.verbose) {
+      console.log(`⚡ [Performance] ${label}:`, value);
+    }
   },
   
   table(data) {
@@ -34,7 +72,7 @@ export const DEBUG = {
   
   group(label) {
     if (this.enabled) {
-      console.group(label);
+      console.group(`📁 ${label}`);
     }
   },
   

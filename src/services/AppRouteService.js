@@ -1,3 +1,4 @@
+import { DEBUG } from '../utils/debug.js';
 /**
  * App Route Service - Gestisce le route /app/:id per servire app in nuova scheda
  * Intercetta le richieste per /app/:id e serve i file dallo storage locale
@@ -24,9 +25,9 @@ class AppRouteService {
         
         try {
             this.initialized = true;
-            console.log('✅ AppRouteService inizializzato con successo');
+            DEBUG.log('✅ AppRouteService inizializzato con successo');
         } catch (error) {
-            console.error('❌ Errore inizializzazione AppRouteService:', error);
+            DEBUG.error('❌ Errore inizializzazione AppRouteService:', error);
         }
     }
 
@@ -96,11 +97,11 @@ class AppRouteService {
      */
     async openAppInNewTab(appId) {
         try {
-            console.log(`📱 Apertura app ${appId} in nuova finestra`);
+            DEBUG.log(`📱 Apertura app ${appId} in nuova finestra`);
             
             // Recupera i file dell'app
             const appData = await this.storageService.getAppData(appId);
-            console.log('📁 Dati app recuperati:', appData);
+            DEBUG.log('📁 Dati app recuperati:', appData);
             
             if (!appData || !appData.files || !appData.files['index.html']) {
                 throw new Error('App non trovata o file index.html mancante');
@@ -140,9 +141,9 @@ class AppRouteService {
                     this.blobUrls.set(filename, blobUrl);
                     fileCount++;
                     
-                    console.log(`📄 Blob URL creato per: ${filename} (${mimeType})`);
+                    DEBUG.log(`📄 Blob URL creato per: ${filename} (${mimeType})`);
                 } catch (error) {
-                    console.error(`❌ Errore creazione blob per ${filename}:`, error);
+                    DEBUG.error(`❌ Errore creazione blob per ${filename}:`, error);
                 }
             }
 
@@ -150,7 +151,7 @@ class AppRouteService {
             let indexHtml = appData.files['index.html'];
             let replacementCount = 0;
             
-            console.log('🧩 Usare logica basecode originale...');
+            DEBUG.log('🧩 Usare logica basecode originale...');
             
             // Sostituzioni esattamente come nel basecode originale
             for (const [filename, blobUrl] of Object.entries(blobUrls)) {
@@ -170,7 +171,7 @@ class AppRouteService {
                 }
             }
 
-            console.log(`✅ Creati ${fileCount} blob URLs, effettuate ${replacementCount} sostituzioni`);
+            DEBUG.log(`✅ Creati ${fileCount} blob URLs, effettuate ${replacementCount} sostituzioni`);
 
             // Apri la nuova finestra (esattamente come nel basecode originale)
             const subAppWindow = window.open('', `app_${appId}`, 'width=1200,height=800,scrollbars=yes');
@@ -184,7 +185,7 @@ class AppRouteService {
                     if (subAppWindow.closed) {
                         Object.values(blobUrls).forEach(url => URL.revokeObjectURL(url));
                         clearInterval(checkClosed);
-                        console.log('🧹 Blob URLs puliti per finestra chiusa');
+                        DEBUG.log('🧹 Blob URLs puliti per finestra chiusa');
                     }
                 }, 1000);
                 
@@ -192,7 +193,7 @@ class AppRouteService {
                 setTimeout(() => {
                     Object.values(blobUrls).forEach(url => URL.revokeObjectURL(url));
                     clearInterval(checkClosed);
-                    console.log('🧹 Blob URLs puliti per timeout');
+                    DEBUG.log('🧹 Blob URLs puliti per timeout');
                 }, 600000);
                 
             } else {
@@ -200,7 +201,7 @@ class AppRouteService {
             }
 
         } catch (error) {
-            console.error('❌ Errore apertura app:', error);
+            DEBUG.error('❌ Errore apertura app:', error);
             throw error;
         }
     }

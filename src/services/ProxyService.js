@@ -4,6 +4,7 @@
  */
 
 import * as cheerio from 'cheerio';
+import { DEBUG } from '../utils/debug.js';
 
 export default class ProxyService {
   constructor() {
@@ -65,7 +66,7 @@ export default class ProxyService {
           }
         }
       } catch (error) {
-        console.log(`Proxy ${proxyIndex} fallito:`, error.message);
+        DEBUG.log(`Proxy ${proxyIndex} fallito:`, error.message);
         lastError = error;
       }
     }
@@ -84,7 +85,7 @@ export default class ProxyService {
         return await response.text();
       }
     } catch (error) {
-      console.log('Anche l\'approccio diretto è fallito:', error);
+      DEBUG.log('Anche l\'approccio diretto è fallito:', error);
     }
 
     throw lastError || new Error('Impossibile recuperare il contenuto');
@@ -202,10 +203,10 @@ export default class ProxyService {
       if (match) {
         try {
           const iconUrl = new URL(match[1], baseUrl).href;
-          console.log('Icona trovata:', iconUrl);
+          DEBUG.log('Icona trovata:', iconUrl);
           return iconUrl;
         } catch (e) {
-          console.log('URL icona non valido:', match[1]);
+          DEBUG.log('URL icona non valido:', match[1]);
         }
       }
     }
@@ -229,10 +230,10 @@ export default class ProxyService {
       if (match) {
         try {
           const iconUrl = new URL(match[1], baseUrl).href;
-          console.log('Apple Touch Icon trovata:', iconUrl);
+          DEBUG.log('Apple Touch Icon trovata:', iconUrl);
           return iconUrl;
         } catch (e) {
-          console.log('URL apple-touch-icon non valido:', match[1]);
+          DEBUG.log('URL apple-touch-icon non valido:', match[1]);
         }
       }
     }

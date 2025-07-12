@@ -1,3 +1,4 @@
+import { DEBUG } from '../utils/debug.js';
 /**
  * AIdeas - Security Service
  * Gestione crittografia e sicurezza per AIdeas.run
@@ -117,7 +118,7 @@ export default class SecurityService {
       return validation;
 
     } catch (error) {
-      console.error('Errore validazione URL:', error);
+      DEBUG.error('Errore validazione URL:', error);
       return { valid: false, error: 'Errore durante la validazione' };
     }
   }
@@ -268,7 +269,7 @@ export default class SecurityService {
       return validation;
 
     } catch (error) {
-      console.error('Errore validazione file:', error);
+      DEBUG.error('Errore validazione file:', error);
       return { valid: false, error: 'Errore durante la validazione del file' };
     }
   }
@@ -387,7 +388,7 @@ export default class SecurityService {
       return validation;
 
     } catch (error) {
-      console.error('Errore validazione ZIP:', error);
+      DEBUG.error('Errore validazione ZIP:', error);
       return {
         valid: false,
         error: 'Impossibile analizzare il contenuto ZIP'
@@ -466,7 +467,7 @@ export default class SecurityService {
       return result;
 
     } catch (error) {
-      console.error('Errore analisi JavaScript:', error);
+      DEBUG.error('Errore analisi JavaScript:', error);
       return {
         safe: false,
         issues: ['Errore durante l\'analisi'],
@@ -752,7 +753,7 @@ export default class SecurityService {
       return scanResult;
 
     } catch (error) {
-      console.error('Errore security scan:', error);
+      DEBUG.error('Errore security scan:', error);
       return {
         overall: 'warning',
         score: 50,

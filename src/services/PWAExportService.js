@@ -5,6 +5,7 @@
 
 import StorageService from './StorageService.js';
 import { APP_TYPES, CATEGORIES } from '../utils/constants.js';
+import { DEBUG } from '../utils/debug.js';
 
 class PWAExportService {
   constructor() {
@@ -22,7 +23,7 @@ class PWAExportService {
    */
   async generatePWA(appId) {
     try {
-      console.log(`🚀 Generazione PWA per app ${appId}...`);
+      DEBUG.log(`🚀 Generazione PWA per app ${appId}...`);
       
       // Recupera i dati dell'app
       const app = await this.storageService.getApp(appId);
@@ -65,11 +66,11 @@ class PWAExportService {
         }
       };
 
-      console.log(`✅ PWA generata per ${app.name}:`, pwaData);
+      DEBUG.log(`✅ PWA generata per ${app.name}:`, pwaData);
       return pwaData;
       
     } catch (error) {
-      console.error('Errore generazione PWA:', error);
+      DEBUG.error('Errore generazione PWA:', error);
       throw error;
     }
   }
@@ -212,7 +213,7 @@ const STATIC_FILES = ${JSON.stringify(staticFiles)};
 
 // Installazione
 self.addEventListener('install', (event) => {
-  console.log('📦 Installing PWA for ${app.name}');
+  DEBUG.log('📦 Installing PWA for ${app.name}');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_FILES);
@@ -222,7 +223,7 @@ self.addEventListener('install', (event) => {
 
 // Attivazione
 self.addEventListener('activate', (event) => {
-  console.log('🚀 PWA ${app.name} activated');
+  DEBUG.log('🚀 PWA ${app.name} activated');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -392,10 +393,10 @@ self.addEventListener('fetch', (event) => {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
           .then(registration => {
-            console.log('SW registered: ', registration);
+            DEBUG.log('SW registered: ', registration);
           })
           .catch(error => {
-            console.log('SW registration failed: ', error);
+            DEBUG.log('SW registration failed: ', error);
           });
       });
     }
@@ -424,7 +425,7 @@ self.addEventListener('fetch', (event) => {
           mimeType: 'image/png'
         });
       } catch (error) {
-        console.warn('Errore conversione icona inline:', error);
+        DEBUG.warn('Errore conversione icona inline:', error);
       }
     }
     
@@ -453,7 +454,7 @@ self.addEventListener('fetch', (event) => {
    */
   async exportPWAAsZIP(appId) {
     try {
-      console.log(`📦 Esportazione PWA come ZIP per app ${appId}...`);
+      DEBUG.log(`📦 Esportazione PWA come ZIP per app ${appId}...`);
       
       const pwaData = await this.generatePWA(appId);
       
@@ -487,11 +488,11 @@ self.addEventListener('fetch', (event) => {
       // Genera il ZIP
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       
-      console.log(`✅ PWA esportata come ZIP: ${zipBlob.size} bytes`);
+      DEBUG.log(`✅ PWA esportata come ZIP: ${zipBlob.size} bytes`);
       return zipBlob;
       
     } catch (error) {
-      console.error('Errore esportazione PWA ZIP:', error);
+      DEBUG.error('Errore esportazione PWA ZIP:', error);
       throw error;
     }
   }
@@ -555,7 +556,7 @@ Generato da AIdeas - https://aideas.run
         return true;
       });
     } catch (error) {
-      console.error('Errore recupero app esportabili:', error);
+      DEBUG.error('Errore recupero app esportabili:', error);
       return [];
     }
   }

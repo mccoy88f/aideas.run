@@ -1,3 +1,4 @@
+import { DEBUG } from '../utils/debug.js';
 /**
  * AIdeas - GitHub Service
  * Gestione sincronizzazione con GitHub Gists
@@ -50,11 +51,11 @@ export default class GitHubService {
       // Salva token in modo sicuro
       await this.saveToken(token);
       
-      console.log('✅ GitHub autenticato:', this.userInfo.login);
+      DEBUG.log('✅ GitHub autenticato:', this.userInfo.login);
       return this.userInfo;
 
     } catch (error) {
-      console.error('❌ Errore autenticazione GitHub:', error);
+      DEBUG.error('❌ Errore autenticazione GitHub:', error);
       this.authenticated = false;
       throw error;
     }
@@ -76,7 +77,7 @@ export default class GitHubService {
         return this.authenticated;
       }
     } catch (error) {
-      console.error('Errore verifica autenticazione:', error);
+      DEBUG.error('Errore verifica autenticazione:', error);
     }
 
     return false;
@@ -120,7 +121,7 @@ export default class GitHubService {
       return repoData;
 
     } catch (error) {
-      console.error('Errore recupero repository:', error);
+      DEBUG.error('Errore recupero repository:', error);
       throw error;
     }
   }
@@ -160,7 +161,7 @@ export default class GitHubService {
       return fileData;
 
     } catch (error) {
-      console.error('Errore recupero file:', error);
+      DEBUG.error('Errore recupero file:', error);
       throw error;
     }
   }
@@ -192,7 +193,7 @@ export default class GitHubService {
       return contents;
 
     } catch (error) {
-      console.error('Errore recupero directory:', error);
+      DEBUG.error('Errore recupero directory:', error);
       throw error;
     }
   }
@@ -218,7 +219,7 @@ export default class GitHubService {
       return await response.blob();
 
     } catch (error) {
-      console.error('Errore download repository:', error);
+      DEBUG.error('Errore download repository:', error);
       throw error;
     }
   }
@@ -249,7 +250,7 @@ export default class GitHubService {
       return await response.json();
 
     } catch (error) {
-      console.error('Errore ricerca repository:', error);
+      DEBUG.error('Errore ricerca repository:', error);
       throw error;
     }
   }
@@ -283,11 +284,11 @@ export default class GitHubService {
       }
 
       const gist = await response.json();
-      console.log('✅ Gist creato:', gist.id);
+      DEBUG.log('✅ Gist creato:', gist.id);
       return gist;
 
     } catch (error) {
-      console.error('Errore creazione Gist:', error);
+      DEBUG.error('Errore creazione Gist:', error);
       throw error;
     }
   }
@@ -317,11 +318,11 @@ export default class GitHubService {
       }
 
       const gist = await response.json();
-      console.log('✅ Gist aggiornato:', gist.id);
+      DEBUG.log('✅ Gist aggiornato:', gist.id);
       return gist;
 
     } catch (error) {
-      console.error('Errore aggiornamento Gist:', error);
+      DEBUG.error('Errore aggiornamento Gist:', error);
       throw error;
     }
   }
@@ -354,7 +355,7 @@ export default class GitHubService {
       return gist;
 
     } catch (error) {
-      console.error('Errore recupero Gist:', error);
+      DEBUG.error('Errore recupero Gist:', error);
       throw error;
     }
   }
@@ -375,11 +376,11 @@ export default class GitHubService {
         throw new Error(`Errore eliminazione Gist: ${response.statusText}`);
       }
 
-      console.log('✅ Gist eliminato:', gistId);
+      DEBUG.log('✅ Gist eliminato:', gistId);
       return true;
 
     } catch (error) {
-      console.error('Errore eliminazione Gist:', error);
+      DEBUG.error('Errore eliminazione Gist:', error);
       throw error;
     }
   }
@@ -408,7 +409,7 @@ export default class GitHubService {
       return await response.json();
 
     } catch (error) {
-      console.error('Errore lista Gist:', error);
+      DEBUG.error('Errore lista Gist:', error);
       throw error;
     }
   }
@@ -489,7 +490,7 @@ export default class GitHubService {
       return await response.json();
 
     } catch (error) {
-      console.error('Errore recupero release:', error);
+      DEBUG.error('Errore recupero release:', error);
       throw error;
     }
   }
@@ -513,7 +514,7 @@ export default class GitHubService {
       const waitTime = resetTime - new Date();
       
       if (waitTime > 0) {
-        console.warn(`⏳ Rate limit GitHub, attesa ${Math.ceil(waitTime / 1000)}s`);
+        DEBUG.warn(`⏳ Rate limit GitHub, attesa ${Math.ceil(waitTime / 1000)}s`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
@@ -544,7 +545,7 @@ export default class GitHubService {
     if (reset) this.rateLimitReset = parseInt(reset);
 
     if (this.rateLimitRemaining <= 50) {
-      console.warn(`⚠️ Rate limit GitHub basso: ${this.rateLimitRemaining} rimanenti`);
+      DEBUG.warn(`⚠️ Rate limit GitHub basso: ${this.rateLimitRemaining} rimanenti`);
     }
   }
 
@@ -585,7 +586,7 @@ export default class GitHubService {
     try {
       return atob(encrypted);
     } catch (error) {
-      console.error('Errore decrittazione token:', error);
+      DEBUG.error('Errore decrittazione token:', error);
       return null;
     }
   }
@@ -684,7 +685,7 @@ export default class GitHubService {
       };
 
     } catch (error) {
-      console.error('Errore upload sync data:', error);
+      DEBUG.error('Errore upload sync data:', error);
       throw error;
     }
   }
@@ -714,7 +715,7 @@ export default class GitHubService {
         // Verifica checksum
         const currentChecksum = await this.generateChecksum(syncData);
         if (metadata.checksum && metadata.checksum !== currentChecksum) {
-          console.warn('⚠️ Checksum sync data non corrisponde');
+          DEBUG.warn('⚠️ Checksum sync data non corrisponde');
         }
       }
 
@@ -730,7 +731,7 @@ export default class GitHubService {
       };
 
     } catch (error) {
-      console.error('Errore download sync data:', error);
+      DEBUG.error('Errore download sync data:', error);
       throw error;
     }
   }
@@ -806,7 +807,7 @@ export default class GitHubService {
         message: 'Sincronizzazione GitHub completata'
       };
     } catch (error) {
-      console.error('Errore sincronizzazione bidirezionale GitHub:', error);
+      DEBUG.error('Errore sincronizzazione bidirezionale GitHub:', error);
       throw error;
     }
   }

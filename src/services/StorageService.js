@@ -1,5 +1,6 @@
 import Dexie from 'dexie';
 import { getEmojiByCategory } from '../utils/constants.js';
+import { DEBUG } from '../utils/debug.js';
 
 /**
  * AIdeas Storage Service - Gestione IndexedDB con Dexie.js
@@ -63,7 +64,7 @@ class StorageService {
       let icon = appData.icon;
       if (!icon) {
         icon = getEmojiByCategory(appData.category);
-        console.log(`🎨 Assegnata emoji automatica per ${appData.name}: ${icon}`);
+        DEBUG.success(`Assegnata emoji automatica per ${appData.name}: ${icon}`);
       }
 
       const app = {
@@ -104,7 +105,7 @@ class StorageService {
 
       return appId;
     } catch (error) {
-      console.error('Errore installazione app:', error);
+      DEBUG.error('Errore installazione app:', error);
       throw new Error(`Impossibile installare l'app: ${error.message}`);
     }
   }
@@ -132,7 +133,7 @@ class StorageService {
 
       return await query.toArray();
     } catch (error) {
-      console.error('Errore recupero app:', error);
+      DEBUG.error('Errore recupero app:', error);
       return [];
     }
   }
@@ -142,7 +143,7 @@ class StorageService {
     try {
       return await this.db.apps.get(appId);
     } catch (error) {
-      console.error('Errore recupero app:', error);
+      DEBUG.error('Errore recupero app:', error);
       return null;
     }
   }
@@ -170,7 +171,7 @@ class StorageService {
         files: filesObj
       };
     } catch (error) {
-      console.error('Errore recupero dati app:', error);
+      DEBUG.error('Errore recupero dati app:', error);
       return null;
     }
   }
@@ -190,7 +191,7 @@ class StorageService {
         files: files
       };
     } catch (error) {
-      console.error('Errore recupero app con file:', error);
+      DEBUG.error('Errore recupero app con file:', error);
       return null;
     }
   }
@@ -202,7 +203,7 @@ class StorageService {
       await this.addSyncEvent('app_updated', { appId, updates });
       return true;
     } catch (error) {
-      console.error('Errore aggiornamento app:', error);
+      DEBUG.error('Errore aggiornamento app:', error);
       return false;
     }
   }
@@ -222,10 +223,10 @@ class StorageService {
       };
 
       await this.db.apps.update(appId, { metadata: updatedMetadata });
-      console.log(`✅ Metadati aggiornati per app ${appId}:`, metadata);
+      DEBUG.success(`Metadati aggiornati per app ${appId}:`, metadata);
       return true;
     } catch (error) {
-      console.error('Errore aggiornamento metadati app:', error);
+      DEBUG.error('Errore aggiornamento metadati app:', error);
       return false;
     }
   }
@@ -244,7 +245,7 @@ class StorageService {
 
       return app.metadata;
     } catch (error) {
-      console.error('Errore recupero metadati app:', error);
+      DEBUG.error('Errore recupero metadati app:', error);
       return null;
     }
   }
@@ -252,45 +253,45 @@ class StorageService {
   // Migra app esistenti per aggiungere campo content se mancante
   async migrateAppsForContent() {
     try {
-      console.log('🔄 Inizio migrazione app HTML...');
+      DEBUG.service('StorageService', 'Inizio migrazione app HTML...');
       const apps = await this.db.apps.toArray();
-      console.log(`📊 Trovate ${apps.length} app totali`);
+      DEBUG.info(`Trovate ${apps.length} app totali`);
       
       let migrated = 0;
       
       for (const app of apps) {
-        console.log(`🔍 Controllo app: ${app.name} (tipo: ${app.type})`);
+        DEBUG.info(`Controllo app: ${app.name} (tipo: ${app.type})`);
         
         if (app.type === 'html' && !app.content) {
-          console.log(`📝 App HTML senza contenuto trovata: ${app.name}`);
+          DEBUG.info(`App HTML senza contenuto trovata: ${app.name}`);
           
           // Per le app HTML senza contenuto, prova a recuperarlo dai file
           const files = await this.getAppFiles(app.id);
-          console.log(`📁 Trovati ${files.length} file per app ${app.name}`);
+          DEBUG.info(`Trovati ${files.length} file per app ${app.name}`);
           
           const htmlFile = files.find(f => f.filename.endsWith('.html'));
           
           if (htmlFile) {
-            console.log(`✅ File HTML trovato: ${htmlFile.filename}`);
+            DEBUG.success(`File HTML trovato: ${htmlFile.filename}`);
             await this.db.apps.update(app.id, { content: htmlFile.content });
             migrated++;
-            console.log(`✅ App ${app.name} migrata con successo`);
+            DEBUG.success(`App ${app.name} migrata con successo`);
           } else {
-            console.log(`⚠️ Nessun file HTML trovato per app ${app.name}`);
+            DEBUG.warn(`Nessun file HTML trovato per app ${app.name}`);
           }
         }
       }
       
       if (migrated > 0) {
-        console.log(`✅ Migrate ${migrated} app HTML per aggiungere campo content`);
+        DEBUG.success(`Migrate ${migrated} app HTML per aggiungere campo content`);
       } else {
-        console.log('ℹ️ Nessuna app HTML da migrare');
+        DEBUG.info('Nessuna app HTML da migrare');
       }
       
       return migrated;
     } catch (error) {
-      console.error('❌ Errore migrazione app:', error);
-      console.error('Stack trace:', error.stack);
+      DEBUG.error('Errore migrazione app:', error);
+      DEBUG.error('Stack trace:', error.stack);
       return 0;
     }
   }
@@ -306,7 +307,7 @@ class StorageService {
       await this.addSyncEvent('app_deleted', { appId });
       return true;
     } catch (error) {
-      console.error('Errore eliminazione app:', error);
+      DEBUG.error('Errore eliminazione app:', error);
       return false;
     }
   }
@@ -316,7 +317,7 @@ class StorageService {
     try {
       await this.db.apps.update(appId, { lastUsed: new Date() });
     } catch (error) {
-      console.error('Errore aggiornamento ultimo utilizzo:', error);
+      DEBUG.error('Errore aggiornamento ultimo utilizzo:', error);
     }
   }
 
@@ -330,7 +331,7 @@ class StorageService {
       }
       return false;
     } catch (error) {
-      console.error('Errore toggle preferito:', error);
+      DEBUG.error('Errore toggle preferito:', error);
       return false;
     }
   }
@@ -355,7 +356,7 @@ class StorageService {
       await Promise.all(filePromises);
       return true;
     } catch (error) {
-      console.error('Errore salvataggio file app:', error);
+      DEBUG.error('Errore salvataggio file app:', error);
       return false;
     }
   }
@@ -365,7 +366,7 @@ class StorageService {
     try {
       return await this.db.appFiles.where('appId').equals(appId).toArray();
     } catch (error) {
-      console.error('Errore recupero file app:', error);
+      DEBUG.error('Errore recupero file app:', error);
       return [];
     }
   }
@@ -380,7 +381,7 @@ class StorageService {
       const setting = await this.db.settings.get(key);
       return setting ? setting.value : defaultValue;
     } catch (error) {
-      console.error('Errore recupero impostazione:', error);
+      DEBUG.error('Errore recupero impostazione:', error);
       return defaultValue;
     }
   }
@@ -395,7 +396,7 @@ class StorageService {
       });
       return true;
     } catch (error) {
-      console.error('Errore salvataggio impostazione:', error);
+      DEBUG.error('Errore salvataggio impostazione:', error);
       return false;
     }
   }
@@ -410,7 +411,7 @@ class StorageService {
       });
       return result;
     } catch (error) {
-      console.error('Errore recupero impostazioni:', error);
+      DEBUG.error('Errore recupero impostazioni:', error);
       return {};
     }
   }
@@ -433,7 +434,7 @@ class StorageService {
       await Promise.all(transactions);
       return true;
     } catch (error) {
-      console.error('Errore salvataggio impostazioni:', error);
+      DEBUG.error('Errore salvataggio impostazioni:', error);
       return false;
     }
   }
@@ -453,7 +454,7 @@ class StorageService {
         deviceId: await this.getDeviceId()
       });
     } catch (error) {
-      console.error('Errore aggiunta evento sync:', error);
+      DEBUG.error('Errore aggiunta evento sync:', error);
     }
   }
 
@@ -462,7 +463,7 @@ class StorageService {
     try {
       return await this.db.syncEvents.where('synced').equals(false).toArray();
     } catch (error) {
-      console.error('Errore recupero eventi non sincronizzati:', error);
+      DEBUG.error('Errore recupero eventi non sincronizzati:', error);
       return [];
     }
   }
@@ -472,7 +473,7 @@ class StorageService {
     try {
       await this.db.syncEvents.where('id').anyOf(eventIds).modify({ synced: true });
     } catch (error) {
-      console.error('Errore aggiornamento eventi sync:', error);
+      DEBUG.error('Errore aggiornamento eventi sync:', error);
     }
   }
 
@@ -487,7 +488,7 @@ class StorageService {
       await this.db.catalog.bulkAdd(apps);
       return true;
     } catch (error) {
-      console.error('Errore aggiornamento catalogo:', error);
+      DEBUG.error('Errore aggiornamento catalogo:', error);
       return false;
     }
   }
@@ -515,7 +516,7 @@ class StorageService {
 
       return await result.limit(options.limit || 50).toArray();
     } catch (error) {
-      console.error('Errore ricerca catalogo:', error);
+      DEBUG.error('Errore ricerca catalogo:', error);
       return [];
     }
   }
@@ -568,7 +569,7 @@ class StorageService {
         data: { apps, settings, syncEvents }
       };
     } catch (error) {
-      console.error('Errore export dati:', error);
+      DEBUG.error('Errore export dati:', error);
       throw error;
     }
   }
@@ -590,7 +591,7 @@ class StorageService {
 
       return true;
     } catch (error) {
-      console.error('Errore import dati:', error);
+      DEBUG.error('Errore import dati:', error);
       throw error;
     }
   }
@@ -600,9 +601,9 @@ class StorageService {
     if (!this.db.isOpen()) {
       try {
         await this.db.open();
-        console.log('📂 Database riaperto con successo');
+        DEBUG.log('📂 Database riaperto con successo');
       } catch (err) {
-        console.error('❌ Errore riapertura database:', err);
+        DEBUG.error('❌ Errore riapertura database:', err);
       }
     }
   }
@@ -613,7 +614,7 @@ class StorageService {
       await this.ensureDbOpen();
       // Verifica che il database sia inizializzato
       if (!this.db || !this.db.isOpen()) {
-        console.warn('Database non inizializzato');
+        DEBUG.warn('Database non inizializzato');
         return null;
       }
       // Recupera tutte le app per filtrare dati corrotti
@@ -641,7 +642,7 @@ class StorageService {
         dbSize: await this.estimateDbSize()
       };
     } catch (error) {
-      console.error('Errore recupero statistiche:', error);
+      DEBUG.error('Errore recupero statistiche:', error);
       return null;
     }
   }

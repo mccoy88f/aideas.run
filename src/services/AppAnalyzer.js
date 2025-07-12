@@ -1,3 +1,4 @@
+import { DEBUG } from '../utils/debug.js';
 /**
  * AIdeas - App Analyzer Service
  * Analizza le app senza modificarle per fornire informazioni dettagliate
@@ -19,13 +20,13 @@ export default class AppAnalyzer {
    */
   async analyzeApp(app) {
     try {
-      console.log(`🔍 Analisi app: ${app.name}`);
+      DEBUG.log(`🔍 Analisi app: ${app.name}`);
 
       // Controlla cache
       const cacheKey = `app:${app.id}:${app.lastModified || Date.now()}`;
       const cached = this.getFromCache(cacheKey);
       if (cached) {
-        console.log(`♻️ Usando analisi cached per ${app.name}`);
+        DEBUG.log(`♻️ Usando analisi cached per ${app.name}`);
         return cached;
       }
 
@@ -75,7 +76,7 @@ export default class AppAnalyzer {
       // Salva in cache
       this.setCache(cacheKey, analysis);
 
-      console.log(`✅ Analisi completata per ${app.name}:`, {
+      DEBUG.log(`✅ Analisi completata per ${app.name}:`, {
         files: analysis.summary.totalFiles,
         external: analysis.summary.externalReferences,
         local: analysis.summary.localReferences
@@ -84,7 +85,7 @@ export default class AppAnalyzer {
       return analysis;
 
     } catch (error) {
-      console.error('Errore durante l\'analisi app:', error);
+      DEBUG.error('Errore durante l\'analisi app:', error);
       return {
         appId: app.id,
         appName: app.name,

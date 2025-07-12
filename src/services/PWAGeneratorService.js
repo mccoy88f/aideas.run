@@ -1,3 +1,4 @@
+import { DEBUG } from '../utils/debug.js';
 /**
  * PWA Generator Service - Genera i file necessari per le PWA
  */
@@ -34,7 +35,7 @@ class PWAGeneratorService {
         await this.initialize();
       }
       
-      console.log(`🚀 Generazione PWA automatica per app ${appId}: ${appData.name}`);
+      DEBUG.log(`🚀 Generazione PWA automatica per app ${appId}: ${appData.name}`);
       
       // Genera il manifest PWA
       const manifest = this.generateManifest(appId, appData);
@@ -52,10 +53,10 @@ class PWAGeneratorService {
         htmlWrapper
       });
       
-      console.log(`✅ PWA generata per app ${appId}`);
+      DEBUG.log(`✅ PWA generata per app ${appId}`);
       
     } catch (error) {
-      console.error('Errore generazione PWA:', error);
+      DEBUG.error('Errore generazione PWA:', error);
     }
   }
 
@@ -139,7 +140,7 @@ const STATIC_FILES = [
 
 // Installa il service worker
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installato per ${appData.name}');
+  DEBUG.log('Service Worker installato per ${appData.name}');
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => cache.addAll(STATIC_FILES))
@@ -148,7 +149,7 @@ self.addEventListener('install', (event) => {
 
 // Attiva il service worker
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker attivato per ${appData.name}');
+  DEBUG.log('Service Worker attivato per ${appData.name}');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -303,10 +304,10 @@ self.addEventListener('message', (event) => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/app/${appId}/sw.js')
         .then((registration) => {
-          console.log('Service Worker registrato:', registration);
+          DEBUG.log('Service Worker registrato:', registration);
         })
         .catch((error) => {
-          console.error('Errore registrazione Service Worker:', error);
+          DEBUG.error('Errore registrazione Service Worker:', error);
         });
     }
     
@@ -373,9 +374,9 @@ self.addEventListener('message', (event) => {
       });
 
       await db.close();
-      console.log(`✅ File PWA salvati per app ${appId}`);
+      DEBUG.log(`✅ File PWA salvati per app ${appId}`);
     } catch (error) {
-      console.error('Errore salvataggio file PWA:', error);
+      DEBUG.error('Errore salvataggio file PWA:', error);
     }
   }
 
@@ -413,7 +414,7 @@ self.addEventListener('message', (event) => {
       await db.close();
       return pwaFiles;
     } catch (error) {
-      console.error('Errore recupero file PWA:', error);
+      DEBUG.error('Errore recupero file PWA:', error);
       return null;
     }
   }
@@ -443,7 +444,7 @@ self.addEventListener('message', (event) => {
       await db.close();
       return files >= 3; // Deve avere almeno manifest, sw e html
     } catch (error) {
-      console.error('Errore verifica file PWA:', error);
+      DEBUG.error('Errore verifica file PWA:', error);
       return false;
     }
   }

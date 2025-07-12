@@ -1,3 +1,4 @@
+import { DEBUG } from '../utils/debug.js';
 /**
  * AIdeas - Google Drive Service
  * Gestione sincronizzazione con Google Drive
@@ -91,7 +92,7 @@ export default class GoogleDriveService {
       }
 
     } catch (error) {
-      console.error('Errore autenticazione Google:', error);
+      DEBUG.error('Errore autenticazione Google:', error);
       throw error;
     }
   }
@@ -180,7 +181,7 @@ export default class GoogleDriveService {
       // Inizializza cartella AIdeas
       await this.initializeAIdeasFolder();
 
-      console.log('✅ Google Drive autenticato:', this.userInfo.name);
+      DEBUG.log('✅ Google Drive autenticato:', this.userInfo.name);
       
       // Pulisce storage temporaneo
       sessionStorage.removeItem('google_code_verifier');
@@ -195,7 +196,7 @@ export default class GoogleDriveService {
       };
 
     } catch (error) {
-      console.error('Errore callback auth:', error);
+      DEBUG.error('Errore callback auth:', error);
       throw error;
     }
   }
@@ -283,7 +284,7 @@ export default class GoogleDriveService {
       return tokenData;
 
     } catch (error) {
-      console.error('Errore refresh token:', error);
+      DEBUG.error('Errore refresh token:', error);
       this.authenticated = false;
       throw error;
     }
@@ -327,7 +328,7 @@ export default class GoogleDriveService {
       return await response.json();
 
     } catch (error) {
-      console.error('Errore info utente:', error);
+      DEBUG.error('Errore info utente:', error);
       throw error;
     }
   }
@@ -349,7 +350,7 @@ export default class GoogleDriveService {
         return true;
       }
     } catch (error) {
-      console.error('Errore verifica autenticazione:', error);
+      DEBUG.error('Errore verifica autenticazione:', error);
     }
 
     return false;
@@ -396,7 +397,7 @@ export default class GoogleDriveService {
       return folder;
 
     } catch (error) {
-      console.error('Errore inizializzazione cartella AIdeas:', error);
+      DEBUG.error('Errore inizializzazione cartella AIdeas:', error);
       throw error;
     }
   }
@@ -418,7 +419,7 @@ export default class GoogleDriveService {
       return data.files.length > 0 ? data.files[0] : null;
 
     } catch (error) {
-      console.error('Errore ricerca cartella:', error);
+      DEBUG.error('Errore ricerca cartella:', error);
       return null;
     }
   }
@@ -455,11 +456,11 @@ export default class GoogleDriveService {
       }
 
       const folder = await response.json();
-      console.log('✅ Cartella creata:', folder.name);
+      DEBUG.log('✅ Cartella creata:', folder.name);
       return folder;
 
     } catch (error) {
-      console.error('Errore creazione cartella:', error);
+      DEBUG.error('Errore creazione cartella:', error);
       throw error;
     }
   }
@@ -532,7 +533,7 @@ export default class GoogleDriveService {
       }
 
     } catch (error) {
-      console.error('Errore upload file:', error);
+      DEBUG.error('Errore upload file:', error);
       throw error;
     }
   }
@@ -553,7 +554,7 @@ export default class GoogleDriveService {
       return await response.blob();
 
     } catch (error) {
-      console.error('Errore download file:', error);
+      DEBUG.error('Errore download file:', error);
       throw error;
     }
   }
@@ -575,7 +576,7 @@ export default class GoogleDriveService {
       return await response.json();
 
     } catch (error) {
-      console.error('Errore metadati file:', error);
+      DEBUG.error('Errore metadati file:', error);
       throw error;
     }
   }
@@ -622,7 +623,7 @@ export default class GoogleDriveService {
       return data.files || [];
 
     } catch (error) {
-      console.error('Errore lista file:', error);
+      DEBUG.error('Errore lista file:', error);
       throw error;
     }
   }
@@ -642,11 +643,11 @@ export default class GoogleDriveService {
         throw new Error('Errore eliminazione file');
       }
 
-      console.log('✅ File eliminato:', fileId);
+      DEBUG.log('✅ File eliminato:', fileId);
       return true;
 
     } catch (error) {
-      console.error('Errore eliminazione file:', error);
+      DEBUG.error('Errore eliminazione file:', error);
       throw error;
     }
   }
@@ -706,7 +707,7 @@ export default class GoogleDriveService {
       }
 
     } catch (error) {
-      console.error('Errore aggiornamento file:', error);
+      DEBUG.error('Errore aggiornamento file:', error);
       throw error;
     }
   }
@@ -744,7 +745,7 @@ export default class GoogleDriveService {
         // Aggiorna file esistente
         const existingFile = existingSyncFiles[0];
         syncFile = await this.updateFile(existingFile.id, syncContent, 'application/json');
-        console.log('✅ File sync aggiornato:', syncFile.name);
+        DEBUG.log('✅ File sync aggiornato:', syncFile.name);
       } else {
         // Crea nuovo file
         syncFile = await this.uploadFile(
@@ -756,7 +757,7 @@ export default class GoogleDriveService {
             description: 'AIdeas Sync Data - Apps and Settings'
           }
         );
-        console.log('✅ Nuovo file sync creato:', syncFile.name);
+        DEBUG.log('✅ Nuovo file sync creato:', syncFile.name);
       }
 
       // Cerca file metadati esistenti
@@ -769,7 +770,7 @@ export default class GoogleDriveService {
         // Aggiorna file metadati esistente
         const existingMetaFile = existingMetaFiles[0];
         metaFile = await this.updateFile(existingMetaFile.id, JSON.stringify(metadata, null, 2), 'application/json');
-        console.log('✅ File metadati aggiornato:', metaFile.name);
+        DEBUG.log('✅ File metadati aggiornato:', metaFile.name);
       } else {
         // Crea nuovo file metadati
         metaFile = await this.uploadFile(
@@ -781,7 +782,7 @@ export default class GoogleDriveService {
             description: 'AIdeas Sync Metadata'
           }
         );
-        console.log('✅ Nuovo file metadati creato:', metaFile.name);
+        DEBUG.log('✅ Nuovo file metadati creato:', metaFile.name);
       }
 
       return {
@@ -799,7 +800,7 @@ export default class GoogleDriveService {
       };
 
     } catch (error) {
-      console.error('Errore upload sync data:', error);
+      DEBUG.error('Errore upload sync data:', error);
       throw error;
     }
   }
@@ -845,11 +846,11 @@ export default class GoogleDriveService {
           // Verifica checksum
           const currentChecksum = await this.generateChecksum(syncData);
           if (metadata.checksum && metadata.checksum !== currentChecksum) {
-            console.warn('⚠️ Checksum sync data non corrisponde');
+            DEBUG.warn('⚠️ Checksum sync data non corrisponde');
           }
         }
       } catch (metaError) {
-        console.warn('Warning: impossibile caricare metadati sync');
+        DEBUG.warn('Warning: impossibile caricare metadati sync');
       }
 
       return {
@@ -865,7 +866,7 @@ export default class GoogleDriveService {
       };
 
     } catch (error) {
-      console.error('Errore download sync data:', error);
+      DEBUG.error('Errore download sync data:', error);
       throw error;
     }
   }
@@ -979,7 +980,7 @@ export default class GoogleDriveService {
       return true;
 
     } catch (error) {
-      console.error('Errore caricamento credenziali:', error);
+      DEBUG.error('Errore caricamento credenziali:', error);
       return false;
     }
   }
@@ -1035,7 +1036,7 @@ export default class GoogleDriveService {
       return await response.json();
 
     } catch (error) {
-      console.error('Errore quota storage:', error);
+      DEBUG.error('Errore quota storage:', error);
       return null;
     }
   }
@@ -1093,7 +1094,7 @@ export default class GoogleDriveService {
         message: 'Sincronizzazione Google Drive completata'
       };
     } catch (error) {
-      console.error('Errore sincronizzazione bidirezionale Google Drive:', error);
+      DEBUG.error('Errore sincronizzazione bidirezionale Google Drive:', error);
       throw error;
     }
   }
