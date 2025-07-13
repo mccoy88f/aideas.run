@@ -72,7 +72,8 @@ export default class StoreService {
                   favorite: false,
                   type: 'store',
                   storeId: item.name,
-                  manifest: manifest
+                  manifest: manifest,
+                  lastModified: item.updated_at || new Date().toISOString() // Data di modifica della cartella
                 });
               }
             } catch (error) {

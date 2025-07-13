@@ -29,7 +29,11 @@ import {
   ListItemSecondaryAction,
   Badge,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import {
   Store as StoreIcon,
@@ -70,6 +74,7 @@ const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState([]);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
+  const [sortBy, setSortBy] = useState('name'); // 'name', 'category', 'recent', 'author'
 
   useEffect(() => {
     if (open) {
@@ -84,7 +89,7 @@ const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
 
   useEffect(() => {
     filterApps();
-  }, [storeApps, searchQuery, selectedCategory]);
+  }, [storeApps, searchQuery, selectedCategory, sortBy]);
 
   // Ascolta eventi di aggiornamento store
   useEffect(() => {
@@ -152,6 +157,25 @@ const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(app => app.category === selectedCategory);
     }
+
+    // Ordina le app
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'category':
+          return a.category.localeCompare(b.category);
+        case 'author':
+          return a.author.localeCompare(b.author);
+        case 'recent':
+          // Ordina per data di modifica (più recente prima)
+          const dateA = new Date(a.lastModified || 0);
+          const dateB = new Date(b.lastModified || 0);
+          return dateB - dateA;
+        default:
+          return 0;
+      }
+    });
 
     setFilteredApps(filtered);
   };
@@ -283,40 +307,73 @@ const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
     <Box>
       {/* Barra di ricerca e filtri */}
       <Box sx={{ mb: 3 }}>
-        <TextField
-          fullWidth
-          placeholder="Cerca app..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            )
-          }}
-          sx={{ mb: 2 }}
-        />
-        
-        {/* Filtri categoria */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          <Chip
-            label="Tutte"
-            color={selectedCategory === 'all' ? 'primary' : 'default'}
-            onClick={() => setSelectedCategory('all')}
-            size="small"
+        {/* Ricerca e filtri in riga */}
+        <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+          {/* Campo di ricerca */}
+          <TextField
+            placeholder="Cerca app..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              )
+            }}
+            sx={{ flexGrow: 1, minWidth: 200 }}
           />
-          {categories.map(category => (
-            <Chip
-              key={category}
-              label={category}
-              color={selectedCategory === category ? 'primary' : 'default'}
-              onClick={() => setSelectedCategory(category)}
+          
+          {/* Dropdown categoria */}
+          <FormControl sx={{ minWidth: 150 }}>
+            <InputLabel>Categoria</InputLabel>
+            <Select
+              value={selectedCategory}
+              label="Categoria"
+              onChange={(e) => setSelectedCategory(e.target.value)}
               size="small"
-              icon={getCategoryIcon(category)}
-            />
-          ))}
+            >
+              <MenuItem value="all">Tutte le categorie</MenuItem>
+              {categories.map(category => (
+                <MenuItem key={category} value={category}>
+                  {category}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          {/* Dropdown ordinamento */}
+          <FormControl sx={{ minWidth: 150 }}>
+            <InputLabel>Ordina per</InputLabel>
+            <Select
+              value={sortBy}
+              label="Ordina per"
+              onChange={(e) => setSortBy(e.target.value)}
+              size="small"
+            >
+              <MenuItem value="name">Nome</MenuItem>
+              <MenuItem value="category">Categoria</MenuItem>
+              <MenuItem value="author">Autore</MenuItem>
+              <MenuItem value="recent">Più recenti</MenuItem>
+            </Select>
+          </FormControl>
         </Box>
+        
+        {/* Chip per categoria selezionata */}
+        {selectedCategory !== 'all' && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Filtro attivo:
+            </Typography>
+            <Chip
+              label={selectedCategory}
+              color="primary"
+              size="small"
+              icon={getCategoryIcon(selectedCategory)}
+              onDelete={() => setSelectedCategory('all')}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* Lista app */}
