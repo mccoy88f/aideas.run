@@ -70,10 +70,12 @@ const StoreModal = ({ open, onClose, onAppInstalled }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState([]);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
+  const [installedApps, setInstalledApps] = useState([]);
 
   useEffect(() => {
     if (open) {
       loadStoreApps();
+      loadInstalledApps();
       // Avvia polling quando lo store è aperto
       storeService.startPolling();
     } else {
@@ -123,6 +125,25 @@ const StoreModal = ({ open, onClose, onAppInstalled }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadInstalledApps = async () => {
+    try {
+      DEBUG.log('📱 Caricamento app installate...');
+      const { StorageService } = await import('../services/StorageService.js');
+      const apps = await StorageService.getAllApps();
+      setInstalledApps(apps);
+      DEBUG.success(`✅ Caricate ${apps.length} app installate`);
+    } catch (error) {
+      DEBUG.error('❌ Errore caricamento app installate:', error);
+    }
+  };
+
+  const isAppInstalled = (storeApp) => {
+    return installedApps.some(installedApp => 
+      installedApp.storeId === storeApp.storeId || 
+      (installedApp.githubUrl && storeApp.githubUrl && installedApp.githubUrl === storeApp.githubUrl)
+    );
   };
 
   const filterApps = () => {
@@ -353,15 +374,27 @@ const StoreModal = ({ open, onClose, onAppInstalled }) => {
                 </CardContent>
 
                 <CardActions>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    startIcon={installingApp === app.id ? <CircularProgress size={16} /> : <DownloadIcon />}
-                    onClick={() => handleInstallApp(app)}
-                    disabled={installingApp === app.id}
-                  >
-                    {installingApp === app.id ? 'Installazione...' : 'Installa'}
-                  </Button>
+                  {isAppInstalled(app) ? (
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      color="success"
+                      startIcon={<CheckCircleIcon />}
+                      disabled
+                    >
+                      Già Installata
+                    </Button>
+                  ) : (
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      startIcon={installingApp === app.id ? <CircularProgress size={16} /> : <DownloadIcon />}
+                      onClick={() => handleInstallApp(app)}
+                      disabled={installingApp === app.id}
+                    >
+                      {installingApp === app.id ? 'Installazione...' : 'Installa'}
+                    </Button>
+                  )}
                 </CardActions>
               </Card>
             </Grid>

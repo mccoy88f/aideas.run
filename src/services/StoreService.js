@@ -107,80 +107,128 @@ export default class StoreService {
       try {
         DEBUG.log(`📦 Installazione app ${storeId} dallo store...`);
 
-        // Scarica il repository (ora in formato JSON)
-        const repoBlob = await this.githubService.downloadRepositoryZip(
+        // Prima ottieni il manifest dallo store per capire da dove scaricare i file
+        const manifestContent = await this.githubService.getFileContent(
           this.storeRepo.owner,
           this.storeRepo.repo,
+          `apps/${storeId}/aideas.json`,
           this.storeRepo.branch
         );
 
-        // Leggi il contenuto JSON del repository
-        const repoText = await repoBlob.text();
-        const repoData = JSON.parse(repoText);
+        if (!manifestContent || !manifestContent.decodedContent) {
+          throw new Error(`Manifest non trovato per l'app ${storeId}`);
+        }
+
+        const manifest = JSON.parse(manifestContent.decodedContent);
         
-        // Estrai i file dell'app specifica
-        const appFiles = [];
-        let manifest = null;
-        let appZipFile = null;
+        // Controlla se l'app è già installata
+        const existingApps = await StorageService.getAllApps();
+        const isAlreadyInstalled = existingApps.some(app => 
+          app.storeId === storeId || 
+          (app.githubUrl && manifest.githubUrl && app.githubUrl === manifest.githubUrl)
+        );
+
+        if (isAlreadyInstalled) {
+          throw new Error(`App "${manifest.name || storeId}" è già installata`);
+        }
+
+        // Determina la sorgente dei file
+        let appFiles = [];
         
-        for (const [filePath, fileContent] of Object.entries(repoData.files)) {
-          // Filtra solo i file dell'app specifica
-          if (filePath.includes(`apps/${storeId}/`)) {
-            const relativePath = filePath.replace(`apps/${storeId}/`, '');
+        if (manifest.githubUrl) {
+          // Scarica dalla repo dell'app originale
+          DEBUG.log(`📥 Scaricamento file dalla repo originale: ${manifest.githubUrl}`);
+          
+          // Estrai owner e repo dall'URL GitHub
+          const githubMatch = manifest.githubUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+          if (!githubMatch) {
+            throw new Error('URL GitHub non valido nel manifest');
+          }
+          
+          const [, owner, repo] = githubMatch;
+          
+          // Scarica il repository dell'app
+          const repoBlob = await this.githubService.downloadRepositoryZip(owner, repo, 'main');
+          const repoText = await repoBlob.text();
+          const repoData = JSON.parse(repoText);
+          
+          // Estrai tutti i file del repository
+          for (const [filePath, fileContent] of Object.entries(repoData.files)) {
+            // Salta file di sistema GitHub
+            if (filePath.startsWith('.github/') || 
+                filePath === 'README.md' || 
+                filePath === '.gitignore' ||
+                filePath === 'aideas.json') {
+              continue;
+            }
             
-            // Cerca manifest AIdeas
-            if (relativePath === 'aideas.json') {
-              try {
-                manifest = JSON.parse(fileContent);
-              } catch (e) {
-                DEBUG.warn('Manifest aideas.json non valido:', e);
+            const fileData = {
+              filename: filePath,
+              content: fileContent,
+              size: fileContent.length,
+              mimeType: this.getMimeType(filePath)
+            };
+            appFiles.push(fileData);
+          }
+        } else {
+          // Scarica dalla repo dello store (fallback)
+          DEBUG.log(`📥 Scaricamento file dalla repo dello store (fallback)`);
+          
+          const repoBlob = await this.githubService.downloadRepositoryZip(
+            this.storeRepo.owner,
+            this.storeRepo.repo,
+            this.storeRepo.branch
+          );
+
+          const repoText = await repoBlob.text();
+          const repoData = JSON.parse(repoText);
+          
+          let appZipFile = null;
+          
+          for (const [filePath, fileContent] of Object.entries(repoData.files)) {
+            if (filePath.includes(`apps/${storeId}/`)) {
+              const relativePath = filePath.replace(`apps/${storeId}/`, '');
+              
+              if (relativePath.endsWith('.zip')) {
+                appZipFile = fileContent;
+              } else if (relativePath !== 'aideas.json') {
+                const fileData = {
+                  filename: relativePath,
+                  content: fileContent,
+                  size: fileContent.length,
+                  mimeType: this.getMimeType(relativePath)
+                };
+                appFiles.push(fileData);
               }
             }
-            // Cerca file ZIP dell'app
-            else if (relativePath.endsWith('.zip')) {
-              appZipFile = fileContent;
-            }
-            // Altri file individuali
-            else {
+          }
+
+          // Se c'è un file ZIP, estrai i file da quello
+          if (appZipFile) {
+            DEBUG.log('📦 Estrazione file da ZIP dell\'app...');
+            
+            const JSZip = (await import('jszip')).default;
+            const zipBlob = new Blob([appZipFile], { type: 'application/zip' });
+            const appZip = new JSZip();
+            const appZipContents = await appZip.loadAsync(zipBlob);
+            
+            for (const [filename, fileObj] of Object.entries(appZipContents.files)) {
+              if (fileObj.dir) continue;
+              
+              const content = await fileObj.async('text');
               const fileData = {
-                filename: relativePath,
-                content: fileContent,
-                size: fileContent.length,
-                mimeType: this.getMimeType(relativePath)
+                filename: filename,
+                content: content,
+                size: content.length,
+                mimeType: this.getMimeType(filename)
               };
               appFiles.push(fileData);
             }
           }
         }
 
-        // Se c'è un file ZIP, estrai i file da quello
-        if (appZipFile) {
-          DEBUG.log('📦 Estrazione file da ZIP dell\'app...');
-          
-          // Importa JSZip dinamicamente
-          const JSZip = (await import('jszip')).default;
-          
-          // Converti il contenuto base64 in blob
-          const zipBlob = new Blob([appZipFile], { type: 'application/zip' });
-          const appZip = new JSZip();
-          const appZipContents = await appZip.loadAsync(zipBlob);
-          
-          for (const [filename, fileObj] of Object.entries(appZipContents.files)) {
-            if (fileObj.dir) continue;
-            
-            const content = await fileObj.async('text');
-            const fileData = {
-              filename: filename,
-              content: content,
-              size: content.length,
-              mimeType: this.getMimeType(filename)
-            };
-            appFiles.push(fileData);
-          }
-        }
-
         if (appFiles.length === 0) {
-          throw new Error(`App ${storeId} non trovata nello store`);
+          throw new Error(`Nessun file trovato per l'app ${storeId}`);
         }
 
         // Estrai metadati dal manifest
@@ -195,7 +243,7 @@ export default class StoreService {
           storeId: storeId
         });
 
-        DEBUG.success(`✅ App ${storeId} installata con successo`);
+        DEBUG.success(`✅ App ${manifest.name || storeId} installata con successo`);
         return appId;
 
       } catch (error) {
