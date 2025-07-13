@@ -1,4 +1,4 @@
-import { DEBUG } from '../utils/debug.js';
+  import { DEBUG } from '../utils/debug.js';
 import ErrorHandler from './ErrorHandler.js';
 import GitHubService from './GitHubService.js';
 import StorageService from './StorageService.js';
@@ -201,17 +201,43 @@ export default class StoreService {
         // Prepara i dati dell'app per lo store
         const storeData = await this.prepareAppForStore(app);
         
-        // Crea un branch per la pull request
+        // Verifica se esiste già un fork
+        let forkData = await this.githubService.getExistingFork(
+          this.storeRepo.owner, 
+          this.storeRepo.repo
+        );
+        
+        // Se non esiste, crea il fork
+        if (!forkData) {
+          DEBUG.log('🍴 Creazione fork dello store...');
+          forkData = await this.githubService.createFork(
+            this.storeRepo.owner, 
+            this.storeRepo.repo
+          );
+        }
+        
+        const forkOwner = forkData.owner.login;
         const branchName = `add-app-${app.id}-${Date.now()}`;
         
-        // Crea il branch
-        await this.createBranch(branchName);
+        // Crea un branch nel fork
+        await this.githubService.createBranchInFork(
+          forkOwner, 
+          this.storeRepo.repo, 
+          branchName
+        );
         
-        // Aggiungi i file dell'app
-        await this.addAppFiles(branchName, storeData);
+        // Aggiungi i file dell'app nel fork
+        await this.addAppFilesToFork(forkOwner, branchName, storeData);
         
-        // Crea la pull request
-        const prData = await this.createPullRequest(branchName, app);
+        // Crea la pull request dal fork al repository originale
+        const prData = await this.githubService.createPullRequestFromFork(
+          this.storeRepo.owner,
+          this.storeRepo.repo,
+          forkOwner,
+          branchName,
+          `Add app: ${app.name}`,
+          this.generatePullRequestBody(app, storeData)
+        );
         
         DEBUG.success(`✅ Pull request creata: ${prData.html_url}`);
         return prData;
@@ -307,125 +333,7 @@ export default class StoreService {
 </html>`;
   }
 
-  /**
-   * Crea un nuovo branch
-   * @param {string} branchName - Nome del branch
-   */
-  async createBranch(branchName) {
-    // Ottieni il commit SHA del branch main
-    const mainRef = await this.githubService.makeRequest(
-      `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/git/refs/heads/${this.storeRepo.branch}`
-    );
-    const mainSha = (await mainRef.json()).object.sha;
 
-    // Crea il nuovo branch
-    await this.githubService.makeRequest(
-      `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/git/refs`,
-      {
-        method: 'POST',
-        headers: await this.githubService.getAuthHeaders(),
-        body: JSON.stringify({
-          ref: `refs/heads/${branchName}`,
-          sha: mainSha
-        })
-      }
-    );
-  }
-
-  /**
-   * Aggiunge i file dell'app al branch
-   * @param {string} branchName - Nome del branch
-   * @param {Object} storeData - Dati dell'app
-   */
-  async addAppFiles(branchName, storeData) {
-    const appId = storeData.manifest.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
-    // Aggiungi il manifest
-    await this.createFile(
-      branchName,
-      `apps/${appId}/aideas.json`,
-      JSON.stringify(storeData.manifest, null, 2)
-    );
-
-    // Aggiungi i file dell'app
-    for (const file of storeData.files) {
-      await this.createFile(
-        branchName,
-        `apps/${appId}/${file.filename}`,
-        file.content
-      );
-    }
-  }
-
-  /**
-   * Crea un file nel repository
-   * @param {string} branchName - Nome del branch
-   * @param {string} path - Percorso del file
-   * @param {string} content - Contenuto del file
-   */
-  async createFile(branchName, path, content) {
-    await this.githubService.makeRequest(
-      `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/contents/${path}`,
-      {
-        method: 'PUT',
-        headers: await this.githubService.getAuthHeaders(),
-        body: JSON.stringify({
-          message: `Add ${path}`,
-          content: btoa(content),
-          branch: branchName
-        })
-      }
-    );
-  }
-
-  /**
-   * Crea una pull request
-   * @param {string} branchName - Nome del branch
-   * @param {Object} app - App
-   * @returns {Promise<Object>} Dati della pull request
-   */
-  async createPullRequest(branchName, app) {
-    const response = await this.githubService.makeRequest(
-      `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/pulls`,
-      {
-        method: 'POST',
-        headers: await this.githubService.getAuthHeaders(),
-        body: JSON.stringify({
-          title: `Add app: ${app.name}`,
-          body: `## Nuova app: ${app.name}
-
-**Descrizione:** ${app.description || 'Nessuna descrizione'}
-
-**Categoria:** ${app.category || 'altro'}
-
-**Tag:** ${(app.tags || []).join(', ')}
-
-**Autore:** ${app.author || 'Unknown'}
-
-**Versione:** ${app.version || '1.0.0'}
-
----
-
-Questa app è stata sottoposta tramite AIdeas Store.
-
-### Checklist
-- [x] App funzionante
-- [x] File HTML/CSS/JS inclusi
-- [x] Manifest aideas.json presente
-- [x] Nessun contenuto dannoso
-
-### Note
-- App ID: ${app.id}
-- Tipo: ${app.type}
-- Installata il: ${new Date().toISOString()}`,
-          head: branchName,
-          base: this.storeRepo.branch
-        })
-      }
-    );
-
-    return await response.json();
-  }
 
   /**
    * Estrae metadati da un'app dello store
@@ -585,6 +493,76 @@ Questa app è stata sottoposta tramite AIdeas Store.
    */
   getLastUpdateTime() {
     return this.lastUpdate;
+  }
+
+  /**
+   * Aggiunge i file dell'app nel fork
+   * @param {string} forkOwner - Proprietario del fork
+   * @param {string} branchName - Nome del branch
+   * @param {Object} storeData - Dati dell'app
+   */
+  async addAppFilesToFork(forkOwner, branchName, storeData) {
+    const appId = storeData.manifest.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
+    // Aggiungi il manifest
+    await this.githubService.createFileInFork(
+      forkOwner,
+      this.storeRepo.repo,
+      `apps/${appId}/aideas.json`,
+      JSON.stringify(storeData.manifest, null, 2),
+      branchName,
+      `Add manifest for ${storeData.manifest.name}`
+    );
+
+    // Aggiungi i file dell'app
+    for (const file of storeData.files) {
+      await this.githubService.createFileInFork(
+        forkOwner,
+        this.storeRepo.repo,
+        `apps/${appId}/${file.filename}`,
+        file.content,
+        branchName,
+        `Add ${file.filename} for ${storeData.manifest.name}`
+      );
+    }
+  }
+
+  /**
+   * Genera il corpo della pull request
+   * @param {Object} app - App da sottomettere
+   * @param {Object} storeData - Dati dell'app
+   * @returns {string} Corpo della pull request
+   */
+  generatePullRequestBody(app, storeData) {
+    return `## Nuova app: ${app.name}
+
+**Descrizione:** ${app.description || 'Nessuna descrizione'}
+
+**Categoria:** ${app.category || 'altro'}
+
+**Tag:** ${(app.tags || []).join(', ')}
+
+**Autore:** ${app.author || 'Unknown'}
+
+**Versione:** ${app.version || '1.0.0'}
+
+**File inclusi:** ${storeData.files.map(f => f.filename).join(', ')}
+
+---
+
+Questa app è stata sottoposta tramite AIdeas Store.
+
+### Checklist
+- [x] App funzionante
+- [x] File HTML/CSS/JS inclusi
+- [x] Manifest aideas.json presente
+- [x] Nessun contenuto dannoso
+
+### Note
+- App ID: ${app.id}
+- Tipo: ${app.type}
+- Installata il: ${new Date().toISOString()}
+- Sottoposta da: ${this.githubService.userInfo?.login || 'Unknown'}`;
   }
 }
 

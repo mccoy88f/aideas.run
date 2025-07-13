@@ -1024,4 +1024,225 @@ export default class GitHubService {
       throw error;
     }
   }
+
+  /**
+   * Crea un fork di un repository
+   * @param {string} owner - Proprietario del repository originale
+   * @param {string} repo - Nome del repository
+   * @returns {Promise<Object>} Informazioni sul fork
+   */
+  async createFork(owner, repo) {
+    try {
+      DEBUG.log(`🍴 Creazione fork di ${owner}/${repo}...`);
+      
+      if (!await this.isAuthenticated()) {
+        throw new Error('Autenticazione GitHub richiesta per creare fork');
+      }
+
+      const endpoint = `/repos/${owner}/${repo}/forks`;
+      const response = await this.makeRequest(endpoint, {
+        method: 'POST',
+        headers: await this.getAuthHeaders(),
+        body: JSON.stringify({
+          organization: null, // Fork nell'account personale
+          name: repo, // Mantieni lo stesso nome
+          default_branch_only: false // Fork di tutti i branch
+        })
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Repository non trovato');
+        } else if (response.status === 403) {
+          throw new Error('Permessi insufficienti per creare fork');
+        } else if (response.status === 422) {
+          throw new Error('Fork già esistente o repository non forkabile');
+        }
+        throw new Error(`Errore creazione fork: ${response.statusText}`);
+      }
+
+      const forkData = await response.json();
+      
+      DEBUG.success(`✅ Fork creato: ${forkData.full_name}`);
+      return forkData;
+
+    } catch (error) {
+      DEBUG.error('❌ Errore creazione fork:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verifica se esiste già un fork del repository
+   * @param {string} owner - Proprietario del repository originale
+   * @param {string} repo - Nome del repository
+   * @returns {Promise<Object|null>} Informazioni sul fork se esiste
+   */
+  async getExistingFork(owner, repo) {
+    try {
+      if (!await this.isAuthenticated()) {
+        return null;
+      }
+
+      const userLogin = this.userInfo.login;
+      const endpoint = `/repos/${userLogin}/${repo}`;
+      const response = await this.makeRequest(endpoint, {
+        headers: await this.getAuthHeaders()
+      });
+
+      if (response.ok) {
+        const repoData = await response.json();
+        
+        // Verifica se è un fork del repository target
+        if (repoData.fork && repoData.source && 
+            repoData.source.full_name === `${owner}/${repo}`) {
+          DEBUG.log(`✅ Fork esistente trovato: ${repoData.full_name}`);
+          return repoData;
+        }
+      }
+
+      return null;
+
+    } catch (error) {
+      DEBUG.warn('⚠️ Errore verifica fork esistente:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Crea un branch nel fork
+   * @param {string} forkOwner - Proprietario del fork
+   * @param {string} repo - Nome del repository
+   * @param {string} branchName - Nome del nuovo branch
+   * @param {string} baseBranch - Branch di base (default: main)
+   * @returns {Promise<Object>} Informazioni sul branch creato
+   */
+  async createBranchInFork(forkOwner, repo, branchName, baseBranch = 'main') {
+    try {
+      DEBUG.log(`🌿 Creazione branch ${branchName} nel fork...`);
+      
+      // Ottieni il commit SHA del branch di base
+      const baseRef = await this.makeRequest(
+        `/repos/${forkOwner}/${repo}/git/refs/heads/${baseBranch}`,
+        { headers: await this.getAuthHeaders() }
+      );
+
+      if (!baseRef.ok) {
+        throw new Error(`Branch di base ${baseBranch} non trovato`);
+      }
+
+      const baseSha = (await baseRef.json()).object.sha;
+
+      // Crea il nuovo branch
+      const response = await this.makeRequest(
+        `/repos/${forkOwner}/${repo}/git/refs`,
+        {
+          method: 'POST',
+          headers: await this.getAuthHeaders(),
+          body: JSON.stringify({
+            ref: `refs/heads/${branchName}`,
+            sha: baseSha
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Errore creazione branch: ${response.statusText}`);
+      }
+
+      const branchData = await response.json();
+      DEBUG.success(`✅ Branch ${branchName} creato`);
+      return branchData;
+
+    } catch (error) {
+      DEBUG.error('❌ Errore creazione branch:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Crea un file nel fork
+   * @param {string} forkOwner - Proprietario del fork
+   * @param {string} repo - Nome del repository
+   * @param {string} path - Percorso del file
+   * @param {string} content - Contenuto del file
+   * @param {string} branch - Branch dove creare il file
+   * @param {string} message - Messaggio di commit
+   * @returns {Promise<Object>} Informazioni sul file creato
+   */
+  async createFileInFork(forkOwner, repo, path, content, branch, message) {
+    try {
+      DEBUG.log(`📄 Creazione file ${path} nel fork...`);
+      
+      const response = await this.makeRequest(
+        `/repos/${forkOwner}/${repo}/contents/${path}`,
+        {
+          method: 'PUT',
+          headers: await this.getAuthHeaders(),
+          body: JSON.stringify({
+            message: message,
+            content: btoa(content),
+            branch: branch
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Errore creazione file: ${response.statusText}`);
+      }
+
+      const fileData = await response.json();
+      DEBUG.success(`✅ File ${path} creato`);
+      return fileData;
+
+    } catch (error) {
+      DEBUG.error('❌ Errore creazione file:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Crea una pull request dal fork al repository originale
+   * @param {string} originalOwner - Proprietario del repository originale
+   * @param {string} repo - Nome del repository
+   * @param {string} forkOwner - Proprietario del fork
+   * @param {string} branchName - Nome del branch nel fork
+   * @param {string} title - Titolo della pull request
+   * @param {string} body - Corpo della pull request
+   * @returns {Promise<Object>} Informazioni sulla pull request
+   */
+  async createPullRequestFromFork(originalOwner, repo, forkOwner, branchName, title, body) {
+    try {
+      DEBUG.log(`🔀 Creazione pull request dal fork...`);
+      
+      const response = await this.makeRequest(
+        `/repos/${originalOwner}/${repo}/pulls`,
+        {
+          method: 'POST',
+          headers: await this.getAuthHeaders(),
+          body: JSON.stringify({
+            title: title,
+            body: body,
+            head: `${forkOwner}:${branchName}`,
+            base: 'main'
+          })
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 422) {
+          throw new Error('Pull request già esistente o branch non valido');
+        }
+        throw new Error(`Errore creazione pull request: ${response.statusText}`);
+      }
+
+      const prData = await response.json();
+      DEBUG.success(`✅ Pull request creata: ${prData.html_url}`);
+      return prData;
+
+    } catch (error) {
+      DEBUG.error('❌ Errore creazione pull request:', error);
+      throw error;
+    }
+  }
 }
