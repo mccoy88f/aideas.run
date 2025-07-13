@@ -2359,6 +2359,7 @@ function AIdeasApp() {
         open={storeModalOpen}
         onClose={() => setStoreModalOpen(false)}
         onAppInstalled={handleStoreAppInstalled}
+        installedApps={apps}
       />
 
     </Box>

@@ -56,7 +56,7 @@ import { DEBUG } from '../utils/debug.js';
 /**
  * Modal per l'AIdeas Store
  */
-const StoreModal = ({ open, onClose, onAppInstalled }) => {
+const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
@@ -70,12 +70,10 @@ const StoreModal = ({ open, onClose, onAppInstalled }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState([]);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
-  const [installedApps, setInstalledApps] = useState([]);
 
   useEffect(() => {
     if (open) {
       loadStoreApps();
-      loadInstalledApps();
       // Avvia polling quando lo store è aperto
       storeService.startPolling();
     } else {
@@ -127,17 +125,7 @@ const StoreModal = ({ open, onClose, onAppInstalled }) => {
     }
   };
 
-  const loadInstalledApps = async () => {
-    try {
-      DEBUG.log('📱 Caricamento app installate...');
-      const { StorageService } = await import('../services/StorageService.js');
-      const apps = await StorageService.getAllApps();
-      setInstalledApps(apps);
-      DEBUG.success(`✅ Caricate ${apps.length} app installate`);
-    } catch (error) {
-      DEBUG.error('❌ Errore caricamento app installate:', error);
-    }
-  };
+
 
   const isAppInstalled = (storeApp) => {
     return installedApps.some(installedApp => 
