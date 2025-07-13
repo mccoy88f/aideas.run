@@ -1,0 +1,19 @@
+{
+  "name": "Calcolatrice Semplice",
+  "description": "Una calcolatrice web semplice e funzionale con design moderno",
+  "author": "AIdeas Team",
+  "version": "1.0.0",
+  "category": "utility",
+  "tags": ["calcolatrice", "matematica", "strumenti"],
+  "icon": "🧮",
+  "githubUrl": "https://github.com/aideas-run/example-calculator",
+  "permissions": ["local-storage"],
+  "metadata": {
+    "minAideasVersion": "1.0.0",
+    "features": ["calcoli base", "storia calcoli", "design responsive"],
+    "screenshots": [
+      "https://example.com/screenshot1.png",
+      "https://example.com/screenshot2.png"
+    ]
+  }
+} 

@@ -1,0 +1,143 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.calculator {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    max-width: 350px;
+    width: 100%;
+}
+
+.display {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    text-align: right;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.history {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 5px;
+    min-height: 20px;
+}
+
+.current {
+    font-size: 32px;
+    font-weight: bold;
+    color: white;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.btn {
+    border: none;
+    border-radius: 15px;
+    padding: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn.number {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.btn.operator {
+    background: rgba(255, 193, 7, 0.3);
+    color: #ffc107;
+}
+
+.btn.equals {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    grid-row: span 2;
+}
+
+.btn.clear {
+    background: rgba(244, 67, 54, 0.3);
+    color: #f44336;
+}
+
+.btn.backspace {
+    background: rgba(156, 39, 176, 0.3);
+    color: #9c27b0;
+}
+
+.zero {
+    grid-column: span 2;
+}
+
+/* Responsive */
+@media (max-width: 400px) {
+    .calculator {
+        padding: 15px;
+    }
+    
+    .btn {
+        padding: 15px;
+        font-size: 16px;
+    }
+    
+    .current {
+        font-size: 28px;
+    }
+}
+
+/* Animazioni */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.calculator {
+    animation: fadeIn 0.5s ease-out;
+} 

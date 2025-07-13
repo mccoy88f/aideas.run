@@ -39,9 +39,13 @@ import {
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   Visibility as VisibilityIcon,
-  GetApp as GetAppIcon
+  GetApp as GetAppIcon,
+  Store as StoreIcon,
+  Upload as UploadIcon
 } from '@mui/icons-material';
 import AppAnalyzer from '../services/AppAnalyzer.js';
+import { storeService } from '../services/StoreService.js';
+import { showToast } from '../utils/helpers.js';
 
 /**
  * Modal per visualizzare informazioni dettagliate sull'app
@@ -52,6 +56,7 @@ const AppInfoModal = ({ open, onClose, app }) => {
   const [error, setError] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileViewOpen, setFileViewOpen] = useState(false);
+  const [submittingToStore, setSubmittingToStore] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     overview: true,
     files: false,
@@ -131,6 +136,30 @@ const AppInfoModal = ({ open, onClose, app }) => {
   const handleViewFile = (file) => {
     setSelectedFile(file);
     setFileViewOpen(true);
+  };
+
+  const handleSubmitToStore = async () => {
+    if (!app) return;
+    
+    setSubmittingToStore(true);
+    
+    try {
+      console.log(`📤 Sottomissione app ${app.name} allo store...`);
+      const prData = await storeService.submitAppToStore(app);
+      
+      showToast(`App ${app.name} sottoposta allo store! Pull request creata.`, 'success');
+      
+      // Apri la pull request in una nuova finestra
+      if (prData.html_url) {
+        window.open(prData.html_url, '_blank');
+      }
+      
+    } catch (error) {
+      console.error('❌ Errore sottomissione store:', error);
+      showToast(`Errore sottomissione: ${error.message}`, 'error');
+    } finally {
+      setSubmittingToStore(false);
+    }
   };
 
   const getPermissionColor = (permission) => {
@@ -485,6 +514,17 @@ const AppInfoModal = ({ open, onClose, app }) => {
           <Button onClick={onClose} variant="outlined">
             Chiudi
           </Button>
+          {app && app.type !== 'store' && (
+            <Button
+              onClick={handleSubmitToStore}
+              variant="contained"
+              startIcon={submittingToStore ? <CircularProgress size={16} /> : <StoreIcon />}
+              disabled={submittingToStore}
+              color="secondary"
+            >
+              {submittingToStore ? 'Sottomissione...' : 'Sottometti allo Store'}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

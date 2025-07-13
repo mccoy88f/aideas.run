@@ -40,7 +40,8 @@ import {
   CloudSync as CloudSyncIcon,
   Info as InfoIcon,
   Help as HelpIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Store as StoreIcon
 } from '@mui/icons-material';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
 
@@ -100,6 +101,13 @@ const NavigationMaterial = ({
       label: 'Preferiti',
       icon: <FavoriteIcon />,
       count: favoriteCount,
+      color: 'secondary'
+    },
+    {
+      id: 'store',
+      label: 'AIdeas Store',
+      icon: <StoreIcon />,
+      count: 0,
       color: 'secondary'
     },
     {

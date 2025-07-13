@@ -49,7 +49,8 @@ import {
   Close as CloseIcon,
   List as ListIcon,
     ViewList as ViewListIcon,
-  OpenInNew as OpenInNewIcon
+  OpenInNew as OpenInNewIcon,
+  Store as StoreIcon
 } from '@mui/icons-material';
 
 import StorageService from './services/StorageService.js';
@@ -61,6 +62,7 @@ import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
 import AppInfoModal from './components/AppInfoModal.jsx';
+import StoreModal from './components/StoreModal.jsx';
 
 
 import EmojiSelector from './components/EmojiSelector.jsx';
@@ -101,6 +103,7 @@ function AIdeasApp() {
   const [faviconUrl, setFaviconUrl] = React.useState('');
   const [appInfoModalOpen, setAppInfoModalOpen] = React.useState(false);
   const [appInfoData, setAppInfoData] = React.useState(null);
+  const [storeModalOpen, setStoreModalOpen] = React.useState(false);
 
 
   // Inizializzazione
@@ -129,6 +132,12 @@ function AIdeasApp() {
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault();
         setImporterOpen(true);
+      }
+      
+      // Ctrl/Cmd + S per aprire lo store
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        setStoreModalOpen(true);
       }
       
       // Escape per chiudere modals
@@ -1217,6 +1226,11 @@ function AIdeasApp() {
 
   // Aggiorna view
   const handleViewChange = (view) => {
+    if (view === 'store') {
+      // Apri lo store invece di cambiare vista
+      setStoreModalOpen(true);
+      return;
+    }
     setCurrentView(view);
   };
 
@@ -1310,6 +1324,16 @@ function AIdeasApp() {
     } catch (error) {
       DEBUG.error('❌ Errore ricaricamento dopo sincronizzazione:', error);
       showToast('Errore nel ricaricamento dopo sincronizzazione', 'error');
+    }
+  };
+
+  const handleStoreAppInstalled = async (appId) => {
+    try {
+      // Ricarica le app per mostrare quella appena installata
+      await loadApps();
+      showToast('App installata con successo!', 'success');
+    } catch (error) {
+      DEBUG.error('❌ Errore ricaricamento dopo installazione store:', error);
     }
   };
 
@@ -1452,7 +1476,22 @@ function AIdeasApp() {
                 minWidth: 0
               }}
             />
-            <Box sx={{ pr: 2, pl: 1, display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ pr: 2, pl: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <IconButton
+                aria-label="AIdeas Store"
+                onClick={() => setStoreModalOpen(true)}
+                sx={{
+                  background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
+                  color: 'white',
+                  '&:hover': {
+                    background: `linear-gradient(135deg, ${theme.palette.secondary.dark} 0%, ${theme.palette.secondary.main} 100%)`,
+                    boxShadow: theme.shadows[4]
+                  },
+                  boxShadow: theme.shadows[2]
+                }}
+              >
+                <StoreIcon />
+              </IconButton>
               <IconButton
                 aria-label="Aggiungi app"
                 onClick={() => setImporterOpen(true)}
@@ -2313,6 +2352,13 @@ function AIdeasApp() {
           setAppInfoData(null);
         }}
         app={appInfoData}
+      />
+
+      {/* Modal AIdeas Store */}
+      <StoreModal
+        open={storeModalOpen}
+        onClose={() => setStoreModalOpen(false)}
+        onAppInstalled={handleStoreAppInstalled}
       />
 
     </Box>
