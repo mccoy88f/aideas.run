@@ -124,32 +124,60 @@ export default class StoreService {
         // Estrai i file dell'app specifica
         const appFiles = [];
         let manifest = null;
+        let appZipFile = null;
         
         for (const [filename, fileObj] of Object.entries(contents.files)) {
           if (fileObj.dir) continue;
           
           // Filtra solo i file dell'app specifica
           if (filename.includes(`apps/${storeId}/`)) {
-            const content = await fileObj.async('text');
             const relativePath = filename.replace(`apps/${storeId}/`, '');
-            
-            const fileData = {
-              filename: relativePath,
-              content,
-              size: content.length,
-              mimeType: this.getMimeType(relativePath)
-            };
-            
-            appFiles.push(fileData);
             
             // Cerca manifest AIdeas
             if (relativePath === 'aideas.json') {
               try {
+                const content = await fileObj.async('text');
                 manifest = JSON.parse(content);
               } catch (e) {
                 DEBUG.warn('Manifest aideas.json non valido:', e);
               }
             }
+            // Cerca file ZIP dell'app
+            else if (relativePath.endsWith('.zip')) {
+              appZipFile = fileObj;
+            }
+            // Altri file individuali
+            else {
+              const content = await fileObj.async('text');
+              const fileData = {
+                filename: relativePath,
+                content,
+                size: content.length,
+                mimeType: this.getMimeType(relativePath)
+              };
+              appFiles.push(fileData);
+            }
+          }
+        }
+
+        // Se c'è un file ZIP, estrai i file da quello
+        if (appZipFile) {
+          DEBUG.log('📦 Estrazione file da ZIP dell\'app...');
+          const zipContent = await appZipFile.async('blob');
+          const appZip = new JSZip();
+          const appZipContents = await appZip.loadAsync(zipContent);
+          
+          for (const [filename, fileObj] of Object.entries(appZipContents.files)) {
+            if (fileObj.dir) continue;
+            
+            const content = await fileObj.async('text');
+            const fileData = {
+              filename: filename,
+              content: content,
+              size: content.length,
+              mimeType: this.getMimeType(filename)
+            };
+            appFiles.push(fileData);
           }
         }
 
@@ -288,6 +316,9 @@ export default class StoreService {
         mimeType: 'text/html'
       });
     }
+
+    // Aggiungi flag per indicare se creare un file ZIP
+    storeData.createZip = app.type === 'zip' || app.files?.length > 1;
 
     return storeData;
   }
@@ -514,16 +545,41 @@ export default class StoreService {
       `Add manifest for ${storeData.manifest.name}`
     );
 
-    // Aggiungi i file dell'app
-    for (const file of storeData.files) {
+    // Se richiesto, crea un file ZIP con tutti i file dell'app
+    if (storeData.createZip && storeData.files.length > 0) {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      
+      // Aggiungi tutti i file al ZIP
+      for (const file of storeData.files) {
+        zip.file(file.filename, file.content);
+      }
+      
+      // Genera il contenuto del ZIP
+      const zipContent = await zip.generateAsync({ type: 'base64' });
+      
+      // Aggiungi il file ZIP
       await this.githubService.createFileInFork(
         forkOwner,
         this.storeRepo.repo,
-        `apps/${appId}/${file.filename}`,
-        file.content,
+        `apps/${appId}/${appId}.zip`,
+        zipContent,
         branchName,
-        `Add ${file.filename} for ${storeData.manifest.name}`
+        `Add ZIP file for ${storeData.manifest.name}`,
+        true // Indica che è contenuto base64
       );
+    } else {
+      // Aggiungi i file individuali
+      for (const file of storeData.files) {
+        await this.githubService.createFileInFork(
+          forkOwner,
+          this.storeRepo.repo,
+          `apps/${appId}/${file.filename}`,
+          file.content,
+          branchName,
+          `Add ${file.filename} for ${storeData.manifest.name}`
+        );
+      }
     }
   }
 

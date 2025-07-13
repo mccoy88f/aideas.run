@@ -209,8 +209,17 @@ export default class GitHubService {
   async downloadRepositoryZip(owner, repo, ref = 'main') {
     try {
       const endpoint = `/repos/${owner}/${repo}/zipball/${ref}`;
+      
+      // Per repository pubblici, possiamo scaricare senza autenticazione
+      let headers = {};
+      try {
+        headers = await this.getAuthHeaders();
+      } catch (error) {
+        DEBUG.warn('Download senza autenticazione GitHub');
+      }
+      
       const response = await this.makeRequest(endpoint, {
-        headers: await this.getAuthHeaders()
+        headers
       });
 
       if (!response.ok) {
@@ -1168,9 +1177,10 @@ export default class GitHubService {
    * @param {string} content - Contenuto del file
    * @param {string} branch - Branch dove creare il file
    * @param {string} message - Messaggio di commit
+   * @param {boolean} isBase64 - Se il contenuto è già in base64
    * @returns {Promise<Object>} Informazioni sul file creato
    */
-  async createFileInFork(forkOwner, repo, path, content, branch, message) {
+  async createFileInFork(forkOwner, repo, path, content, branch, message, isBase64 = false) {
     try {
       DEBUG.log(`📄 Creazione file ${path} nel fork...`);
       
@@ -1181,7 +1191,7 @@ export default class GitHubService {
           headers: await this.getAuthHeaders(),
           body: JSON.stringify({
             message: message,
-            content: btoa(content),
+            content: isBase64 ? content : btoa(content),
             branch: branch
           })
         }

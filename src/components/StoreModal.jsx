@@ -286,9 +286,16 @@ const StoreModal = ({ open, onClose, onAppInstalled }) => {
                       width: 48, 
                       height: 48,
                       bgcolor: `${getCategoryColor(app.category)}.main`,
-                      mr: 2
+                      mr: 2,
+                      fontSize: '1.5rem'
                     }}>
-                      {app.icon || app.name.charAt(0)}
+                      {app.icon ? (
+                        <span role="img" aria-label="app icon">
+                          {app.icon}
+                        </span>
+                      ) : (
+                        app.name.charAt(0)
+                      )}
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="h6" component="h3" noWrap>
@@ -487,29 +494,32 @@ const StoreModal = ({ open, onClose, onAppInstalled }) => {
         </DialogTitle>
 
       <DialogContent dividers>
-        <Tabs 
-          value={activeTab} 
-          onChange={(e, newValue) => setActiveTab(newValue)}
-          sx={{ mb: 3 }}
-        >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+          <Tabs 
+            value={activeTab} 
+            onChange={(e, newValue) => setActiveTab(newValue)}
+          >
           <Tab 
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <DownloadIcon />
                 <span>App Disponibili</span>
-                <Badge badgeContent={storeApps.length} color="primary" />
               </Box>
             } 
           />
-          <Tab 
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <UploadIcon />
-                <span>Sottometti App</span>
-              </Box>
-            } 
-          />
-        </Tabs>
+                      <Tab 
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <UploadIcon />
+                  <span>Sottometti App</span>
+                </Box>
+              } 
+            />
+          </Tabs>
+          {activeTab === 0 && (
+            <Badge badgeContent={storeApps.length} color="primary" />
+          )}
+        </Box>
 
         {activeTab === 0 ? renderStoreApps() : renderSubmitApp()}
       </DialogContent>
