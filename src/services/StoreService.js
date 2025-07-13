@@ -107,52 +107,45 @@ export default class StoreService {
       try {
         DEBUG.log(`📦 Installazione app ${storeId} dallo store...`);
 
-        // Scarica il repository ZIP
-        const zipBlob = await this.githubService.downloadRepositoryZip(
+        // Scarica il repository (ora in formato JSON)
+        const repoBlob = await this.githubService.downloadRepositoryZip(
           this.storeRepo.owner,
           this.storeRepo.repo,
           this.storeRepo.branch
         );
 
-        // Importa JSZip dinamicamente
-        const JSZip = (await import('jszip')).default;
-        const zip = new JSZip();
-        
-        // Leggi il contenuto del ZIP
-        const contents = await zip.loadAsync(zipBlob);
+        // Leggi il contenuto JSON del repository
+        const repoText = await repoBlob.text();
+        const repoData = JSON.parse(repoText);
         
         // Estrai i file dell'app specifica
         const appFiles = [];
         let manifest = null;
         let appZipFile = null;
         
-        for (const [filename, fileObj] of Object.entries(contents.files)) {
-          if (fileObj.dir) continue;
-          
+        for (const [filePath, fileContent] of Object.entries(repoData.files)) {
           // Filtra solo i file dell'app specifica
-          if (filename.includes(`apps/${storeId}/`)) {
-            const relativePath = filename.replace(`apps/${storeId}/`, '');
+          if (filePath.includes(`apps/${storeId}/`)) {
+            const relativePath = filePath.replace(`apps/${storeId}/`, '');
             
             // Cerca manifest AIdeas
             if (relativePath === 'aideas.json') {
               try {
-                const content = await fileObj.async('text');
-                manifest = JSON.parse(content);
+                manifest = JSON.parse(fileContent);
               } catch (e) {
                 DEBUG.warn('Manifest aideas.json non valido:', e);
               }
             }
             // Cerca file ZIP dell'app
             else if (relativePath.endsWith('.zip')) {
-              appZipFile = fileObj;
+              appZipFile = fileContent;
             }
             // Altri file individuali
             else {
-              const content = await fileObj.async('text');
               const fileData = {
                 filename: relativePath,
-                content,
-                size: content.length,
+                content: fileContent,
+                size: fileContent.length,
                 mimeType: this.getMimeType(relativePath)
               };
               appFiles.push(fileData);
@@ -163,9 +156,14 @@ export default class StoreService {
         // Se c'è un file ZIP, estrai i file da quello
         if (appZipFile) {
           DEBUG.log('📦 Estrazione file da ZIP dell\'app...');
-          const zipContent = await appZipFile.async('blob');
+          
+          // Importa JSZip dinamicamente
+          const JSZip = (await import('jszip')).default;
+          
+          // Converti il contenuto base64 in blob
+          const zipBlob = new Blob([appZipFile], { type: 'application/zip' });
           const appZip = new JSZip();
-          const appZipContents = await appZip.loadAsync(zipContent);
+          const appZipContents = await appZip.loadAsync(zipBlob);
           
           for (const [filename, fileObj] of Object.entries(appZipContents.files)) {
             if (fileObj.dir) continue;

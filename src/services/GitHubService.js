@@ -208,25 +208,52 @@ export default class GitHubService {
    */
   async downloadRepositoryZip(owner, repo, ref = 'main') {
     try {
-      const endpoint = `/repos/${owner}/${repo}/zipball/${ref}`;
+      // Per evitare problemi CORS, scarichiamo i file individuali invece del ZIP
+      DEBUG.log(`📦 Download repository ${owner}/${repo} (${ref})...`);
       
-      // Per repository pubblici, possiamo scaricare senza autenticazione
-      let headers = {};
-      try {
-        headers = await this.getAuthHeaders();
-      } catch (error) {
-        DEBUG.warn('Download senza autenticazione GitHub');
-      }
+      // Ottieni la struttura del repository
+      const contents = await this.getDirectoryContents(owner, repo, '', ref);
       
-      const response = await this.makeRequest(endpoint, {
-        headers
+      // Crea un oggetto per contenere tutti i file
+      const files = {};
+      
+      // Funzione ricorsiva per scaricare tutti i file
+      const downloadFilesRecursively = async (path = '') => {
+        const dirContents = await this.getDirectoryContents(owner, repo, path, ref);
+        
+        for (const item of dirContents) {
+          if (item.type === 'file') {
+            try {
+              const content = await this.getFileContent(owner, repo, item.path, ref);
+              files[item.path] = content;
+              DEBUG.log(`📄 Scaricato: ${item.path}`);
+            } catch (error) {
+              DEBUG.warn(`⚠️ Errore download file ${item.path}:`, error);
+            }
+          } else if (item.type === 'dir') {
+            await downloadFilesRecursively(item.path);
+          }
+        }
+      };
+      
+      await downloadFilesRecursively();
+      
+      // Crea un oggetto con i dati del repository
+      const repositoryData = {
+        owner,
+        repo,
+        ref,
+        files,
+        downloadedAt: new Date().toISOString()
+      };
+      
+      // Converti in Blob per compatibilità
+      const blob = new Blob([JSON.stringify(repositoryData)], {
+        type: 'application/json'
       });
-
-      if (!response.ok) {
-        throw new Error(`Errore download repository: ${response.statusText}`);
-      }
-
-      return await response.blob();
+      
+      DEBUG.success(`✅ Repository scaricato: ${Object.keys(files).length} file`);
+      return blob;
 
     } catch (error) {
       DEBUG.error('Errore download repository:', error);

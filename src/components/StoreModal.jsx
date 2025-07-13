@@ -504,6 +504,9 @@ const StoreModal = ({ open, onClose, onAppInstalled }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <DownloadIcon />
                 <span>App Disponibili</span>
+                {activeTab === 0 && (
+                  <Badge badgeContent={storeApps.length} color="primary" sx={{ ml: 1 }} />
+                )}
               </Box>
             } 
           />
@@ -516,9 +519,6 @@ const StoreModal = ({ open, onClose, onAppInstalled }) => {
               } 
             />
           </Tabs>
-          {activeTab === 0 && (
-            <Badge badgeContent={storeApps.length} color="primary" />
-          )}
         </Box>
 
         {activeTab === 0 ? renderStoreApps() : renderSubmitApp()}
