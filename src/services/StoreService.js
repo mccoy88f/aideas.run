@@ -92,7 +92,7 @@ export default class StoreService {
       }
     }, {
       operationName: 'Recupero app store',
-      retryStrategy: 'NETWORK',
+      retryStrategy: 'NETWORK_ERROR',
       timeout: 30000
     });
   }
@@ -178,7 +178,7 @@ export default class StoreService {
       }
     }, {
       operationName: `Installazione app store ${storeId}`,
-      retryStrategy: 'NETWORK',
+      retryStrategy: 'NETWORK_ERROR',
       timeout: 60000
     });
   }
@@ -222,7 +222,7 @@ export default class StoreService {
       }
     }, {
       operationName: `Sottomissione app ${app.name} allo store`,
-      retryStrategy: 'NETWORK',
+      retryStrategy: 'NETWORK_ERROR',
       timeout: 120000
     });
   }
