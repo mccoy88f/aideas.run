@@ -293,14 +293,30 @@ const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
       
       // Fallback per altre icone
       return (
-        <span role="img" aria-label="app icon">
+        <div style={{ 
+          width: '100%', 
+          height: '100%', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          fontSize: '1.5rem'
+        }}>
           {app.icon}
-        </span>
+        </div>
       );
     }
 
     // Fallback: iniziali
-    return app.name.charAt(0);
+    const getInitials = (name) => {
+      return name
+        .split(' ')
+        .map(word => word.charAt(0))
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    };
+    
+    return getInitials(app.name);
   };
 
   const renderStoreApps = () => (
