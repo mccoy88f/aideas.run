@@ -58,13 +58,14 @@ const AppCardMaterial = ({
 
   const isEmoji = (icon) => {
     // Controlla se l'icona è un'emoji (carattere Unicode)
-    return icon && icon.length === 2 && icon.charCodeAt(0) > 255;
+    // Le emoji possono avere lunghezza 1 o 2 caratteri
+    return icon && (icon.length === 1 || icon.length === 2) && icon.charCodeAt(0) > 255;
   };
 
   const getAppIcon = (app) => {
     if (app.icon) {
       // Se è un'emoji (carattere Unicode)
-      if (app.icon.length === 2 && app.icon.charCodeAt(0) > 255) {
+      if (isEmoji(app.icon)) {
         return (
           <div style={{ 
             width: '100%', 

@@ -798,7 +798,11 @@ function AIdeasApp() {
   const getAppIcon = (app) => {
     if (app.icon) {
       // Se è un'emoji (carattere Unicode)
-      if (app.icon.length === 2 && app.icon.charCodeAt(0) > 255) {
+      const isEmoji = (icon) => {
+        return icon && (icon.length === 1 || icon.length === 2) && icon.charCodeAt(0) > 255;
+      };
+      
+      if (isEmoji(app.icon)) {
         return (
           <div style={{ 
             width: '100%', 
