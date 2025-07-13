@@ -31,50 +31,54 @@ export default class StoreService {
       try {
         DEBUG.log('🛍️ Recupero app disponibili dallo store...');
         
-        // Per ora, restituiamo app configurate staticamente
-        // In futuro, quando la repo dello store sarà popolata, potremo leggere i manifest
-        const appConfigs = {
-          'tris': {
-            name: 'Tris',
-            description: 'Il classico gioco del tris',
-            author: 'AIdeas',
-            category: 'game',
-            icon: '🎮',
-            githubUrl: 'https://github.com/mccoy88f/tris-game',
-            tags: ['game', 'tris', 'classic']
-          },
-          'calculator': {
-            name: 'Calcolatrice',
-            description: 'Una semplice calcolatrice',
-            author: 'AIdeas',
-            category: 'utility',
-            icon: '🧮',
-            githubUrl: 'https://github.com/mccoy88f/calculator-app',
-            tags: ['utility', 'calculator', 'math']
-          }
-        };
+        // Ottieni il contenuto della directory apps/
+        const contents = await this.githubService.getDirectoryContents(
+          this.storeRepo.owner,
+          this.storeRepo.repo,
+          'apps',
+          this.storeRepo.branch
+        );
 
         const apps = [];
         
-        for (const [storeId, config] of Object.entries(appConfigs)) {
-          apps.push({
-            id: storeId,
-            name: config.name,
-            description: config.description,
-            author: config.author,
-            version: '1.0.0',
-            category: config.category,
-            tags: config.tags,
-            icon: config.icon,
-            githubUrl: config.githubUrl,
-            downloadUrl: config.githubUrl,
-            installDate: null,
-            lastUsed: null,
-            favorite: false,
-            type: 'store',
-            storeId: storeId,
-            manifest: config
-          });
+        for (const item of contents) {
+          if (item.type === 'dir') {
+            try {
+              // Leggi il manifest dell'app
+              const manifestContent = await this.githubService.getFileContent(
+                this.storeRepo.owner,
+                this.storeRepo.repo,
+                `apps/${item.name}/aideas.json`,
+                this.storeRepo.branch
+              );
+
+              if (manifestContent && manifestContent.decodedContent) {
+                const manifest = JSON.parse(manifestContent.decodedContent);
+                
+                apps.push({
+                  id: item.name,
+                  name: manifest.name || item.name,
+                  description: manifest.description || '',
+                  author: manifest.author || 'Unknown',
+                  version: manifest.version || '1.0.0',
+                  category: manifest.category || 'altro',
+                  tags: manifest.tags || [],
+                  icon: manifest.icon || null,
+                  githubUrl: manifest.githubUrl || null,
+                  appFormat: manifest.appFormat || 'unzipped', // zip o unzipped
+                  downloadUrl: `https://github.com/${this.storeRepo.owner}/${this.storeRepo.repo}/archive/refs/heads/${this.storeRepo.branch}.zip`,
+                  installDate: null,
+                  lastUsed: null,
+                  favorite: false,
+                  type: 'store',
+                  storeId: item.name,
+                  manifest: manifest
+                });
+              }
+            } catch (error) {
+              DEBUG.warn(`⚠️ Errore lettura manifest per ${item.name}:`, error);
+            }
+          }
         }
 
         // Aggiorna timestamp ultimo aggiornamento
@@ -104,94 +108,111 @@ export default class StoreService {
       try {
         DEBUG.log(`📦 Installazione app ${storeId} dallo store...`);
 
-        // Per ora, gestiamo solo app con URL GitHub diretto
-        // In futuro, quando la repo dello store sarà popolata, potremo usare i manifest
-        const appConfigs = {
-          'tris': {
-            name: 'Tris',
-            description: 'Il classico gioco del tris',
-            author: 'AIdeas',
-            category: 'game',
-            icon: '🎮',
-            githubUrl: 'https://github.com/mccoy88f/tris-game',
-            tags: ['game', 'tris', 'classic']
-          },
-          'calculator': {
-            name: 'Calcolatrice',
-            description: 'Una semplice calcolatrice',
-            author: 'AIdeas',
-            category: 'utility',
-            icon: '🧮',
-            githubUrl: 'https://github.com/mccoy88f/calculator-app',
-            tags: ['utility', 'calculator', 'math']
-          }
-        };
+        // Prima ottieni il manifest dallo store
+        const manifestContent = await this.githubService.getFileContent(
+          this.storeRepo.owner,
+          this.storeRepo.repo,
+          `apps/${storeId}/aideas.json`,
+          this.storeRepo.branch
+        );
 
-        const appConfig = appConfigs[storeId];
-        if (!appConfig) {
-          throw new Error(`App ${storeId} non trovata nello store`);
+        if (!manifestContent || !manifestContent.decodedContent) {
+          throw new Error(`Manifest non trovato per l'app ${storeId}`);
         }
 
+        const manifest = JSON.parse(manifestContent.decodedContent);
+        
         // Controlla se l'app è già installata
         const existingApps = await StorageService.getAllApps();
         const isAlreadyInstalled = existingApps.some(app => 
           app.storeId === storeId || 
-          (app.githubUrl && appConfig.githubUrl && app.githubUrl === appConfig.githubUrl)
+          (app.githubUrl && manifest.githubUrl && app.githubUrl === manifest.githubUrl)
         );
 
         if (isAlreadyInstalled) {
-          throw new Error(`App "${appConfig.name}" è già installata`);
+          throw new Error(`App "${manifest.name || storeId}" è già installata`);
         }
 
-        // Estrai owner e repo dall'URL GitHub
-        const githubMatch = appConfig.githubUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-        if (!githubMatch) {
-          throw new Error('URL GitHub non valido');
-        }
-        
-        const [, owner, repo] = githubMatch;
-        
-        // Scarica il repository dell'app
-        DEBUG.log(`📥 Scaricamento file dalla repo: ${owner}/${repo}`);
-        const repoBlob = await this.githubService.downloadRepositoryZip(owner, repo, 'main');
-        const repoText = await repoBlob.text();
-        const repoData = JSON.parse(repoText);
-        
-        // Estrai tutti i file del repository
+        // Ottieni tutti i file della cartella dell'app
+        const appContents = await this.githubService.getDirectoryContents(
+          this.storeRepo.owner,
+          this.storeRepo.repo,
+          `apps/${storeId}`,
+          this.storeRepo.branch
+        );
+
         const appFiles = [];
-        for (const [filePath, fileContent] of Object.entries(repoData.files)) {
-          // Salta file di sistema GitHub
-          if (filePath.startsWith('.github/') || 
-              filePath === 'README.md' || 
-              filePath === '.gitignore' ||
-              filePath === 'aideas.json') {
-            continue;
+        const appFormat = manifest.appFormat || 'unzipped';
+
+        if (appFormat === 'zip') {
+          // Cerca il file apps.zip
+          const zipFile = appContents.find(item => item.name === 'apps.zip');
+          if (!zipFile) {
+            throw new Error(`File apps.zip non trovato per l'app ${storeId}`);
           }
+
+          // Scarica il file ZIP
+          const zipContent = await this.githubService.getFileContent(
+            this.storeRepo.owner,
+            this.storeRepo.repo,
+            `apps/${storeId}/apps.zip`,
+            this.storeRepo.branch
+          );
+
+          if (!zipContent || !zipContent.decodedContent) {
+            throw new Error(`Contenuto ZIP non valido per l'app ${storeId}`);
+          }
+
+          // Estrai i file dal ZIP
+          const JSZip = (await import('jszip')).default;
+          const zipBlob = new Blob([zipContent.decodedContent], { type: 'application/zip' });
+          const appZip = new JSZip();
+          const appZipContents = await appZip.loadAsync(zipBlob);
           
-          const fileData = {
-            filename: filePath,
-            content: fileContent,
-            size: fileContent.length,
-            mimeType: this.getMimeType(filePath)
-          };
-          appFiles.push(fileData);
+          for (const [filename, fileObj] of Object.entries(appZipContents.files)) {
+            if (fileObj.dir) continue;
+            
+            const content = await fileObj.async('text');
+            const fileData = {
+              filename: filename,
+              content: content,
+              size: content.length,
+              mimeType: this.getMimeType(filename)
+            };
+            appFiles.push(fileData);
+          }
+
+        } else {
+          // Formato unzipped - scarica tutti i file individuali
+          for (const item of appContents) {
+            if (item.type === 'file' && item.name !== 'aideas.json') {
+              try {
+                const fileContent = await this.githubService.getFileContent(
+                  this.storeRepo.owner,
+                  this.storeRepo.repo,
+                  `apps/${storeId}/${item.name}`,
+                  this.storeRepo.branch
+                );
+
+                if (fileContent && fileContent.decodedContent) {
+                  const fileData = {
+                    filename: item.name,
+                    content: fileContent.decodedContent,
+                    size: fileContent.decodedContent.length,
+                    mimeType: this.getMimeType(item.name)
+                  };
+                  appFiles.push(fileData);
+                }
+              } catch (error) {
+                DEBUG.warn(`⚠️ Errore download file ${item.name}:`, error);
+              }
+            }
+          }
         }
 
         if (appFiles.length === 0) {
           throw new Error(`Nessun file trovato per l'app ${storeId}`);
         }
-
-        // Crea il manifest per l'app
-        const manifest = {
-          name: appConfig.name,
-          description: appConfig.description,
-          author: appConfig.author,
-          category: appConfig.category,
-          icon: appConfig.icon,
-          githubUrl: appConfig.githubUrl,
-          tags: appConfig.tags,
-          version: '1.0.0'
-        };
 
         // Estrai metadati dal manifest
         const metadata = this.extractStoreMetadata(appFiles, manifest, storeId);
