@@ -208,6 +208,77 @@ const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
     return colors[category] || 'default';
   };
 
+  // Funzione per rilevare se un'icona è un'emoji
+  const isEmoji = (icon) => {
+    return icon && (icon.length === 1 || icon.length === 2) && icon.charCodeAt(0) > 255;
+  };
+
+  // Funzione per renderizzare l'icona dell'app
+  const renderAppIcon = (app) => {
+    if (app.icon) {
+      // Se è un'emoji (carattere Unicode)
+      if (isEmoji(app.icon)) {
+        return (
+          <div style={{ 
+            width: '100%', 
+            height: '100%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            fontSize: '1.5rem'
+          }}>
+            {app.icon}
+          </div>
+        );
+      }
+      
+      // Se è un'icona custom (base64, URL, etc.)
+      if (app.icon.startsWith('data:') || app.icon.startsWith('http')) {
+        return (
+          <img 
+            src={app.icon} 
+            alt={app.name} 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'cover',
+              borderRadius: '50%'
+            }}
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+        );
+      }
+      // Se è un'icona SVG inline
+      if (app.icon.includes('<svg')) {
+        return (
+          <div 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}
+            dangerouslySetInnerHTML={{ __html: app.icon }}
+          />
+        );
+      }
+      
+      // Fallback per altre icone
+      return (
+        <span role="img" aria-label="app icon">
+          {app.icon}
+        </span>
+      );
+    }
+
+    // Fallback: iniziali
+    return app.name.charAt(0);
+  };
+
   const renderStoreApps = () => (
     <Box>
       {/* Barra di ricerca e filtri */}
@@ -294,17 +365,11 @@ const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
                     <Avatar sx={{ 
                       width: 48, 
                       height: 48,
-                      bgcolor: `${getCategoryColor(app.category)}.main`,
+                      bgcolor: app.icon && !isEmoji(app.icon) ? 'transparent' : `${getCategoryColor(app.category)}.main`,
                       mr: 2,
                       fontSize: '1.5rem'
                     }}>
-                      {app.icon ? (
-                        <span role="img" aria-label="app icon">
-                          {app.icon}
-                        </span>
-                      ) : (
-                        app.name.charAt(0)
-                      )}
+                      {renderAppIcon(app)}
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="h6" component="h3" noWrap>
