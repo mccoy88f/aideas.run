@@ -11,7 +11,7 @@ export default class StoreService {
   constructor() {
     this.githubService = new GitHubService();
     this.storeRepo = {
-      owner: 'aideas-run',
+      owner: 'mccoy88f',
       repo: 'aideas.store',
       branch: 'main'
     };
