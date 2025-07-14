@@ -26,11 +26,11 @@ import {
   Link as LinkIcon,
   Code as CodeIcon,
   GitHub as GitHubIcon,
-  Store as StoreIcon,
   Close as CloseIcon,
   Check as CheckIcon,
   Error as ErrorIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Store as StoreIcon
 } from '@mui/icons-material';
 
 /**
@@ -81,21 +81,21 @@ const AppImporterMaterial = ({
       id: 'url',
       title: 'Importa da URL',
       description: 'Aggiungi un\'applicazione web tramite URL (supporta anche file ZIP o HTML singoli)',
-      icon: <LinkIcon />,
+      icon: <LinkIcon />, 
       color: 'primary'
     },
     {
       id: 'zip',
       title: 'Carica ZIP',
       description: 'Carica un file ZIP con HTML, CSS, JS (supporta anche singoli file HTML)',
-      icon: <CodeIcon />,
+      icon: <CodeIcon />, 
       color: 'warning'
     },
     {
       id: 'github',
       title: 'Importa da GitHub',
       description: 'Importa un\'app da un repository GitHub',
-      icon: <GitHubIcon />,
+      icon: <GitHubIcon />, 
       color: 'success'
     }
   ];
@@ -114,32 +114,24 @@ const AppImporterMaterial = ({
       setError('Seleziona un tipo di importazione');
       return;
     }
-    
     if (activeStep === 1) {
       if (!formData.name.trim()) {
         setError('Il nome è obbligatorio');
         return;
       }
-      
-      // Validazione specifica per tipo
       if (importType === 'url' && !formData.url.trim()) {
         setError('URL è obbligatorio per importazione da URL');
         return;
       }
-      
-
-      
       if (importType === 'zip' && !uploadedZip) {
         setError('Devi caricare un file ZIP');
         return;
       }
-      
       if (importType === 'github' && !githubUrl.trim()) {
         setError('URL GitHub è obbligatorio');
         return;
       }
     }
-    
     setError('');
     setActiveStep((prevStep) => prevStep + 1);
   };
@@ -168,26 +160,20 @@ const AppImporterMaterial = ({
   const handleImport = async () => {
     setLoading(true);
     setError('');
-    
     try {
       let appData = { ...formData };
-      
-      // Aggiungi icona personalizzata se specificata
       if (customIcon) {
         appData.icon = customIcon;
       }
-      
-      // Gestisci i diversi tipi di importazione
       switch (importType) {
         case 'zip':
           appData.type = 'zip';
           appData.zipFile = uploadedZip;
           appData.filename = uploadedZip.name;
-          // Includi tutti i metadati modificati dall'utente
-          appData.name = formData.name; // Usa il nome modificato dall'utente
-          appData.description = formData.description; // Usa la descrizione modificata
-          appData.category = formData.category; // Usa la categoria modificata
-          appData.tags = formData.tags; // Usa i tag modificati
+          appData.name = formData.name;
+          appData.description = formData.description;
+          appData.category = formData.category;
+          appData.tags = formData.tags;
           break;
         case 'github':
           appData.url = githubUrl;
@@ -196,11 +182,9 @@ const AppImporterMaterial = ({
         default:
           appData.type = 'url';
       }
-      
       await onImport(appData);
       handleReset();
       onClose();
-      
     } catch (err) {
       setError(err.message || 'Errore durante l\'importazione');
       onError?.(err);
@@ -235,85 +219,56 @@ const AppImporterMaterial = ({
   const handleFileUpload = async (event, type) => {
     const file = event.target.files[0];
     if (file && type === 'zip') {
-        setUploadedZip(file);
-        
-        // Leggi automaticamente i metadati dal file ZIP
-        try {
-          console.log('📦 Processando file ZIP per metadati...');
-          
-          // Importa JSZip dinamicamente
-          const JSZip = (await import('jszip')).default;
-          const zip = new JSZip();
-          
-          // Leggi il contenuto del ZIP
-          const contents = await zip.loadAsync(file);
-          
-          // Estrai tutti i file
-          const files = [];
-          let manifest = null;
-          
-          for (const [filename, fileObj] of Object.entries(contents.files)) {
-            if (fileObj.dir) continue;
-            
-            const content = await fileObj.async('text');
-            const fileData = {
-              filename,
-              content,
-              size: content.length,
-              mimeType: getMimeType(filename)
-            };
-            
-            files.push(fileData);
-            
-            // Cerca manifest AIdeas
-            if (filename === 'aideas.json') {
-              try {
-                manifest = JSON.parse(content);
-              } catch (e) {
-                console.warn('Manifest aideas.json non valido:', e);
-              }
+      setUploadedZip(file);
+      try {
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        const contents = await zip.loadAsync(file);
+        const files = [];
+        let manifest = null;
+        for (const [filename, fileObj] of Object.entries(contents.files)) {
+          if (fileObj.dir) continue;
+          const content = await fileObj.async('text');
+          const fileData = {
+            filename,
+            content,
+            size: content.length,
+            mimeType: getMimeType(filename)
+          };
+          files.push(fileData);
+          if (filename === 'aideas.json') {
+            try {
+              manifest = JSON.parse(content);
+            } catch (e) {
+              console.warn('Manifest aideas.json non valido:', e);
             }
           }
-          
-          // Cerca il file index.html per estrarre i metadati
-          const indexHtmlFile = files.find(f => 
-            f.filename.toLowerCase() === 'index.html' || 
-            f.filename.toLowerCase().endsWith('/index.html')
-          );
-
-          if (indexHtmlFile) {
-            console.log('📄 Trovato index.html nel ZIP, estraggo metadati...');
-            const htmlMetadata = extractHtmlMetadataFromZip(indexHtmlFile.content);
-            
-            // Aggiorna i campi del form con i metadati trovati
-            if (htmlMetadata.title) {
-              handleInputChange('name', htmlMetadata.title);
-            }
-            if (htmlMetadata.description) {
-              handleInputChange('description', htmlMetadata.description);
-            }
-            if (htmlMetadata.icon) {
-              setCustomIcon(htmlMetadata.icon);
-            }
-            if (htmlMetadata.keywords) {
-              const tags = htmlMetadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag);
-              setFormData(prev => ({
-                ...prev,
-                tags: tags
-              }));
-            }
-            
-            console.log('✅ Metadati estratti dal ZIP:', {
-              title: htmlMetadata.title,
-              description: htmlMetadata.description,
-              hasIcon: !!htmlMetadata.icon,
-              tags: htmlMetadata.keywords
-            });
-          }
-          
-        } catch (error) {
-          console.warn('Errore nella lettura metadati ZIP:', error);
         }
+        const indexHtmlFile = files.find(f => 
+          f.filename.toLowerCase() === 'index.html' || 
+          f.filename.toLowerCase().endsWith('/index.html')
+        );
+        if (indexHtmlFile) {
+          const htmlMetadata = extractHtmlMetadataFromZip(indexHtmlFile.content);
+          if (htmlMetadata.title) {
+            handleInputChange('name', htmlMetadata.title);
+          }
+          if (htmlMetadata.description) {
+            handleInputChange('description', htmlMetadata.description);
+          }
+          if (htmlMetadata.icon) {
+            setCustomIcon(htmlMetadata.icon);
+          }
+          if (htmlMetadata.keywords) {
+            const tags = htmlMetadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag);
+            setFormData(prev => ({
+              ...prev,
+              tags: tags
+            }));
+          }
+        }
+      } catch (error) {
+        console.warn('Errore nella lettura metadati ZIP:', error);
       }
     }
   };
@@ -526,7 +481,6 @@ const AppImporterMaterial = ({
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Scegli il metodo di importazione più adatto alle tue esigenze
             </Typography>
-            
             <Box sx={{ 
               display: 'grid', 
               gap: 2, 
@@ -571,7 +525,6 @@ const AppImporterMaterial = ({
                 </Paper>
               ))}
             </Box>
-            
             {/* Link allo store */}
             <Box sx={{ 
               mt: 3, 
@@ -589,7 +542,6 @@ const AppImporterMaterial = ({
                 color="secondary"
                 onClick={() => {
                   onClose();
-                  // Naviga allo store
                   window.location.hash = '#/store';
                 }}
                 startIcon={<StoreIcon />}
@@ -632,8 +584,6 @@ const AppImporterMaterial = ({
                   placeholder="https://esempio.com"
                 />
               )}
-              
-
               
               {importType === 'zip' && (
                 <Box>
@@ -825,9 +775,9 @@ const AppImporterMaterial = ({
                     URL/Tipo
                   </Typography>
                   <Typography variant="body1">
-                    {importType === 'html' ? 'HTML personalizzato' : 
+                    {importType === 'url' ? 'URL' : 
                      importType === 'github' ? 'Repository GitHub' : 
-                     formData.url}
+                     'File ZIP'}
                   </Typography>
                 </Box>
                 
@@ -1155,7 +1105,7 @@ const AppImporterMaterial = ({
                   const url = e.target.value.trim();
                   if (url && (url.startsWith('http') || url.startsWith('data:'))) {
                     setCustomIcon(url);
-                    // showToast('URL icona impostato', 'success'); // This line was removed as per the edit hint
+                    // showToast('URL icona impostato', 'success'); // Removed showToast
                   }
                 }}
                 helperText="Inserisci l'URL di un'immagine o favicon"

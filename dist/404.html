@@ -10,9 +10,9 @@
     const search = window.location.search;
     const hash = window.location.hash;
     
-    // Se non è già sulla home, reindirizza
-    if (path !== '/aideas.run/' && path !== '/aideas.run/index.html') {
-      window.location.href = '/aideas.run/' + search + hash;
+    // Per dominio personalizzato aideas.run, reindirizza a root /
+    if (path !== '/' && path !== '/index.html') {
+      window.location.href = '/' + search + hash;
     }
   </script>
   <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
