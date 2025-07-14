@@ -107,7 +107,6 @@ const NavigationMaterial = ({
       id: 'store',
       label: 'AIdeas Store',
       icon: <StoreIcon />,
-      count: 0,
       color: 'secondary'
     },
     {

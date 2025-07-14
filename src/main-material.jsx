@@ -62,7 +62,8 @@ import NavigationMaterial from './components/NavigationMaterial.jsx';
 import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
 import AppInfoModal from './components/AppInfoModal.jsx';
-import StoreModal from './components/StoreModal.jsx';
+import StorePage from './components/StorePage.jsx';
+
 
 
 import EmojiSelector from './components/EmojiSelector.jsx';
@@ -81,7 +82,10 @@ function AIdeasApp() {
   const [apps, setApps] = React.useState([]);
   const [filteredApps, setFilteredApps] = React.useState([]);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [currentView, setCurrentView] = React.useState('all');
+  const [currentView, setCurrentView] = React.useState(() => {
+    const path = window.location.pathname;
+    return path === '/store' ? 'store' : 'all';
+  });
   const [currentSort, setCurrentSort] = React.useState('lastUsed');
   const [currentViewMode, setCurrentViewMode] = React.useState('grid');
   const [loading, setLoading] = React.useState(true);
@@ -103,8 +107,26 @@ function AIdeasApp() {
   const [faviconUrl, setFaviconUrl] = React.useState('');
   const [appInfoModalOpen, setAppInfoModalOpen] = React.useState(false);
   const [appInfoData, setAppInfoData] = React.useState(null);
-  const [storeModalOpen, setStoreModalOpen] = React.useState(false);
 
+  // Routing state
+  const [currentRoute, setCurrentRoute] = React.useState(() => {
+    const path = window.location.pathname;
+    return path === '/store' ? 'store' : 'apps';
+  });
+
+  // Gestione routing URL
+  React.useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const newRoute = path === '/store' ? 'store' : 'apps';
+      setCurrentRoute(newRoute);
+      // Sincronizza currentView con la route per il menu laterale
+      setCurrentView(newRoute === 'store' ? 'store' : 'all');
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Inizializzazione
   React.useEffect(() => {
@@ -137,7 +159,7 @@ function AIdeasApp() {
       // Ctrl/Cmd + S per aprire lo store
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        setStoreModalOpen(true);
+        navigateToStore();
       }
       
       // Escape per chiudere modals
@@ -1231,11 +1253,35 @@ function AIdeasApp() {
   // Aggiorna view
   const handleViewChange = (view) => {
     if (view === 'store') {
-      // Apri lo store invece di cambiare vista
-      setStoreModalOpen(true);
-      return;
+      navigateToStore();
+    } else {
+      setCurrentView(view);
     }
-    setCurrentView(view);
+  };
+
+  // Navigazione programmatica
+  const navigateToStore = () => {
+    window.history.pushState(null, '', '/store');
+    setCurrentRoute('store');
+    setCurrentView('store'); // Sincronizza currentView per il menu laterale
+  };
+
+  const navigateToApps = () => {
+    window.history.pushState(null, '', '/');
+    setCurrentRoute('apps');
+    setCurrentView('all'); // Sincronizza currentView per il menu laterale
+  };
+
+  // Handler per app installata dallo store
+  const handleStoreAppInstalled = async (appId) => {
+    try {
+      // Ricarica le app per mostrare quella appena installata
+      await loadApps();
+      // Naviga alla home per vedere l'app installata
+      navigateToApps();
+    } catch (error) {
+      DEBUG.error('❌ Errore ricaricamento dopo installazione store:', error);
+    }
   };
 
   const handleLongPressStart = (app) => {
@@ -1331,15 +1377,7 @@ function AIdeasApp() {
     }
   };
 
-  const handleStoreAppInstalled = async (appId) => {
-    try {
-      // Ricarica le app per mostrare quella appena installata
-      await loadApps();
-      showToast('App installata con successo!', 'success');
-    } catch (error) {
-      DEBUG.error('❌ Errore ricaricamento dopo installazione store:', error);
-    }
-  };
+
 
   if (loading) {
     return (
@@ -1396,15 +1434,22 @@ function AIdeasApp() {
         width: { sm: drawerOpen ? 'calc(100vw - 280px)' : '100vw' },
         p: 0
       }}>
-        {/* Container centrale con padding */}
-        <Box sx={{ 
-          width: '100%',
-          maxWidth: '1200px',
-          p: { xs: 2, sm: 4 },
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center'
-        }}>
+        {/* Render condizionale basato sulla route */}
+        {currentRoute === 'store' ? (
+          <StorePage 
+            onNavigateBack={navigateToApps}
+            onAppInstalled={handleStoreAppInstalled}
+            installedApps={apps}
+          />
+        ) : (
+          <Box sx={{ 
+            width: '100%',
+            maxWidth: '1200px',
+            p: { xs: 2, sm: 4 },
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center'
+          }}>
         {/* Search Bar e Controlli - Layout fisso e centrato */}
         <Box sx={{ 
           mb: 3, 
@@ -1483,7 +1528,7 @@ function AIdeasApp() {
             <Box sx={{ pr: 2, pl: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               <IconButton
                 aria-label="AIdeas Store"
-                onClick={() => setStoreModalOpen(true)}
+                onClick={navigateToStore}
                 sx={{
                   background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
                   color: 'white',
@@ -1783,7 +1828,8 @@ function AIdeasApp() {
             </Typography>
           </Box>
         )}
-        </Box> {/* Chiusura del container centrale */}
+        </Box>
+        )}
       </Box> {/* Chiusura del main content */}
 
       {/* SyncManagerMaterial */}
@@ -2358,13 +2404,7 @@ function AIdeasApp() {
         app={appInfoData}
       />
 
-      {/* Modal AIdeas Store */}
-      <StoreModal
-        open={storeModalOpen}
-        onClose={() => setStoreModalOpen(false)}
-        onAppInstalled={handleStoreAppInstalled}
-        installedApps={apps}
-      />
+
 
     </Box>
   );
