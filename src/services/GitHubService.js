@@ -155,7 +155,18 @@ export default class GitHubService {
       
       // Decodifica contenuto se è base64
       if (fileData.encoding === 'base64') {
-        fileData.decodedContent = atob(fileData.content.replace(/\n/g, ''));
+        // Decodifica corretta per UTF-8 - preserva i caratteri internazionali
+        try {
+          const binaryString = atob(fileData.content.replace(/\n/g, ''));
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          fileData.decodedContent = new TextDecoder('utf-8').decode(bytes);
+        } catch (error) {
+          // Fallback alla decodifica semplice se quella UTF-8 fallisce
+          fileData.decodedContent = atob(fileData.content.replace(/\n/g, ''));
+        }
       }
 
       this.setCache(cacheKey, fileData);

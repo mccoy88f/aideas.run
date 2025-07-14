@@ -84,7 +84,8 @@ function AIdeasApp() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [currentView, setCurrentView] = React.useState(() => {
     const path = window.location.pathname;
-    return path === '/store' ? 'store' : 'all';
+    const isStorePage = path === '/store' || path.endsWith('/store');
+    return isStorePage ? 'store' : 'all';
   });
   const [currentSort, setCurrentSort] = React.useState('lastUsed');
   const [currentViewMode, setCurrentViewMode] = React.useState('grid');
@@ -111,14 +112,17 @@ function AIdeasApp() {
   // Routing state
   const [currentRoute, setCurrentRoute] = React.useState(() => {
     const path = window.location.pathname;
-    return path === '/store' ? 'store' : 'apps';
+    const isStorePage = path === '/store' || path.endsWith('/store');
+    return isStorePage ? 'store' : 'apps';
   });
 
   // Gestione routing URL
   React.useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
-      const newRoute = path === '/store' ? 'store' : 'apps';
+      // Gestisci sia /store che percorsi con base diversa che terminano con /store
+      const isStorePage = path === '/store' || path.endsWith('/store');
+      const newRoute = isStorePage ? 'store' : 'apps';
       setCurrentRoute(newRoute);
       // Sincronizza currentView con la route per il menu laterale
       setCurrentView(newRoute === 'store' ? 'store' : 'all');
@@ -1269,7 +1273,8 @@ function AIdeasApp() {
       setCurrentView(view);
       // Assicurati che currentRoute sia sincronizzato per tutte le viste non-store
       if (currentRoute !== 'apps') {
-        window.history.pushState(null, '', '/');
+        const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+        window.history.pushState(null, '', baseUrl || '/');
         setCurrentRoute('apps');
       }
     }
@@ -1277,13 +1282,15 @@ function AIdeasApp() {
 
   // Navigazione programmatica
   const navigateToStore = () => {
-    window.history.pushState(null, '', '/store');
+    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+    window.history.pushState(null, '', `${baseUrl}/store`);
     setCurrentRoute('store');
     setCurrentView('store'); // Sincronizza currentView per il menu laterale
   };
 
   const navigateToApps = () => {
-    window.history.pushState(null, '', '/');
+    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+    window.history.pushState(null, '', baseUrl || '/');
     setCurrentRoute('apps');
     setCurrentView('all'); // Sincronizza currentView per il menu laterale
   };
