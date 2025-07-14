@@ -24,7 +24,7 @@ class StorageService {
   initDatabase() {
     this.db.version(1).stores({
       // Apps installate dall'utente
-      apps: '++id, name, description, category, version, url, type, githubUrl, installDate, lastUsed, favorite, *tags',
+      apps: '++id, name, description, category, version, url, type, githubUrl, installDate, lastUsed, favorite, source, originalGithubUrl, uniqueId, *tags',
       
       // Files delle app (per ZIP imports) 
       appFiles: '++id, appId, filename, content, size, mimeType',
@@ -45,6 +45,9 @@ class StorageService {
       obj.lastUsed = obj.lastUsed || new Date();
       obj.favorite = obj.favorite || false;
       obj.tags = obj.tags || [];
+      obj.source = obj.source || 'manual'; // 'manual' o 'store'
+      obj.originalGithubUrl = obj.originalGithubUrl || null;
+      obj.uniqueId = obj.uniqueId || this.generateUniqueId(obj.name, obj.author);
     });
 
     this.db.syncEvents.hook('creating', (primKey, obj, trans) => {
@@ -66,10 +69,11 @@ class StorageService {
         throw new Error('Nome app richiesto');
       }
 
-      // Controlla se esiste già un'app con lo stesso nome
-      const existingApp = await this.db.apps.where('name').equals(appData.name).first();
+      // Controlla se esiste già un'app con lo stesso uniqueId
+      const proposedUniqueId = appData.uniqueId || this.generateUniqueId(appData.name, appData.author);
+      const existingApp = await this.db.apps.where('uniqueId').equals(proposedUniqueId).first();
       if (existingApp) {
-        throw new Error(`App con nome "${appData.name}" già installata`);
+        throw new Error(`App "${appData.name}" di "${appData.author || 'Unknown'}" già installata`);
       }
 
       // Assegna automaticamente un'emoji se non c'è icona
@@ -93,7 +97,12 @@ class StorageService {
         tags: appData.tags || [],
         metadata: appData.metadata || {},
         content: appData.content || null, // Aggiungi campo per contenuto HTML
-        openMode: appData.openMode || (window?.appSettings?.defaultOpenMode || 'modal') // Nuovo campo
+        openMode: appData.openMode || (window?.appSettings?.defaultOpenMode || 'modal'), // Nuovo campo
+        // Nuovi campi per tracking origine
+        source: appData.source || 'manual', // 'manual', 'store'
+        originalGithubUrl: appData.originalGithubUrl || null,
+        uniqueId: appData.uniqueId || this.generateUniqueId(appData.name, appData.author),
+        author: appData.author || 'Unknown'
       };
 
       const appId = await this.db.apps.add(app);
@@ -577,6 +586,13 @@ class StorageService {
       await this.setSetting('deviceId', deviceId);
     }
     return deviceId;
+  }
+
+  // Genera un ID univoco per l'app nel formato name.author
+  generateUniqueId(name, author) {
+    const sanitizedName = name ? name.toLowerCase().replace(/[^a-z0-9]/g, '') : 'unknown';
+    const sanitizedAuthor = author ? author.toLowerCase().replace(/[^a-z0-9]/g, '') : 'unknown';
+    return `${sanitizedName}.${sanitizedAuthor}`;
   }
 
   // Ottieni MIME type da filename

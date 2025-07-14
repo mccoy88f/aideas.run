@@ -104,9 +104,19 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
     setLoading(true);
     try {
       await loadStoreApps();
+      
+      // Controlla se c'è un parametro di ricerca nell'URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const searchParam = urlParams.get('search');
+      if (searchParam) {
+        setSearchQuery(searchParam);
+        // Pulisci l'URL per mantenere l'interfaccia pulita
+        const newUrl = window.location.pathname + window.location.hash.split('?')[0];
+        window.history.replaceState(null, '', newUrl);
+      }
+      
     } catch (error) {
-      DEBUG.error('❌ Errore caricamento dati iniziali:', error);
-      setError('Errore durante il caricamento dei dati');
+      DEBUG.error('❌ Errore caricamento iniziale store:', error);
     } finally {
       setLoading(false);
     }

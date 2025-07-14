@@ -22,7 +22,9 @@ import {
   IconButton,
   Tooltip,
   Paper,
-  Grid
+  Grid,
+  Menu,
+  MenuItem
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -41,11 +43,14 @@ import {
   Visibility as VisibilityIcon,
   GetApp as GetAppIcon,
   Store as StoreIcon,
-  Upload as UploadIcon
+  Upload as UploadIcon,
+  Share as ShareIcon,
+  Link as LinkIcon
 } from '@mui/icons-material';
 import AppAnalyzer from '../services/AppAnalyzer.js';
 import { storeService } from '../services/StoreService.js';
 import { showToast } from '../utils/helpers.js';
+import StorageService from '../services/StorageService.js';
 
 /**
  * Modal per visualizzare informazioni dettagliate sull'app
@@ -57,6 +62,7 @@ const AppInfoModal = ({ open, onClose, app }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileViewOpen, setFileViewOpen] = useState(false);
   const [submittingToStore, setSubmittingToStore] = useState(false);
+  const [shareMenuAnchor, setShareMenuAnchor] = useState(null);
   const [expandedSections, setExpandedSections] = useState({
     overview: true,
     files: false,
@@ -160,6 +166,87 @@ const AppInfoModal = ({ open, onClose, app }) => {
     } finally {
       setSubmittingToStore(false);
     }
+  };
+
+  const handleShareMenuOpen = (event) => {
+    setShareMenuAnchor(event.currentTarget);
+  };
+
+  const handleShareMenuClose = () => {
+    setShareMenuAnchor(null);
+  };
+
+  const handleShareStoreLink = () => {
+    if (!app) return;
+    
+    // Genera link di ricerca nello store basato su uniqueId o nome
+    const searchTerm = app.uniqueId || `${app.name} ${app.author || ''}`.trim();
+    const storeUrl = `${window.location.origin}${window.location.pathname}#/store?search=${encodeURIComponent(searchTerm)}`;
+    
+    // Copia negli appunti
+    navigator.clipboard.writeText(storeUrl).then(() => {
+      showToast('Link dello store copiato negli appunti!', 'success');
+    }).catch(() => {
+      showToast('Errore copia link', 'error');
+    });
+    
+    handleShareMenuClose();
+  };
+
+  const handleDownloadZip = async () => {
+    if (!app) return;
+    
+    try {
+      console.log(`📦 Download ZIP per app ${app.name}...`);
+      
+      // Ottieni i dati dell'app con i file
+      const appData = await StorageService.getAppWithFiles(app.id);
+      if (!appData || !appData.files || appData.files.length === 0) {
+        throw new Error('Nessun file disponibile per il download');
+      }
+      
+      // Crea ZIP usando JSZip
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      
+      // Aggiungi manifest dell'app
+      const manifest = {
+        name: app.name,
+        description: app.description,
+        author: app.author || 'Unknown',
+        version: app.version,
+        category: app.category,
+        tags: app.tags || [],
+        icon: app.icon,
+        appFormat: 'unzipped',
+        ...app.manifest
+      };
+      zip.file('aideas.json', JSON.stringify(manifest, null, 2));
+      
+      // Aggiungi tutti i file dell'app
+      appData.files.forEach(file => {
+        zip.file(file.filename, file.content);
+      });
+      
+      // Genera e scarica il ZIP
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${app.name.replace(/[^a-z0-9]/gi, '_')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      showToast(`App ${app.name} scaricata come ZIP!`, 'success');
+      
+    } catch (error) {
+      console.error('❌ Errore download ZIP:', error);
+      showToast(`Errore download: ${error.message}`, 'error');
+    }
+    
+    handleShareMenuClose();
   };
 
   const getPermissionColor = (permission) => {
@@ -272,7 +359,11 @@ const AppInfoModal = ({ open, onClose, app }) => {
                         <Typography variant="h4" color="primary">
                           {analysis.summary.totalFiles}
                         </Typography>
-                        <Typography variant="body2">File totali</Typography>
+                        <Tooltip title="Numero totale di file che compongono l'applicazione">
+                          <Typography variant="body2" sx={{ cursor: 'help' }}>
+                            File app
+                          </Typography>
+                        </Tooltip>
                       </Paper>
                     </Grid>
                     <Grid item xs={12} sm={6} md={4}>
@@ -288,7 +379,11 @@ const AppInfoModal = ({ open, onClose, app }) => {
                         <Typography variant="h4" color="warning.main">
                           {analysis.summary.externalReferences}
                         </Typography>
-                        <Typography variant="body2">Riferimenti esterni</Typography>
+                        <Tooltip title="Risorse esterne caricate da internet (CDN, API, ecc.)">
+                          <Typography variant="body2" sx={{ cursor: 'help' }}>
+                            Risorse esterne
+                          </Typography>
+                        </Tooltip>
                       </Paper>
                     </Grid>
                     <Grid item xs={12} sm={6} md={4}>
@@ -296,7 +391,11 @@ const AppInfoModal = ({ open, onClose, app }) => {
                         <Typography variant="h4" color="info.main">
                           {analysis.summary.localReferences}
                         </Typography>
-                        <Typography variant="body2">File locali</Typography>
+                        <Tooltip title="File interni dell'app memorizzati localmente">
+                          <Typography variant="body2" sx={{ cursor: 'help' }}>
+                            File interni
+                          </Typography>
+                        </Tooltip>
                       </Paper>
                     </Grid>
                     <Grid item xs={12} sm={6} md={4}>
@@ -332,17 +431,53 @@ const AppInfoModal = ({ open, onClose, app }) => {
                       )}
                     </Box>
                   </Box>
+
+                  {/* Informazioni origine app */}
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Origine app:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                      <Chip 
+                        label={app.source === 'store' ? 'Store AIdeas' : 'Installazione Manuale'} 
+                        color={app.source === 'store' ? 'secondary' : 'default'} 
+                        size="small" 
+                        icon={app.source === 'store' ? <StoreIcon /> : <UploadIcon />}
+                      />
+                      {app.author && (
+                        <Chip label={`Autore: ${app.author}`} variant="outlined" size="small" />
+                      )}
+                      {app.uniqueId && (
+                        <Chip label={`ID: ${app.uniqueId}`} variant="outlined" size="small" />
+                      )}
+                    </Box>
+                    {app.originalGithubUrl && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Repository originale: 
+                        </Typography>
+                        <Button 
+                          size="small" 
+                          startIcon={<LinkIcon />}
+                          onClick={() => window.open(app.originalGithubUrl, '_blank')}
+                          sx={{ ml: 1 }}
+                        >
+                          {app.originalGithubUrl}
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
                 </AccordionDetails>
               </Accordion>
 
-              {/* File locali */}
+              {/* File interni */}
               <Accordion 
                 expanded={expandedSections.files}
                 onChange={() => handleSectionToggle('files')}
               >
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Typography variant="h6">
-                    File locali ({analysis.files.length})
+                    File interni ({analysis.files.length})
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>
@@ -514,6 +649,14 @@ const AppInfoModal = ({ open, onClose, app }) => {
           <Button onClick={onClose} variant="outlined">
             Chiudi
           </Button>
+          <Button
+            onClick={handleShareMenuOpen}
+            variant="outlined"
+            startIcon={<ShareIcon />}
+            color="info"
+          >
+            Condividi
+          </Button>
           {app && app.type !== 'store' && (
             <Button
               onClick={handleSubmitToStore}
@@ -525,6 +668,28 @@ const AppInfoModal = ({ open, onClose, app }) => {
               {submittingToStore ? 'Sottomissione...' : 'Sottometti allo Store'}
             </Button>
           )}
+
+          {/* Menu condivisione */}
+          <Menu
+            anchorEl={shareMenuAnchor}
+            open={Boolean(shareMenuAnchor)}
+            onClose={handleShareMenuClose}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          >
+            <MenuItem onClick={handleShareStoreLink}>
+              <ListItemIcon>
+                <LinkIcon />
+              </ListItemIcon>
+              <ListItemText primary="Link Store" secondary="Copia link per cercare nello store" />
+            </MenuItem>
+            <MenuItem onClick={handleDownloadZip}>
+              <ListItemIcon>
+                <GetAppIcon />
+              </ListItemIcon>
+              <ListItemText primary="Download ZIP" secondary="Scarica app come file ZIP" />
+            </MenuItem>
+          </Menu>
         </DialogActions>
       </Dialog>
 

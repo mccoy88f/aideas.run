@@ -224,7 +224,11 @@ export default class StoreService {
           files: appFiles,
           manifest: manifest || {},
           type: 'zip',
-          storeId: storeId
+          storeId: storeId,
+          // Aggiungi informazioni origine store
+          source: 'store',
+          originalGithubUrl: manifest.githubUrl,
+          author: manifest.author || 'Unknown'
         });
 
         DEBUG.success(`✅ App ${manifest.name || storeId} installata con successo`);
