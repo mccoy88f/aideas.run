@@ -406,12 +406,12 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
           <Box sx={{
             background: theme.palette.mode === 'dark' 
               ? 'rgba(255, 255, 255, 0.05)' 
-              : 'rgba(255, 255, 255, 0.1)',
+              : 'rgba(255, 255, 255, 0.8)',
             backdropFilter: 'blur(20px)',
             borderRadius: 2,
             border: theme.palette.mode === 'dark'
               ? '1px solid rgba(255, 255, 255, 0.1)'
-              : '1px solid rgba(255, 255, 255, 0.2)',
+              : '1px solid rgba(255, 255, 255, 0.3)',
             minWidth: 200,
             flex: 1
           }}>
@@ -442,12 +442,12 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
           <Box sx={{
             background: theme.palette.mode === 'dark' 
               ? 'rgba(255, 255, 255, 0.05)' 
-              : 'rgba(255, 255, 255, 0.1)',
+              : 'rgba(255, 255, 255, 0.8)',
             backdropFilter: 'blur(20px)',
             borderRadius: 2,
             border: theme.palette.mode === 'dark'
               ? '1px solid rgba(255, 255, 255, 0.1)'
-              : '1px solid rgba(255, 255, 255, 0.2)',
+              : '1px solid rgba(255, 255, 255, 0.3)',
             minWidth: 200,
             flex: 1
           }}>
@@ -494,7 +494,6 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
               label={`Aggiornato: ${lastUpdateTime.toLocaleTimeString('it-IT')}`}
               color="default"
               variant="outlined"
-              size="small"
             />
           )}
         </Box>

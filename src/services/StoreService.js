@@ -64,7 +64,7 @@ export default class StoreService {
                   category: manifest.category || 'altro',
                   tags: manifest.tags || [],
                   icon: manifest.icon || null,
-                  githubUrl: manifest.githubUrl || null,
+                  githubUrl: `https://github.com/${this.storeRepo.owner}/${this.storeRepo.repo}/tree/${this.storeRepo.branch}/apps/${item.name}`,
                   appFormat: manifest.appFormat || 'unzipped', // zip o unzipped
                   downloadUrl: `https://github.com/${this.storeRepo.owner}/${this.storeRepo.repo}/archive/refs/heads/${this.storeRepo.branch}.zip`,
                   installDate: null,
