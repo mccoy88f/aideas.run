@@ -438,9 +438,38 @@ function AIdeasApp() {
   const filterApps = () => {
     let filtered = [...apps];
 
-    // Filtra per categoria
-    if (currentView !== 'all') {
-      filtered = filtered.filter(app => app.category === currentView);
+    // Filtra per vista speciale
+    switch (currentView) {
+      case 'all':
+        // Mostra tutte le app (nessun filtro)
+        break;
+      
+      case 'favorites':
+        // Mostra solo app preferite
+        filtered = filtered.filter(app => app.favorite);
+        break;
+      
+      case 'recent':
+        // Mostra app usate di recente (ultime 2 settimane)
+        const twoWeeksAgo = new Date();
+        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+        filtered = filtered.filter(app => 
+          app.lastUsed && new Date(app.lastUsed) > twoWeeksAgo
+        );
+        break;
+      
+      case 'categories':
+        // Per ora mostra tutte le app - vista categorie sarà implementata in futuro
+        break;
+      
+      case 'store':
+        // Vista store gestita separatamente
+        break;
+      
+      default:
+        // Per categorie specifiche (produttività, giochi, etc.)
+        filtered = filtered.filter(app => app.category === currentView);
+        break;
     }
 
     // Filtra per ricerca
@@ -453,8 +482,22 @@ function AIdeasApp() {
       );
     }
 
-    // Ordina
+    // Ordina in base al tipo di vista
     filtered.sort((a, b) => {
+      // Per la vista "recent", ordina sempre per lastUsed
+      if (currentView === 'recent') {
+        return new Date(b.lastUsed || 0) - new Date(a.lastUsed || 0);
+      }
+      
+      // Per la vista "favorites", ordina per favorite prima, poi per nome
+      if (currentView === 'favorites') {
+        if (a.favorite !== b.favorite) {
+          return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+        }
+        return a.name.localeCompare(b.name);
+      }
+      
+      // Ordinamento normale per le altre viste
       switch (currentSort) {
         case 'name':
           return a.name.localeCompare(b.name);
@@ -1435,6 +1478,11 @@ function AIdeasApp() {
         currentView={currentView}
         onViewChange={handleViewChange}
         favoriteCount={apps.filter(a => a.favorite).length}
+        recentCount={(() => {
+          const twoWeeksAgo = new Date();
+          twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+          return apps.filter(app => app.lastUsed && new Date(app.lastUsed) > twoWeeksAgo).length;
+        })()}
         totalApps={apps.length}
         theme={theme}
         mode={mode}

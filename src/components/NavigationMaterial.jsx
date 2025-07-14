@@ -57,6 +57,7 @@ const NavigationMaterial = ({
   currentView,
   onViewChange,
   favoriteCount = 0,
+  recentCount = 0,
   totalApps = 0,
   theme,
   mode,
@@ -113,7 +114,7 @@ const NavigationMaterial = ({
       id: 'recent',
       label: 'Recenti',
       icon: <HistoryIcon />,
-      count: 0
+      count: recentCount
     },
     {
       id: 'categories',
