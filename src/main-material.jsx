@@ -1330,51 +1330,31 @@ function AIdeasApp() {
 
   // Navigazione programmatica
   const navigateToStore = () => {
-    // Costruisci l'URL corretto per la store
-    const origin = window.location.origin;
-    const pathname = window.location.pathname;
-    
     // Se siamo già su /store, non fare nulla
-    if (pathname === '/store' || pathname.endsWith('/store')) {
+    const currentPath = window.location.pathname;
+    if (currentPath === '/store' || currentPath.endsWith('/store')) {
       setCurrentRoute('store');
       setCurrentView('store');
       return;
     }
     
-    // Determina il base URL corretto
-    let baseUrl = origin;
-    if (pathname !== '/' && !pathname.endsWith('/')) {
-      // Se siamo in una sottocartella, mantieni il path base
-      const pathParts = pathname.split('/').filter(Boolean);
-      if (pathParts.length > 0) {
-        baseUrl = `${origin}/${pathParts[0]}`;
-      }
-    }
+    // Semplicemente aggiungi /store al path corrente
+    const newUrl = `${window.location.origin}/store`;
+    console.log('🔄 Navigating to store:', newUrl);
     
-    const storeUrl = `${baseUrl}/store`;
-    window.history.pushState(null, '', storeUrl);
+    window.history.pushState(null, '', newUrl);
     setCurrentRoute('store');
-    setCurrentView('store'); // Sincronizza currentView per il menu laterale
+    setCurrentView('store');
   };
 
   const navigateToApps = () => {
-    // Costruisci l'URL corretto per le apps
-    const origin = window.location.origin;
-    const pathname = window.location.pathname;
+    // Torna alla home
+    const newUrl = window.location.origin;
+    console.log('🔄 Navigating to apps:', newUrl);
     
-    // Determina il base URL corretto
-    let baseUrl = origin;
-    if (pathname !== '/' && !pathname.endsWith('/')) {
-      // Se siamo in una sottocartella, mantieni il path base
-      const pathParts = pathname.split('/').filter(Boolean);
-      if (pathParts.length > 0 && pathParts[0] !== 'store') {
-        baseUrl = `${origin}/${pathParts[0]}`;
-      }
-    }
-    
-    window.history.pushState(null, '', baseUrl || '/');
+    window.history.pushState(null, '', newUrl);
     setCurrentRoute('apps');
-    setCurrentView('all'); // Sincronizza currentView per il menu laterale
+    setCurrentView('all');
   };
 
   // Handler per app installata dallo store

@@ -85,7 +85,40 @@ const AppInfoModal = ({ open, onClose, app }) => {
     
     try {
       console.log('🔍 Avvio analisi app:', app.name);
-      const result = await analyzer.analyzeApp(app);
+      
+      // Verifica se è un'app dello store (non ha un id locale ma ha githubUrl)
+      const isStoreApp = !app.id && app.githubUrl;
+      
+      let appToAnalyze = app;
+      
+      if (isStoreApp) {
+        console.log('📦 App dello store rilevata, scarico dati completi...');
+        // Scarica i dati completi dell'app dallo store
+        const { storeService } = await import('../services/StoreService.js');
+        
+        try {
+          // Crea un oggetto app temporaneo per l'analisi con i dati dello store
+          appToAnalyze = {
+            ...app,
+            type: 'github', // Le app dello store sono su GitHub
+            url: app.githubUrl,
+            // Mantieni i metadati originali
+            name: app.name,
+            description: app.description,
+            author: app.author,
+            category: app.category,
+            tags: app.tags,
+            icon: app.icon
+          };
+          
+          console.log('🔗 Uso dati GitHub per analisi:', appToAnalyze.url);
+        } catch (error) {
+          console.warn('⚠️ Errore scaricamento dati store, uso metadati disponibili:', error);
+          // In caso di errore, usa i metadati disponibili
+        }
+      }
+      
+      const result = await analyzer.analyzeApp(appToAnalyze);
       setAnalysis(result);
       console.log('✅ Analisi completata:', result);
     } catch (err) {
@@ -439,10 +472,18 @@ const AppInfoModal = ({ open, onClose, app }) => {
                     </Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                       <Chip 
-                        label={app.source === 'store' ? 'Store AIdeas' : 'Installazione Manuale'} 
-                        color={app.source === 'store' ? 'secondary' : 'default'} 
+                        label={
+                          app.source === 'store' ? 'Store AIdeas' : 
+                          (!app.id && app.githubUrl) ? 'Store AIdeas (Non installata)' : 
+                          'Installazione Manuale'
+                        } 
+                        color={
+                          app.source === 'store' || (!app.id && app.githubUrl) ? 'secondary' : 'default'
+                        } 
                         size="small" 
-                        icon={app.source === 'store' ? <StoreIcon /> : <UploadIcon />}
+                        icon={
+                          app.source === 'store' || (!app.id && app.githubUrl) ? <StoreIcon /> : <UploadIcon />
+                        }
                       />
                       {app.author && (
                         <Chip label={`Autore: ${app.author}`} variant="outlined" size="small" />
@@ -451,18 +492,18 @@ const AppInfoModal = ({ open, onClose, app }) => {
                         <Chip label={`ID: ${app.uniqueId}`} variant="outlined" size="small" />
                       )}
                     </Box>
-                    {app.originalGithubUrl && (
+                    {(app.originalGithubUrl || app.githubUrl) && (
                       <Box sx={{ mt: 1 }}>
                         <Typography variant="caption" color="text.secondary">
-                          Repository originale: 
+                          Repository{!app.id && app.githubUrl ? '' : ' originale'}: 
                         </Typography>
                         <Button 
                           size="small" 
                           startIcon={<LinkIcon />}
-                          onClick={() => window.open(app.originalGithubUrl, '_blank')}
+                          onClick={() => window.open(app.originalGithubUrl || app.githubUrl, '_blank')}
                           sx={{ ml: 1 }}
                         >
-                          {app.originalGithubUrl}
+                          {app.originalGithubUrl || app.githubUrl}
                         </Button>
                       </Box>
                     )}
