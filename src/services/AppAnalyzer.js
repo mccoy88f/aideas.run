@@ -247,6 +247,7 @@ export default class AppAnalyzer {
       size: file.size || (file.content ? file.content.length : 0),
       mimeType: file.mimeType || this.getMimeType(file.filename),
       type: this.getFileType(file.filename),
+      content: file.content, // Include il contenuto del file per la visualizzazione
       references: { external: [], local: [] },
       permissions: [],
       security: { risks: [], warnings: [], info: [] }

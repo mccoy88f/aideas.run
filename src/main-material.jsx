@@ -120,9 +120,14 @@ function AIdeasApp() {
   React.useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
+      console.log('🔄 handlePopState - path:', path);
+      
       // Gestisci sia /store che percorsi con base diversa che terminano con /store
       const isStorePage = path === '/store' || path.endsWith('/store');
       const newRoute = isStorePage ? 'store' : 'apps';
+      
+      console.log('🔄 handlePopState - newRoute:', newRoute);
+      
       setCurrentRoute(newRoute);
       // Sincronizza currentView con la route per il menu laterale
       setCurrentView(newRoute === 'store' ? 'store' : 'all');
@@ -1325,14 +1330,48 @@ function AIdeasApp() {
 
   // Navigazione programmatica
   const navigateToStore = () => {
-    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
-    window.history.pushState(null, '', `${baseUrl}/store`);
+    // Costruisci l'URL corretto per la store
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    
+    // Se siamo già su /store, non fare nulla
+    if (pathname === '/store' || pathname.endsWith('/store')) {
+      setCurrentRoute('store');
+      setCurrentView('store');
+      return;
+    }
+    
+    // Determina il base URL corretto
+    let baseUrl = origin;
+    if (pathname !== '/' && !pathname.endsWith('/')) {
+      // Se siamo in una sottocartella, mantieni il path base
+      const pathParts = pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) {
+        baseUrl = `${origin}/${pathParts[0]}`;
+      }
+    }
+    
+    const storeUrl = `${baseUrl}/store`;
+    window.history.pushState(null, '', storeUrl);
     setCurrentRoute('store');
     setCurrentView('store'); // Sincronizza currentView per il menu laterale
   };
 
   const navigateToApps = () => {
-    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+    // Costruisci l'URL corretto per le apps
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    
+    // Determina il base URL corretto
+    let baseUrl = origin;
+    if (pathname !== '/' && !pathname.endsWith('/')) {
+      // Se siamo in una sottocartella, mantieni il path base
+      const pathParts = pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0 && pathParts[0] !== 'store') {
+        baseUrl = `${origin}/${pathParts[0]}`;
+      }
+    }
+    
     window.history.pushState(null, '', baseUrl || '/');
     setCurrentRoute('apps');
     setCurrentView('all'); // Sincronizza currentView per il menu laterale
