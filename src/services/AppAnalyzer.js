@@ -69,6 +69,9 @@ export default class AppAnalyzer {
         case 'url':
           await this.analyzeUrlApp(app, analysis);
           break;
+        case 'github':
+          await this.analyzeGitHubApp(app, analysis);
+          break;
         default:
           analysis.security.info.push('Tipo di app non supportato per l\'analisi dettagliata');
       }
@@ -233,6 +236,106 @@ export default class AppAnalyzer {
 
     } catch (error) {
       analysis.security.risks.push('URL malformato o non valido');
+    }
+  }
+
+  /**
+   * Analizza un'app GitHub
+   * @param {Object} app - App GitHub
+   * @param {Object} analysis - Oggetto analisi da riempire
+   */
+  async analyzeGitHubApp(app, analysis) {
+    try {
+      const githubUrl = app.url || app.githubUrl;
+      if (!githubUrl) {
+        analysis.security.warnings.push('App GitHub senza URL del repository');
+        return;
+      }
+
+      // Estrai owner e repo dall'URL GitHub
+      const match = githubUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+      if (!match) {
+        analysis.security.risks.push('URL GitHub non valido');
+        return;
+      }
+
+      const [, owner, repo] = match;
+      analysis.metadata.githubOwner = owner;
+      analysis.metadata.githubRepo = repo;
+      analysis.metadata.githubUrl = githubUrl;
+
+      DEBUG.log(`🔍 Analisi app GitHub: ${owner}/${repo}`);
+
+      // Importa GitHubService dinamicamente
+      const { default: GitHubService } = await import('./GitHubService.js');
+      const githubService = new GitHubService();
+
+      // Scarica la lista dei file del repository
+      const files = await this.downloadGitHubFiles(githubService, owner, repo);
+      
+      if (!files || files.length === 0) {
+        analysis.security.warnings.push('Repository GitHub vuoto o inaccessibile');
+        return;
+      }
+
+      analysis.summary.totalFiles = files.length;
+
+      // Analizza ogni file scaricato
+      for (const file of files) {
+        const fileAnalysis = await this.analyzeFile(file);
+        analysis.files.push(fileAnalysis);
+
+        // Aggiorna contatori
+        this.updateSummaryCounters(analysis.summary, fileAnalysis);
+
+        // Estrai riferimenti esterni e locali
+        if (fileAnalysis.references) {
+          analysis.externalReferences.push(...fileAnalysis.references.external);
+          analysis.localReferences.push(...fileAnalysis.references.local);
+        }
+
+        // Aggiungi permessi richiesti
+        if (fileAnalysis.permissions) {
+          analysis.permissions.push(...fileAnalysis.permissions);
+        }
+
+        // Aggiungi problemi di sicurezza
+        if (fileAnalysis.security) {
+          analysis.security.risks.push(...fileAnalysis.security.risks);
+          analysis.security.warnings.push(...fileAnalysis.security.warnings);
+          analysis.security.info.push(...fileAnalysis.security.info);
+        }
+      }
+
+      // Rimuovi duplicati
+      analysis.externalReferences = [...new Set(analysis.externalReferences)];
+      analysis.localReferences = [...new Set(analysis.localReferences)];
+      analysis.permissions = [...new Set(analysis.permissions)];
+      analysis.summary.externalReferences = analysis.externalReferences.length;
+      analysis.summary.localReferences = analysis.localReferences.length;
+
+      // Trova file principale
+      const mainFile = files.find(f => 
+        f.filename.toLowerCase() === 'index.html' ||
+        f.filename.toLowerCase().endsWith('/index.html')
+      );
+
+      if (mainFile) {
+        analysis.metadata.mainFile = mainFile.filename;
+        analysis.metadata.hasMainFile = true;
+      } else {
+        analysis.security.warnings.push('Nessun file index.html trovato nel repository');
+        analysis.metadata.hasMainFile = false;
+      }
+
+      // Aggiungi permessi specifici GitHub
+      analysis.permissions.push('internet-access', 'external-content');
+
+      DEBUG.log(`✅ Analisi GitHub completata: ${files.length} file analizzati`);
+
+    } catch (error) {
+      DEBUG.error('Errore analisi app GitHub:', error);
+      analysis.security.risks.push(`Errore accesso repository GitHub: ${error.message}`);
     }
   }
 
@@ -712,5 +815,121 @@ export default class AppAnalyzer {
 
   clearCache() {
     this.analysisCache.clear();
+  }
+
+  /**
+   * Scarica i file principali da un repository GitHub per l'analisi
+   * @param {GitHubService} githubService - Servizio GitHub
+   * @param {string} owner - Proprietario del repository
+   * @param {string} repo - Nome del repository
+   * @returns {Promise<Array>} Lista file scaricati
+   */
+  async downloadGitHubFiles(githubService, owner, repo) {
+    try {
+      DEBUG.log(`📥 Download file da GitHub: ${owner}/${repo}`);
+
+      // Ottieni la lista dei contenuti del repository
+      const contents = await githubService.getDirectoryContents(owner, repo);
+      
+      if (!contents || contents.length === 0) {
+        DEBUG.warn('Repository vuoto o inaccessibile');
+        return [];
+      }
+
+      const files = [];
+      const importantFiles = ['index.html', 'main.html', 'app.html', 'index.js', 'main.js', 'app.js', 'style.css', 'main.css', 'app.css'];
+      
+      // Prima cerca i file importanti nella root
+      for (const item of contents) {
+        if (item.type === 'file' && this.isImportantFile(item.name, importantFiles)) {
+          try {
+            const fileContent = await githubService.getFileContent(owner, repo, item.path);
+            files.push({
+              filename: item.name,
+              content: fileContent.decodedContent || fileContent.content,
+              size: fileContent.size,
+              mimeType: this.getMimeType(item.name)
+            });
+            DEBUG.log(`📄 Scaricato file importante: ${item.name}`);
+          } catch (error) {
+            DEBUG.warn(`⚠️ Errore download ${item.name}:`, error.message);
+          }
+        }
+      }
+
+      // Se non ci sono file importanti, scarica almeno index.html se esiste
+      if (files.length === 0) {
+        const indexFile = contents.find(item => item.type === 'file' && item.name.toLowerCase() === 'index.html');
+        if (indexFile) {
+          try {
+            const fileContent = await githubService.getFileContent(owner, repo, indexFile.path);
+            files.push({
+              filename: indexFile.name,
+              content: fileContent.decodedContent || fileContent.content,
+              size: fileContent.size,
+              mimeType: this.getMimeType(indexFile.name)
+            });
+            DEBUG.log(`📄 Scaricato index.html di fallback`);
+          } catch (error) {
+            DEBUG.warn(`⚠️ Errore download index.html:`, error.message);
+          }
+        }
+      }
+
+      // Se ancora non ci sono file, scarica i primi 5 file di testo dalla root
+      if (files.length === 0) {
+        let downloaded = 0;
+        for (const item of contents) {
+          if (downloaded >= 5) break;
+          if (item.type === 'file' && this.isTextFile(item.name)) {
+            try {
+              const fileContent = await githubService.getFileContent(owner, repo, item.path);
+              files.push({
+                filename: item.name,
+                content: fileContent.decodedContent || fileContent.content,
+                size: fileContent.size,
+                mimeType: this.getMimeType(item.name)
+              });
+              downloaded++;
+              DEBUG.log(`📄 Scaricato file di fallback: ${item.name}`);
+            } catch (error) {
+              DEBUG.warn(`⚠️ Errore download ${item.name}:`, error.message);
+            }
+          }
+        }
+      }
+
+      DEBUG.log(`✅ Download completato: ${files.length} file scaricati`);
+      return files;
+
+    } catch (error) {
+      DEBUG.error('Errore download file GitHub:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Verifica se un file è considerato importante per l'analisi
+   * @param {string} filename - Nome del file
+   * @param {Array} importantFiles - Lista file importanti
+   * @returns {boolean} Se il file è importante
+   */
+  isImportantFile(filename, importantFiles) {
+    const lowerName = filename.toLowerCase();
+    return importantFiles.some(important => lowerName === important) || 
+           lowerName.endsWith('.html') || 
+           lowerName.endsWith('.js') || 
+           lowerName.endsWith('.css');
+  }
+
+  /**
+   * Verifica se un file è di tipo testo
+   * @param {string} filename - Nome del file
+   * @returns {boolean} Se il file è di testo
+   */
+  isTextFile(filename) {
+    const textExtensions = ['html', 'htm', 'js', 'jsx', 'ts', 'tsx', 'css', 'scss', 'sass', 'json', 'xml', 'txt', 'md', 'readme'];
+    const extension = filename.split('.').pop().toLowerCase();
+    return textExtensions.includes(extension);
   }
 } 

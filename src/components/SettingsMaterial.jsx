@@ -83,6 +83,7 @@ const SettingsMaterial = ({
   const [localSettings, setLocalSettings] = useState(settings);
   const [activeSection, setActiveSection] = useState('general');
   const [hasChanges, setHasChanges] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   // Hook per lo stato di sincronizzazione
   const {
@@ -236,19 +237,23 @@ const SettingsMaterial = ({
     }
   };
 
-  const handleResetSettings = async () => {
+  const handleResetSettings = () => {
+    setResetConfirmOpen(true);
+  };
+
+  const handleConfirmReset = async (deleteApps = false) => {
     try {
       // Reset impostazioni
       await StorageService.setAllSettings({});
       
-      // Reset app (opzionale - chiedi conferma)
-      const confirmed = window.confirm('Vuoi anche eliminare tutte le app?');
-      if (confirmed) {
+      // Reset app se richiesto
+      if (deleteApps) {
         await StorageService.clearAllApps();
       }
       
       showToast('Impostazioni ripristinate', 'success');
       setLocalSettings({});
+      setResetConfirmOpen(false);
       
     } catch (error) {
       console.error('Errore reset impostazioni:', error);
@@ -1116,6 +1121,7 @@ const SettingsMaterial = ({
   };
 
   return (
+    <>
     <Dialog
       open={open}
       onClose={handleCancel}
@@ -1248,6 +1254,39 @@ const SettingsMaterial = ({
         </Button>
       </DialogActions>
     </Dialog>
+
+    {/* Dialog conferma reset */}
+    <Dialog
+      open={resetConfirmOpen}
+      onClose={() => setResetConfirmOpen(false)}
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <DeleteIcon color="warning" />
+        Reset Impostazioni
+      </DialogTitle>
+      <DialogContent>
+        <Typography gutterBottom>
+          Sei sicuro di voler ripristinare tutte le impostazioni ai valori predefiniti?
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Vuoi anche eliminare tutte le app installate?
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setResetConfirmOpen(false)} color="inherit">
+          Annulla
+        </Button>
+        <Button onClick={() => handleConfirmReset(false)} color="warning">
+          Solo Impostazioni
+        </Button>
+        <Button onClick={() => handleConfirmReset(true)} color="error" variant="contained">
+          Reset Completo
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 };
 

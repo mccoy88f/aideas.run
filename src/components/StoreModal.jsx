@@ -133,10 +133,40 @@ const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
 
 
   const isAppInstalled = (storeApp) => {
-    return installedApps.some(installedApp => 
-      installedApp.storeId === storeApp.storeId || 
-      (installedApp.githubUrl && storeApp.githubUrl && installedApp.githubUrl === storeApp.githubUrl)
-    );
+    // Controlla tramite uniqueId (formato: nome.autore) per identificazione univoca
+    const storeAppUniqueId = `${storeApp.name}.${storeApp.author}`.toLowerCase().replace(/\s+/g, '');
+    
+    return installedApps.some(installedApp => {
+      // Controlla uniqueId se esiste
+      if (installedApp.uniqueId && storeApp.name && storeApp.author) {
+        const installedUniqueId = installedApp.uniqueId.toLowerCase().replace(/\s+/g, '');
+        if (installedUniqueId === storeAppUniqueId) {
+          return true;
+        }
+      }
+      
+      // Fallback: controlla URL GitHub
+      if (installedApp.githubUrl && storeApp.githubUrl && 
+          installedApp.githubUrl === storeApp.githubUrl) {
+        return true;
+      }
+      
+      // Fallback: controlla originalGithubUrl
+      if (installedApp.originalGithubUrl && storeApp.githubUrl && 
+          installedApp.originalGithubUrl === storeApp.githubUrl) {
+        return true;
+      }
+      
+      // Fallback: controlla nome + autore (meno preciso)
+      if (installedApp.name && installedApp.author && storeApp.name && storeApp.author) {
+        const installedNameAuthor = `${installedApp.name}.${installedApp.author}`.toLowerCase().replace(/\s+/g, '');
+        if (installedNameAuthor === storeAppUniqueId) {
+          return true;
+        }
+      }
+      
+            return false;
+    });
   };
 
   const filterApps = () => {
@@ -499,7 +529,7 @@ const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
                   </Box>
                 </CardContent>
 
-                <CardActions>
+                <CardActions sx={{ p: 0, flexDirection: 'column' }}>
                   {isAppInstalled(app) ? (
                     <Button
                       fullWidth
@@ -507,19 +537,52 @@ const StoreModal = ({ open, onClose, onAppInstalled, installedApps = [] }) => {
                       color="success"
                       startIcon={<CheckCircleIcon />}
                       disabled
+                      sx={{ m: 2, mb: 1 }}
                     >
                       Già Installata
                     </Button>
                   ) : (
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      startIcon={installingApp === app.id ? <CircularProgress size={16} /> : <DownloadIcon />}
-                      onClick={() => handleInstallApp(app)}
-                      disabled={installingApp === app.id}
-                    >
-                      {installingApp === app.id ? 'Installazione...' : 'Installa'}
-                    </Button>
+                    <Box sx={{ width: '100%', position: 'relative' }}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        startIcon={installingApp === app.id ? <CircularProgress size={16} /> : <DownloadIcon />}
+                        onClick={() => handleInstallApp(app)}
+                        disabled={installingApp === app.id}
+                        sx={{ 
+                          m: 2, 
+                          mb: installingApp === app.id ? 1 : 2,
+                          borderBottomLeftRadius: installingApp === app.id ? 0 : undefined,
+                          borderBottomRightRadius: installingApp === app.id ? 0 : undefined
+                        }}
+                      >
+                        {installingApp === app.id ? 'Installazione...' : 'Installa'}
+                      </Button>
+                      {installingApp === app.id && (
+                        <Box sx={{ 
+                          position: 'absolute',
+                          bottom: 8,
+                          left: 16,
+                          right: 16,
+                          height: 4,
+                          bgcolor: 'rgba(255,255,255,0.3)',
+                          borderRadius: 2,
+                          overflow: 'hidden'
+                        }}>
+                          <Box sx={{
+                            height: '100%',
+                            bgcolor: 'white',
+                            borderRadius: 2,
+                            animation: 'loading-bar 1.5s ease-in-out infinite',
+                            '@keyframes loading-bar': {
+                              '0%': { width: '0%', transform: 'translateX(-100%)' },
+                              '50%': { width: '100%', transform: 'translateX(0%)' },
+                              '100%': { width: '0%', transform: 'translateX(100%)' }
+                            }
+                          }} />
+                        </Box>
+                      )}
+                    </Box>
                   )}
                 </CardActions>
               </Card>

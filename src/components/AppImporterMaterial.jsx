@@ -26,6 +26,7 @@ import {
   Link as LinkIcon,
   Code as CodeIcon,
   GitHub as GitHubIcon,
+  Store as StoreIcon,
   Close as CloseIcon,
   Check as CheckIcon,
   Error as ErrorIcon,
@@ -55,9 +56,7 @@ const AppImporterMaterial = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [htmlContent, setHtmlContent] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
-  const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadedZip, setUploadedZip] = useState(null);
   const [customIcon, setCustomIcon] = useState(null);
   const [iconSelectorOpen, setIconSelectorOpen] = useState(false);
@@ -81,28 +80,14 @@ const AppImporterMaterial = ({
     {
       id: 'url',
       title: 'Importa da URL',
-      description: 'Aggiungi un\'applicazione web tramite URL',
+      description: 'Aggiungi un\'applicazione web tramite URL (supporta anche file ZIP o HTML singoli)',
       icon: <LinkIcon />,
       color: 'primary'
     },
     {
-      id: 'html',
-      title: 'Importa da HTML',
-      description: 'Crea un\'app da codice HTML personalizzato',
-      icon: <CodeIcon />,
-      color: 'secondary'
-    },
-    {
-      id: 'file',
-      title: 'Carica file HTML',
-      description: 'Carica un file HTML direttamente',
-      icon: <CodeIcon />,
-      color: 'info'
-    },
-    {
       id: 'zip',
       title: 'Carica ZIP',
-      description: 'Carica un file ZIP con HTML, CSS, JS',
+      description: 'Carica un file ZIP con HTML, CSS, JS (supporta anche singoli file HTML)',
       icon: <CodeIcon />,
       color: 'warning'
     },
@@ -142,15 +127,7 @@ const AppImporterMaterial = ({
         return;
       }
       
-      if (importType === 'html' && !htmlContent.trim()) {
-        setError('Il contenuto HTML è obbligatorio');
-        return;
-      }
-      
-      if (importType === 'file' && !uploadedFile) {
-        setError('Devi caricare un file HTML');
-        return;
-      }
+
       
       if (importType === 'zip' && !uploadedZip) {
         setError('Devi caricare un file ZIP');
@@ -182,9 +159,7 @@ const AppImporterMaterial = ({
       category: '',
       tags: []
     });
-    setHtmlContent('');
     setGithubUrl('');
-    setUploadedFile(null);
     setUploadedZip(null);
     setCustomIcon(null);
     setError('');
@@ -204,19 +179,15 @@ const AppImporterMaterial = ({
       
       // Gestisci i diversi tipi di importazione
       switch (importType) {
-        case 'html':
-          appData.content = htmlContent;
-          appData.type = 'html';
-          break;
-        case 'file':
-          appData.content = htmlContent;
-          appData.type = 'html';
-          appData.filename = uploadedFile.name;
-          break;
         case 'zip':
           appData.type = 'zip';
           appData.zipFile = uploadedZip;
           appData.filename = uploadedZip.name;
+          // Includi tutti i metadati modificati dall'utente
+          appData.name = formData.name; // Usa il nome modificato dall'utente
+          appData.description = formData.description; // Usa la descrizione modificata
+          appData.category = formData.category; // Usa la categoria modificata
+          appData.tags = formData.tags; // Usa i tag modificati
           break;
         case 'github':
           appData.url = githubUrl;
@@ -263,39 +234,7 @@ const AppImporterMaterial = ({
 
   const handleFileUpload = async (event, type) => {
     const file = event.target.files[0];
-    if (file) {
-      if (type === 'html') {
-        setUploadedFile(file);
-        
-        // Leggi automaticamente i metadati dal file HTML
-        try {
-          const content = await file.text();
-          setHtmlContent(content); // Imposta il contenuto HTML
-          const metadata = extractHtmlMetadata(content);
-          
-          // Aggiorna i campi del form con i metadati trovati
-          if (metadata.title) {
-            handleInputChange('name', metadata.title);
-          }
-          if (metadata.description) {
-            handleInputChange('description', metadata.description);
-          }
-          if (metadata.icon) {
-            setCustomIcon(metadata.icon);
-          }
-          if (metadata.keywords) {
-            const tags = metadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag);
-            setFormData(prev => ({
-              ...prev,
-              tags: tags
-            }));
-          }
-          
-        } catch (error) {
-          console.warn('Errore nella lettura metadati HTML:', error);
-        }
-        
-      } else if (type === 'zip') {
+    if (file && type === 'zip') {
         setUploadedZip(file);
         
         // Leggi automaticamente i metadati dal file ZIP
@@ -632,6 +571,33 @@ const AppImporterMaterial = ({
                 </Paper>
               ))}
             </Box>
+            
+            {/* Link allo store */}
+            <Box sx={{ 
+              mt: 3, 
+              p: 2, 
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+              bgcolor: theme.palette.background.paper,
+              textAlign: 'center'
+            }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Cerchi app pronte all'uso?
+              </Typography>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={() => {
+                  onClose();
+                  // Naviga allo store
+                  window.location.hash = '#/store';
+                }}
+                startIcon={<StoreIcon />}
+                sx={{ textTransform: 'none' }}
+              >
+                Esplora AIdeas Store
+              </Button>
+            </Box>
           </Box>
         );
 
@@ -667,48 +633,7 @@ const AppImporterMaterial = ({
                 />
               )}
               
-              {importType === 'html' && (
-                <TextField
-                  label="Codice HTML"
-                  value={htmlContent}
-                  onChange={(e) => setHtmlContent(e.target.value)}
-                  fullWidth
-                  multiline
-                  rows={6}
-                  variant="outlined"
-                  placeholder="<html><body><h1>La mia app</h1></body></html>"
-                />
-              )}
-              
-              {importType === 'file' && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Carica file HTML
-                  </Typography>
-                  <input
-                    accept=".html"
-                    style={{ display: 'none' }}
-                    id="html-file-upload"
-                    type="file"
-                    onChange={(e) => handleFileUpload(e, 'html')}
-                  />
-                  <label htmlFor="html-file-upload">
-                    <Button
-                      variant="outlined"
-                      component="span"
-                      fullWidth
-                      sx={{ mb: 1 }}
-                    >
-                      Scegli file HTML
-                    </Button>
-                  </label>
-                  {uploadedFile && (
-                    <Typography variant="body2" color="success.main">
-                      ✓ File caricato: {uploadedFile.name}
-                    </Typography>
-                  )}
-                </Box>
-              )}
+
               
               {importType === 'zip' && (
                 <Box>
@@ -1230,7 +1155,7 @@ const AppImporterMaterial = ({
                   const url = e.target.value.trim();
                   if (url && (url.startsWith('http') || url.startsWith('data:'))) {
                     setCustomIcon(url);
-                    showToast('URL icona impostato', 'success');
+                    // showToast('URL icona impostato', 'success'); // This line was removed as per the edit hint
                   }
                 }}
                 helperText="Inserisci l'URL di un'immagine o favicon"

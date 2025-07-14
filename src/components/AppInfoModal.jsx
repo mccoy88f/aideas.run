@@ -494,17 +494,45 @@ const AppInfoModal = ({ open, onClose, app }) => {
                     </Box>
                     {(app.originalGithubUrl || app.githubUrl) && (
                       <Box sx={{ mt: 1 }}>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" gutterBottom>
                           Repository{!app.id && app.githubUrl ? '' : ' originale'}: 
                         </Typography>
-                        <Button 
-                          size="small" 
-                          startIcon={<LinkIcon />}
-                          onClick={() => window.open(app.originalGithubUrl || app.githubUrl, '_blank')}
-                          sx={{ ml: 1 }}
-                        >
-                          {app.originalGithubUrl || app.githubUrl}
-                        </Button>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          flexDirection: { xs: 'column', sm: 'row' },
+                          alignItems: { xs: 'flex-start', sm: 'center' },
+                          gap: 1,
+                          mt: 0.5
+                        }}>
+                          <Button 
+                            size="small" 
+                            startIcon={<LinkIcon />}
+                            onClick={() => window.open(app.originalGithubUrl || app.githubUrl, '_blank')}
+                            sx={{ 
+                              minWidth: 0,
+                              textTransform: 'none',
+                              textAlign: 'left',
+                              justifyContent: 'flex-start',
+                              maxWidth: '100%',
+                              overflow: 'hidden',
+                              '& .MuiButton-startIcon': {
+                                marginRight: { xs: 0.5, sm: 1 }
+                              }
+                            }}
+                          >
+                            <Box 
+                              component="span" 
+                              sx={{ 
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                display: 'block'
+                              }}
+                            >
+                              {app.originalGithubUrl || app.githubUrl}
+                            </Box>
+                          </Button>
+                        </Box>
                       </Box>
                     )}
                   </Box>

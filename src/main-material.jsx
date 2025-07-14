@@ -47,6 +47,7 @@ import {
   LightMode as LightModeIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
+  Error as ErrorIcon,
   List as ListIcon,
     ViewList as ViewListIcon,
   OpenInNew as OpenInNewIcon,
@@ -108,6 +109,8 @@ function AIdeasApp() {
   const [faviconUrl, setFaviconUrl] = React.useState('');
   const [appInfoModalOpen, setAppInfoModalOpen] = React.useState(false);
   const [appInfoData, setAppInfoData] = React.useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [appToDelete, setAppToDelete] = React.useState(null);
 
   // Routing state
   const [currentRoute, setCurrentRoute] = React.useState(() => {
@@ -780,6 +783,27 @@ function AIdeasApp() {
       console.error('Errore eliminazione app:', error);
       showToast('Errore nell\'eliminazione dell\'applicazione', 'error');
     }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!appToDelete) return;
+    
+    try {
+      await StorageService.deleteApp(appToDelete.id);
+      await loadApps(); // Ricarica le app
+      setSelectedApp(null);
+      setDeleteConfirmOpen(false);
+      setAppToDelete(null);
+      showToast('App eliminata con successo', 'success');
+    } catch (error) {
+      console.error('Errore eliminazione app:', error);
+      showToast('Errore durante l\'eliminazione', 'error');
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setAppToDelete(null);
   };
 
   // Removed PWA handlers - functionality not implemented
@@ -2121,19 +2145,9 @@ function AIdeasApp() {
           <DialogActions>
             <Button 
               color="error"
-              onClick={async () => {
-                const confirmed = window.confirm(`Sei sicuro di voler eliminare l'app "${selectedApp.name}"? Questa azione non può essere annullata.`);
-                if (confirmed) {
-                  try {
-                    await StorageService.deleteApp(selectedApp.id);
-                    await loadApps(); // Ricarica le app
-                    setSelectedApp(null);
-                    showToast('App eliminata con successo', 'success');
-                  } catch (error) {
-                    console.error('Errore eliminazione app:', error);
-                    showToast('Errore durante l\'eliminazione', 'error');
-                  }
-                }
+              onClick={() => {
+                setAppToDelete(selectedApp);
+                setDeleteConfirmOpen(true);
               }}
             >
               Elimina
@@ -2494,7 +2508,31 @@ function AIdeasApp() {
         app={appInfoData}
       />
 
-
+      {/* Dialog conferma cancellazione */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={handleCancelDelete}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ErrorIcon color="error" />
+          Elimina App
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Sei sicuro di voler eliminare "{appToDelete?.name}"? Questa azione non può essere annullata.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDelete} color="inherit">
+            Annulla
+          </Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">
+            Elimina
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   );
