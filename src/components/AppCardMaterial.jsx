@@ -89,8 +89,7 @@ const AppCardMaterial = ({
             style={{ 
               width: '100%', 
               height: '100%', 
-              objectFit: 'cover',
-              borderRadius: '50%'
+              objectFit: 'cover'
             }}
             onError={(e) => {
               e.target.style.display = 'none';
@@ -174,21 +173,20 @@ const AppCardMaterial = ({
         <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
           <Avatar
             sx={{
-              width: 56, // Ripristino dimensione originale
+              width: 56,
               height: 56,
               mr: 2,
-              background: app.icon && !isEmoji(app.icon) ? 'transparent' : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-              fontSize: '1.2rem', // Ripristino dimensione originale
+              background: 'transparent',
+              fontSize: '1.2rem',
               fontWeight: 600,
-              boxShadow: `0 4px 12px ${theme.palette.primary.main}33`,
               position: 'relative',
-              cursor: 'pointer', // Aggiungi cursore pointer per indicare che è cliccabile
+              cursor: 'pointer',
               '&:hover': {
                 transform: 'scale(1.05)',
                 transition: 'transform 0.2s ease'
               }
             }}
-            onClick={() => onLaunch(app.id)} // L'icona avvia sempre l'app
+            onClick={() => onLaunch(app.id)}
           >
             {getAppIcon(app)}
           </Avatar>

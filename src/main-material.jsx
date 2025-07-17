@@ -941,8 +941,7 @@ function AIdeasApp() {
             style={{ 
               width: '100%', 
               height: '100%', 
-              objectFit: 'cover',
-              borderRadius: '50%'
+              objectFit: 'cover'
             }}
             onError={(e) => {
               e.target.style.display = 'none';
@@ -1769,14 +1768,14 @@ function AIdeasApp() {
                     width: 48, 
                     height: 48, 
                     mr: 2,
-                    background: app.icon && !app.icon.startsWith('http') && !app.icon.startsWith('data:') ? 'transparent' : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                    cursor: 'pointer', // Aggiungi cursore pointer per indicare che è cliccabile
+                    background: 'transparent',
+                    cursor: 'pointer',
                     '&:hover': {
                       transform: 'scale(1.05)',
                       transition: 'transform 0.2s ease'
                     }
                   }}
-                  onClick={() => handleLaunchApp(app.id)} // L'icona avvia sempre l'app
+                  onClick={() => handleLaunchApp(app.id)}
                 >
                   {getAppIcon(app)}
                 </Avatar>
@@ -1869,12 +1868,9 @@ function AIdeasApp() {
                   sx={{
                     width: 56,
                     height: 56,
-                    background: app.icon && !app.icon.startsWith('http') && !app.icon.startsWith('data:') ? 'transparent' : (app.favorite 
-                      ? `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`
-                      : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`),
+                    background: 'transparent',
                     fontSize: '1.2rem',
                     fontWeight: 'bold',
-                    border: app.favorite ? `2px solid ${theme.palette.secondary.main}` : 'none',
                     position: 'relative'
                   }}
                 >

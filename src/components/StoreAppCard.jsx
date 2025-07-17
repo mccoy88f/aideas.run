@@ -82,8 +82,7 @@ const StoreAppCard = ({
               width: 48, 
               height: 48, 
               fontSize: '24px',
-              bgcolor: 'transparent',
-              border: `2px solid ${theme.palette.grey[300]}`
+              bgcolor: 'transparent'
             }}
           >
             {app.icon}
@@ -95,8 +94,7 @@ const StoreAppCard = ({
             src={app.icon}
             sx={{ 
               width: 48, 
-              height: 48,
-              border: `2px solid ${theme.palette.grey[300]}`
+              height: 48
             }}
           />
         );
@@ -108,8 +106,7 @@ const StoreAppCard = ({
         sx={{ 
           width: 48, 
           height: 48, 
-          bgcolor: theme.palette.primary.main,
-          border: `2px solid ${theme.palette.grey[300]}`
+          bgcolor: theme.palette.primary.main
         }}
       >
         {getInitials(app.name)}
