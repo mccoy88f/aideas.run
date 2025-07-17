@@ -97,15 +97,19 @@ const AppInfoModal = ({ open, onClose, app }) => {
         // Crea un oggetto app temporaneo per l'analisi con i dati dello store
         appToAnalyze = {
           ...app,
+          id: app.storeId || app.githubUrl, // Usa storeId o githubUrl come ID temporaneo
           type: 'github', // Le app dello store sono su GitHub
           url: app.githubUrl,
+          source: 'store', // Marca esplicitamente come app dello store
           // Mantieni i metadati originali
           name: app.name,
           description: app.description,
           author: app.author,
           category: app.category,
           tags: app.tags,
-          icon: app.icon
+          icon: app.icon,
+          version: app.version,
+          lastModified: app.lastModified
         };
         
         console.log('🔗 Uso dati GitHub per analisi:', appToAnalyze.url);
@@ -517,8 +521,8 @@ const AppInfoModal = ({ open, onClose, app }) => {
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                       <Chip 
                         label={
-                          app.source === 'store' ? 'Store AIdeas' : 
-                          (!app.id && app.githubUrl) ? 'Store AIdeas (Non installata)' : 
+                          app.source === 'store' || (!app.id && app.githubUrl) ? 'Store AIdeas' : 
+                          app.source === 'manual' ? 'Installazione Manuale' :
                           'Installazione Manuale'
                         } 
                         color={
@@ -534,6 +538,9 @@ const AppInfoModal = ({ open, onClose, app }) => {
                       )}
                       {app.uniqueId && (
                         <Chip label={`ID: ${app.uniqueId}`} variant="outlined" size="small" />
+                      )}
+                      {app.version && (
+                        <Chip label={`v${app.version}`} variant="outlined" size="small" />
                       )}
                     </Box>
                     {(app.originalGithubUrl || app.githubUrl) && (

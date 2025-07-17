@@ -157,10 +157,42 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
   };
 
   const isAppInstalled = (storeApp) => {
-    return installedApps.some(installedApp => 
-      installedApp.storeId === storeApp.storeId || 
-      (installedApp.githubUrl && storeApp.githubUrl && installedApp.githubUrl === storeApp.githubUrl)
-    );
+    // Debug per capire cosa stiamo confrontando
+    console.log('🔍 Controllo se app installata:', {
+      storeApp: {
+        name: storeApp.name,
+        storeId: storeApp.storeId,
+        githubUrl: storeApp.githubUrl
+      },
+      installedApps: installedApps.map(app => ({
+        name: app.name,
+        storeId: app.storeId,
+        githubUrl: app.githubUrl,
+        source: app.source
+      }))
+    });
+    
+    return installedApps.some(installedApp => {
+      // Controlla per storeId (metodo principale)
+      if (storeApp.storeId && installedApp.storeId && storeApp.storeId === installedApp.storeId) {
+        console.log(`✅ Match per storeId: ${storeApp.name}`);
+        return true;
+      }
+      
+      // Controlla per githubUrl (fallback)
+      if (storeApp.githubUrl && installedApp.githubUrl && storeApp.githubUrl === installedApp.githubUrl) {
+        console.log(`✅ Match per githubUrl: ${storeApp.name}`);
+        return true;
+      }
+      
+      // Controlla per nome e autore (fallback aggiuntivo)
+      if (storeApp.name === installedApp.name && storeApp.author === installedApp.author) {
+        console.log(`✅ Match per nome e autore: ${storeApp.name}`);
+        return true;
+      }
+      
+      return false;
+    });
   };
 
   const filterApps = () => {
