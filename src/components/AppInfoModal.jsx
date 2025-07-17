@@ -48,7 +48,6 @@ import {
   Link as LinkIcon
 } from '@mui/icons-material';
 import AppAnalyzer from '../services/AppAnalyzer.js';
-import { storeService } from '../services/StoreService.js';
 import { showToast } from '../utils/helpers.js';
 import StorageService from '../services/StorageService.js';
 
@@ -63,6 +62,7 @@ const AppInfoModal = ({ open, onClose, app }) => {
   const [fileViewOpen, setFileViewOpen] = useState(false);
   const [submittingToStore, setSubmittingToStore] = useState(false);
   const [shareMenuAnchor, setShareMenuAnchor] = useState(null);
+  const [submitInstructionsOpen, setSubmitInstructionsOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     overview: true,
     files: false,
@@ -92,30 +92,23 @@ const AppInfoModal = ({ open, onClose, app }) => {
       let appToAnalyze = app;
       
       if (isStoreApp) {
-        console.log('📦 App dello store rilevata, scarico dati completi...');
-        // Scarica i dati completi dell'app dallo store
-        const { storeService } = await import('../services/StoreService.js');
+        console.log('📦 App dello store rilevata, uso metadati disponibili...');
         
-        try {
-          // Crea un oggetto app temporaneo per l'analisi con i dati dello store
-          appToAnalyze = {
-            ...app,
-            type: 'github', // Le app dello store sono su GitHub
-            url: app.githubUrl,
-            // Mantieni i metadati originali
-            name: app.name,
-            description: app.description,
-            author: app.author,
-            category: app.category,
-            tags: app.tags,
-            icon: app.icon
-          };
-          
-          console.log('🔗 Uso dati GitHub per analisi:', appToAnalyze.url);
-        } catch (error) {
-          console.warn('⚠️ Errore scaricamento dati store, uso metadati disponibili:', error);
-          // In caso di errore, usa i metadati disponibili
-        }
+        // Crea un oggetto app temporaneo per l'analisi con i dati dello store
+        appToAnalyze = {
+          ...app,
+          type: 'github', // Le app dello store sono su GitHub
+          url: app.githubUrl,
+          // Mantieni i metadati originali
+          name: app.name,
+          description: app.description,
+          author: app.author,
+          category: app.category,
+          tags: app.tags,
+          icon: app.icon
+        };
+        
+        console.log('🔗 Uso dati GitHub per analisi:', appToAnalyze.url);
       }
       
       const result = await analyzer.analyzeApp(appToAnalyze);
@@ -180,25 +173,8 @@ const AppInfoModal = ({ open, onClose, app }) => {
   const handleSubmitToStore = async () => {
     if (!app) return;
     
-    setSubmittingToStore(true);
-    
-    try {
-      console.log(`📤 Sottomissione app ${app.name} allo store...`);
-      const prData = await storeService.submitAppToStore(app);
-      
-      showToast(`App ${app.name} sottoposta allo store! Pull request creata.`, 'success');
-      
-      // Apri la pull request in una nuova finestra
-      if (prData.html_url) {
-        window.open(prData.html_url, '_blank');
-      }
-      
-    } catch (error) {
-      console.error('❌ Errore sottomissione store:', error);
-      showToast(`Errore sottomissione: ${error.message}`, 'error');
-    } finally {
-      setSubmittingToStore(false);
-    }
+    // Invece di tentare l'automazione, mostra le istruzioni manuali
+    setSubmitInstructionsOpen(true);
   };
 
   const handleShareMenuOpen = (event) => {
@@ -794,15 +770,15 @@ const AppInfoModal = ({ open, onClose, app }) => {
           >
             Condividi
           </Button>
-          {app && app.type !== 'store' && (
+          {/* Pulsante "Sottometti allo Store" solo per app installate manualmente */}
+          {app && app.source === 'manual' && (
             <Button
               onClick={handleSubmitToStore}
               variant="contained"
-              startIcon={submittingToStore ? <CircularProgress size={16} /> : <StoreIcon />}
-              disabled={submittingToStore}
+              startIcon={<StoreIcon />}
               color="secondary"
             >
-              {submittingToStore ? 'Sottomissione...' : 'Sottometti allo Store'}
+              Sottometti allo Store
             </Button>
           )}
 
@@ -814,12 +790,15 @@ const AppInfoModal = ({ open, onClose, app }) => {
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
           >
-            <MenuItem onClick={handleShareStoreLink}>
-              <ListItemIcon>
-                <LinkIcon />
-              </ListItemIcon>
-              <ListItemText primary="Link Store" secondary="Copia link per cercare nello store" />
-            </MenuItem>
+            {/* Link Store solo per app dello store */}
+            {app && app.source === 'store' && (
+              <MenuItem onClick={handleShareStoreLink}>
+                <ListItemIcon>
+                  <LinkIcon />
+                </ListItemIcon>
+                <ListItemText primary="Link Store" secondary="Copia link per cercare nello store" />
+              </MenuItem>
+            )}
             <MenuItem onClick={handleDownloadZip}>
               <ListItemIcon>
                 <GetAppIcon />
@@ -863,6 +842,102 @@ const AppInfoModal = ({ open, onClose, app }) => {
         <DialogActions>
           <Button onClick={() => setFileViewOpen(false)}>
             Chiudi
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal istruzioni sottomissione manuale */}
+      <Dialog
+        open={submitInstructionsOpen}
+        onClose={() => setSubmitInstructionsOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <StoreIcon color="secondary" />
+            <Typography variant="h6">
+              Sottometti App allo Store - Istruzioni Manuali
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 3 }}>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                Per sottomettere la tua app allo store AIdeas, segui questi passaggi manuali:
+              </Typography>
+            </Alert>
+            
+            <Typography variant="h6" gutterBottom>
+              Passo 1: Scarica il file ZIP
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Usa il pulsante "Download ZIP" dal menu Condividi per scaricare la tua app come file ZIP.
+            </Typography>
+            
+            <Typography variant="h6" gutterBottom>
+              Passo 2: Fork del repository
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Vai su <a href="https://github.com/mccoy88f/aideas.store" target="_blank" rel="noopener noreferrer">github.com/mccoy88f/aideas.store</a> e clicca su "Fork" per creare una copia del repository nel tuo account GitHub.
+            </Typography>
+            
+            <Typography variant="h6" gutterBottom>
+              Passo 3: Crea una nuova cartella
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Nel tuo fork, vai nella cartella <code>apps/</code> e crea una nuova cartella con un nome univoco per la tua app (es. <code>mia-app-nome</code>).
+            </Typography>
+            
+            <Typography variant="h6" gutterBottom>
+              Passo 4: Carica i file
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Estrai il contenuto del file ZIP nella nuova cartella. Assicurati che ci sia un file <code>aideas.json</code> con i metadati dell'app.
+            </Typography>
+            
+            <Typography variant="h6" gutterBottom>
+              Passo 5: Commit e Push
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Fai commit delle modifiche e push al tuo fork con un messaggio descrittivo come "Add app: [Nome App]".
+            </Typography>
+            
+            <Typography variant="h6" gutterBottom>
+              Passo 6: Crea Pull Request
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Vai sul tuo fork su GitHub e clicca su "Compare & pull request" per creare una pull request al repository originale.
+            </Typography>
+            
+            <Typography variant="h6" gutterBottom>
+              Passo 7: Attendi l'approvazione
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              La tua app verrà revisionata e, se approvata, sarà aggiunta allo store AIdeas.
+            </Typography>
+          </Box>
+          
+          <Alert severity="warning">
+            <Typography variant="body2">
+              <strong>Nota:</strong> Assicurati che la tua app sia funzionante e non contenga contenuti inappropriati o dannosi.
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSubmitInstructionsOpen(false)}>
+            Ho capito
+          </Button>
+          <Button 
+            onClick={() => {
+              setSubmitInstructionsOpen(false);
+              handleDownloadZip();
+            }}
+            variant="contained"
+            startIcon={<GetAppIcon />}
+          >
+            Scarica ZIP ora
           </Button>
         </DialogActions>
       </Dialog>
