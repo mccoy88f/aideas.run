@@ -859,10 +859,16 @@ function AIdeasApp() {
         // Estrai metadati dal manifest o dai file
         const metadata = extractZipMetadata(files, manifest);
         
-        // Prepara i dati dell'app
+        // Prepara i dati dell'app - RISPETTA le modifiche dell'utente
         processedAppData = {
           ...appData,
-          ...metadata,
+          // Usa i metadati estratti solo se l'utente non ha modificato i campi
+          name: appData.name || metadata.name,
+          description: appData.description || metadata.description,
+          category: appData.category || metadata.category,
+          tags: appData.tags?.length > 0 ? appData.tags : metadata.tags,
+          icon: appData.icon || metadata.icon,
+          author: appData.author || metadata.author,
           files: files,
           manifest: manifest || {}
         };
@@ -1517,7 +1523,7 @@ function AIdeasApp() {
         onDrawerToggle={() => setDrawerOpen((open) => !open)}
         onSettingsOpen={() => setSettingsDialogOpen(true)}
         onSyncManagerOpen={() => setSyncManagerOpen(true)}
-        onThemeToggle={handleThemeToggle}
+
         currentView={currentView}
         onViewChange={handleViewChange}
         favoriteCount={apps.filter(a => a.favorite).length}

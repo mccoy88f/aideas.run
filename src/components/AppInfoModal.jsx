@@ -214,7 +214,7 @@ const AppInfoModal = ({ open, onClose, app }) => {
     
     // Genera link di ricerca nello store basato su uniqueId o nome
     const searchTerm = app.uniqueId || `${app.name} ${app.author || ''}`.trim();
-    const storeUrl = `${window.location.origin}${window.location.pathname}#/store?search=${encodeURIComponent(searchTerm)}`;
+    const storeUrl = `${window.location.origin}/store?search=${encodeURIComponent(searchTerm)}`;
     
     // Copia negli appunti
     navigator.clipboard.writeText(storeUrl).then(() => {
@@ -232,12 +232,6 @@ const AppInfoModal = ({ open, onClose, app }) => {
     try {
       console.log(`📦 Download ZIP per app ${app.name}...`);
       
-      // Ottieni i dati dell'app con i file
-      const appData = await StorageService.getAppWithFiles(app.id);
-      if (!appData || !appData.files || appData.files.length === 0) {
-        throw new Error('Nessun file disponibile per il download');
-      }
-      
       // Crea ZIP usando JSZip
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
@@ -251,15 +245,47 @@ const AppInfoModal = ({ open, onClose, app }) => {
         category: app.category,
         tags: app.tags || [],
         icon: app.icon,
-        appFormat: 'unzipped',
+        appFormat: app.type === 'zip' ? 'unzipped' : app.type,
         ...app.manifest
       };
       zip.file('aideas.json', JSON.stringify(manifest, null, 2));
       
-      // Aggiungi tutti i file dell'app
-      appData.files.forEach(file => {
-        zip.file(file.filename, file.content);
-      });
+      // Gestisci diversi tipi di app
+      if (app.type === 'zip') {
+        // App ZIP con file salvati
+        const appData = await StorageService.getAppWithFiles(app.id);
+        if (appData && appData.files && appData.files.length > 0) {
+          appData.files.forEach(file => {
+            zip.file(file.filename, file.content);
+          });
+        } else {
+          throw new Error('Nessun file disponibile per il download');
+        }
+      } else if (app.type === 'url' && app.url) {
+        // App URL - crea un file HTML che reindirizza all'URL
+        const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${app.name}</title>
+    <meta name="description" content="${app.description || ''}">
+    <meta name="author" content="${app.author || 'Unknown'}">
+    <meta http-equiv="refresh" content="0; url=${app.url}">
+</head>
+<body>
+    <p>Reindirizzamento a <a href="${app.url}">${app.url}</a>...</p>
+    <script>
+        window.location.href = "${app.url}";
+    </script>
+</body>
+</html>`;
+        zip.file('index.html', htmlContent);
+      } else if (app.content) {
+        // App con contenuto HTML diretto
+        zip.file('index.html', app.content);
+      } else {
+        throw new Error('Tipo di app non supportato per il download');
+      }
       
       // Genera e scarica il ZIP
       const zipBlob = await zip.generateAsync({ type: 'blob' });

@@ -52,6 +52,7 @@ const AppImporterMaterial = ({
     url: '',
     description: '',
     category: '',
+    author: '',
     tags: []
   });
   const [loading, setLoading] = useState(false);
@@ -86,8 +87,8 @@ const AppImporterMaterial = ({
     },
     {
       id: 'zip',
-      title: 'Carica ZIP',
-      description: 'Carica un file ZIP con HTML, CSS, JS (supporta anche singoli file HTML)',
+      title: 'Carica File',
+      description: 'Carica file ZIP o singoli file HTML, CSS, JS',
       icon: <CodeIcon />, 
       color: 'warning'
     },
@@ -124,7 +125,7 @@ const AppImporterMaterial = ({
         return;
       }
       if (importType === 'zip' && !uploadedZip) {
-        setError('Devi caricare un file ZIP');
+        setError('Devi caricare un file ZIP o HTML');
         return;
       }
       if (importType === 'github' && !githubUrl.trim()) {
@@ -173,6 +174,7 @@ const AppImporterMaterial = ({
           appData.name = formData.name;
           appData.description = formData.description;
           appData.category = formData.category;
+          appData.author = formData.author;
           appData.tags = formData.tags;
           break;
         case 'github':
@@ -221,6 +223,33 @@ const AppImporterMaterial = ({
     if (file && type === 'zip') {
       setUploadedZip(file);
       try {
+        // Controlla se è un file HTML singolo
+        if (file.name.toLowerCase().endsWith('.html')) {
+          const content = await file.text();
+          const htmlMetadata = extractHtmlMetadataFromZip(content);
+          if (htmlMetadata.title) {
+            handleInputChange('name', htmlMetadata.title);
+          }
+          if (htmlMetadata.description) {
+            handleInputChange('description', htmlMetadata.description);
+          }
+          if (htmlMetadata.icon) {
+            setCustomIcon(htmlMetadata.icon);
+          }
+          if (htmlMetadata.keywords) {
+            const tags = htmlMetadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag);
+            setFormData(prev => ({
+              ...prev,
+              tags: tags
+            }));
+          }
+          if (htmlMetadata.author) {
+            handleInputChange('author', htmlMetadata.author);
+          }
+          return;
+        }
+
+        // Gestione file ZIP
         const JSZip = (await import('jszip')).default;
         const zip = new JSZip();
         const contents = await zip.loadAsync(file);
@@ -266,9 +295,12 @@ const AppImporterMaterial = ({
               tags: tags
             }));
           }
+          if (htmlMetadata.author) {
+            handleInputChange('author', htmlMetadata.author);
+          }
         }
       } catch (error) {
-        console.warn('Errore nella lettura metadati ZIP:', error);
+        console.warn('Errore nella lettura metadati file:', error);
       }
     }
   };
@@ -542,7 +574,8 @@ const AppImporterMaterial = ({
                 color="secondary"
                 onClick={() => {
                   onClose();
-                  window.location.hash = '#/store';
+                  window.history.pushState(null, '', '/store');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
                 }}
                 startIcon={<StoreIcon />}
                 sx={{ textTransform: 'none' }}
@@ -591,7 +624,7 @@ const AppImporterMaterial = ({
                     Carica file ZIP
                   </Typography>
                   <input
-                    accept=".zip"
+                    accept=".zip,.html"
                     style={{ display: 'none' }}
                     id="zip-file-upload"
                     type="file"
@@ -604,7 +637,7 @@ const AppImporterMaterial = ({
                       fullWidth
                       sx={{ mb: 1 }}
                     >
-                      Scegli file ZIP
+                      Scegli file
                     </Button>
                   </label>
                   {uploadedZip && (
@@ -613,7 +646,7 @@ const AppImporterMaterial = ({
                     </Typography>
                   )}
                   <Typography variant="caption" color="text.secondary">
-                    Il file ZIP deve contenere un index.html nella root
+                    Accetta file ZIP o singoli file HTML
                   </Typography>
                 </Box>
               )}
@@ -637,6 +670,15 @@ const AppImporterMaterial = ({
                 multiline
                 rows={3}
                 variant="outlined"
+              />
+              
+              <TextField
+                label="Autore"
+                value={formData.author}
+                onChange={(e) => handleInputChange('author', e.target.value)}
+                fullWidth
+                variant="outlined"
+                placeholder="Nome dell'autore"
               />
               
               <TextField
@@ -788,6 +830,17 @@ const AppImporterMaterial = ({
                     </Typography>
                     <Typography variant="body1">
                       {formData.description}
+                    </Typography>
+                  </Box>
+                )}
+                
+                {formData.author && (
+                  <Box>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Autore
+                    </Typography>
+                    <Typography variant="body1">
+                      {formData.author}
                     </Typography>
                   </Box>
                 )}

@@ -365,6 +365,66 @@ class StorageService {
     }
   }
 
+  // Cancella tutte le app
+  async clearAllApps() {
+    try {
+      await this.db.transaction('rw', [this.db.apps, this.db.appFiles], async () => {
+        await this.db.apps.clear();
+        await this.db.appFiles.clear();
+      });
+
+      // Aggiorna timestamp di ultima modifica
+      await this.setSetting('lastDataModification', new Date().toISOString());
+
+      // Registra evento sync per la cancellazione di tutte le app
+      await this.addSyncEvent('all_apps_deleted', { timestamp: new Date().toISOString() });
+      
+      DEBUG.success('✅ Tutte le app sono state cancellate');
+      return true;
+    } catch (error) {
+      DEBUG.error('Errore cancellazione tutte le app:', error);
+      return false;
+    }
+  }
+
+  // Reset completo del database - cancella tutto
+  async clearAllData() {
+    try {
+      await this.db.transaction('rw', [this.db.apps, this.db.appFiles, this.db.settings, this.db.syncEvents, this.db.catalog], async () => {
+        await this.db.apps.clear();
+        await this.db.appFiles.clear();
+        await this.db.settings.clear();
+        await this.db.syncEvents.clear();
+        await this.db.catalog.clear();
+      });
+
+      // Cancella anche i dati dal localStorage per sicurezza
+      const keysToRemove = [
+        'aideas_debug',
+        'aideas_verbose_logging',
+        'githubToken',
+        'googleDriveToken',
+        'cloudSyncEnabled',
+        'selectedProvider',
+        'lastDataModification'
+      ];
+      
+      keysToRemove.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          DEBUG.warn(`Errore rimozione localStorage key ${key}:`, e);
+        }
+      });
+
+      DEBUG.success('✅ Reset completo del database eseguito');
+      return true;
+    } catch (error) {
+      DEBUG.error('Errore reset completo database:', error);
+      return false;
+    }
+  }
+
   // Aggiorna ultimo utilizzo
   async updateLastUsed(appId) {
     try {

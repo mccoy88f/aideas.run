@@ -110,9 +110,6 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
       const searchParam = urlParams.get('search');
       if (searchParam) {
         setSearchQuery(searchParam);
-        // Pulisci l'URL per mantenere l'interfaccia pulita
-        const newUrl = window.location.pathname + window.location.hash.split('?')[0];
-        window.history.replaceState(null, '', newUrl);
       }
       
     } catch (error) {
@@ -491,12 +488,6 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
             icon={<StoreIcon />}
             label={`${filteredApps.length} app trovate`}
             color="primary"
-            variant="outlined"
-          />
-          <Chip
-            icon={<InfoIcon />}
-            label={`${storeApps.length} app totali`}
-            color="default"
             variant="outlined"
           />
           {lastUpdateTime && (

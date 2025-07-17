@@ -243,17 +243,23 @@ const SettingsMaterial = ({
 
   const handleConfirmReset = async (deleteApps = false) => {
     try {
-      // Reset impostazioni
-      await StorageService.setAllSettings({});
-      
-      // Reset app se richiesto
       if (deleteApps) {
-        await StorageService.clearAllApps();
+        // Reset completo - cancella tutto il database
+        await StorageService.clearAllData();
+        showToast('Reset completo eseguito - tutte le app e impostazioni sono state cancellate', 'success');
+      } else {
+        // Reset solo impostazioni
+        await StorageService.setAllSettings({});
+        showToast('Impostazioni ripristinate', 'success');
       }
       
-      showToast('Impostazioni ripristinate', 'success');
       setLocalSettings({});
       setResetConfirmOpen(false);
+      
+      // Ricarica la pagina per applicare completamente il reset
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
       
     } catch (error) {
       console.error('Errore reset impostazioni:', error);

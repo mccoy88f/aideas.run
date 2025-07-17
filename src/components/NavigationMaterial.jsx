@@ -52,7 +52,6 @@ const NavigationMaterial = ({
   drawerOpen,
   onDrawerToggle,
   onSettingsOpen,
-  onThemeToggle,
   onSyncManagerOpen,
   currentView,
   onViewChange,
@@ -267,18 +266,7 @@ const NavigationMaterial = ({
           <Typography variant="caption" color="text.secondary">
             v1.0.0
           </Typography>
-          <IconButton
-            size="small"
-            onClick={onThemeToggle}
-            sx={{
-              color: 'text.secondary',
-              '&:hover': {
-                color: 'primary.main'
-              }
-            }}
-          >
-            {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-          </IconButton>
+
         </Box>
       </Box>
     </Box>
@@ -336,12 +324,7 @@ const NavigationMaterial = ({
               <CloudSyncIcon sx={{ color: isInProgress ? 'gold' : (isEnabled ? 'green' : 'red') }} />
             </IconButton>
             
-            <IconButton
-              color="inherit"
-              onClick={onThemeToggle}
-            >
-              {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-            </IconButton>
+
 
             <IconButton
               color="inherit"
