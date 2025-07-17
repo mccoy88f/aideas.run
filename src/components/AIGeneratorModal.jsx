@@ -126,6 +126,12 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   // Controlla autenticazione quando il modale si apre
   useEffect(() => {
     if (open) {
+      // Prima prova a caricare lo stato salvato (come Google Drive)
+      const loaded = loadAuthState();
+      if (loaded) {
+        console.log('✅ Stato autenticazione caricato da localStorage');
+      }
+      
       // Se Puter è già disponibile globalmente, controlla lo stato
       if (window.puter && !puterInitialized) {
         puter = window.puter;
@@ -135,7 +141,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     }
   }, [open]);
 
-  // Listener per quando l'utente torna dal login
+  // Listener intelligente per cambiamenti di stato Puter
   useEffect(() => {
     const handleFocus = () => {
       // Controlla se Puter è disponibile e se non siamo già autenticati
@@ -146,20 +152,43 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
       }
     };
 
-    // Controllo periodico per verificare autenticazione
-    const checkAuthInterval = setInterval(() => {
-      if (window.puter && !isAuthenticated && puterInitialized) {
+    // Listener per cambiamenti di visibilità della pagina
+    const handleVisibilityChange = () => {
+      if (!document.hidden && window.puter && !isAuthenticated) {
+        puter = window.puter;
+        setPuterInitialized(true);
         checkAuthStatus();
       }
-    }, 2000); // Controlla ogni 2 secondi
+    };
+
+    // Listener per messaggi da Puter (se supportato)
+    const handleMessage = (event) => {
+      if (event.origin === 'https://puter.com' && event.data?.type === 'auth') {
+        if (window.puter && !isAuthenticated) {
+          puter = window.puter;
+          setPuterInitialized(true);
+          checkAuthStatus();
+        }
+      }
+    };
 
     window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('message', handleMessage);
     
     return () => {
       window.removeEventListener('focus', handleFocus);
-      clearInterval(checkAuthInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('message', handleMessage);
     };
-  }, [isAuthenticated, puterInitialized]);
+  }, [isAuthenticated]);
+
+  // Salva stato quando cambia (come Google Drive)
+  useEffect(() => {
+    if (puterInitialized) {
+      saveAuthState();
+    }
+  }, [isAuthenticated, userInfo]);
 
   // Inizializza Puter.js
   const initializePuter = async () => {
@@ -196,25 +225,44 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     }
   };
 
-  // Controlla stato autenticazione
+  // Controlla stato autenticazione (approccio intelligente)
   const checkAuthStatus = async () => {
     if (!puterInitialized || !puter) return;
     
     try {
+      // Controlla se siamo già autenticati per evitare controlli inutili
+      if (isAuthenticated && userInfo) {
+        return;
+      }
+
       const isSignedIn = puter.auth.isSignedIn();
       
       if (isSignedIn) {
         const user = await puter.auth.getUser();
-        setUserInfo(user);
-        setIsAuthenticated(true);
-        loadGeneratedApps();
+        
+        // Aggiorna solo se i dati sono cambiati
+        if (!userInfo || userInfo.id !== user.id) {
+          setUserInfo(user);
+          setIsAuthenticated(true);
+          await loadGeneratedApps();
+          saveAuthState(); // Salva stato come Google Drive
+          showToast('✅ Autenticazione Puter completata', 'success');
+        }
       } else {
-        setIsAuthenticated(false);
-        setUserInfo(null);
+        // Aggiorna solo se lo stato è cambiato
+        if (isAuthenticated) {
+          setIsAuthenticated(false);
+          setUserInfo(null);
+          setGeneratedApps([]);
+        }
       }
     } catch (error) {
       console.error('Errore controllo auth:', error);
-      setIsAuthenticated(false);
+      // Non aggiornare lo stato se c'è un errore temporaneo
+      if (isAuthenticated) {
+        setIsAuthenticated(false);
+        setUserInfo(null);
+      }
     } finally {
       setAuthLoading(false);
     }
@@ -272,6 +320,8 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
       setIsAuthenticated(false);
       setUserInfo(null);
       setGeneratedApps([]);
+      saveAuthState(); // Salva lo stato come Google Drive
+      showToast('👋 Disconnesso da Puter', 'info');
     } catch (error) {
       console.error('Errore logout:', error);
     }
@@ -300,6 +350,39 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     } catch (error) {
       console.error('Errore salvataggio app:', error);
     }
+  };
+
+  // Salva stato autenticazione (come Google Drive)
+  const saveAuthState = () => {
+    try {
+      const authState = {
+        isAuthenticated,
+        userInfo,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('puter_auth_state', JSON.stringify(authState));
+    } catch (error) {
+      console.error('Errore salvataggio stato auth:', error);
+    }
+  };
+
+  // Carica stato autenticazione (come Google Drive)
+  const loadAuthState = () => {
+    try {
+      const saved = localStorage.getItem('puter_auth_state');
+      if (saved) {
+        const authState = JSON.parse(saved);
+        // Verifica che i dati non siano troppo vecchi (24 ore)
+        if (Date.now() - authState.timestamp < 24 * 60 * 60 * 1000) {
+          setIsAuthenticated(authState.isAuthenticated);
+          setUserInfo(authState.userInfo);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error('Errore caricamento stato auth:', error);
+    }
+    return false;
   };
 
   // Genera app
