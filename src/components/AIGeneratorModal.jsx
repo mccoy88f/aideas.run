@@ -116,31 +116,52 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   // Inizializzazione Puter.js solo quando l'utente clicca su login
   const [puterInitialized, setPuterInitialized] = useState(false);
 
+  // Controlla stato autenticazione quando Puter è inizializzato
+  useEffect(() => {
+    if (puterInitialized && puter) {
+      checkAuthStatus();
+    }
+  }, [puterInitialized]);
+
+  // Listener per quando l'utente torna dal login
+  useEffect(() => {
+    const handleFocus = () => {
+      if (puterInitialized && puter && !isAuthenticated) {
+        checkAuthStatus();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [puterInitialized, puter, isAuthenticated]);
+
   // Inizializza Puter.js
   const initializePuter = async () => {
     try {
       // Carica Puter.js se non è già caricato
-      if (typeof window.Puter === 'undefined') {
+      if (typeof window.puter === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://js.puter.com/v2/';
         
         await new Promise((resolve, reject) => {
           script.onload = () => {
-            // Inizializza Puter e assegna alla variabile globale
-            puter = new window.Puter({
-              app: 'ai-launcher'
-            });
-            setPuterInitialized(true);
-            resolve();
+            // Aspetta un momento per assicurarsi che Puter sia completamente caricato
+            setTimeout(() => {
+              if (window.puter) {
+                puter = window.puter;
+                setPuterInitialized(true);
+                resolve();
+              } else {
+                reject(new Error('Puter non disponibile dopo il caricamento'));
+              }
+            }, 100);
           };
           script.onerror = reject;
           document.head.appendChild(script);
         });
       } else {
-        // Puter è già caricato, inizializza direttamente
-        puter = new window.Puter({
-          app: 'ai-launcher'
-        });
+        // Puter è già caricato
+        puter = window.puter;
         setPuterInitialized(true);
       }
     } catch (error) {
@@ -175,22 +196,18 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
 
   // Login con Puter
   const handleSignIn = async () => {
-    if (!puterInitialized) {
-      setAuthLoading(true);
-      try {
-        await initializePuter();
-        await checkAuthStatus();
-      } catch (error) {
-        showToast('Errore caricamento Puter: ' + error.message, 'error');
-        setAuthLoading(false);
-        return;
-      }
-    } else {
-      setAuthLoading(true);
-      await checkAuthStatus();
-    }
-
+    setAuthLoading(true);
+    
     try {
+      // Inizializza Puter se necessario
+      if (!puterInitialized) {
+        await initializePuter();
+      }
+      
+      if (!puter) {
+        throw new Error('Puter non inizializzato');
+      }
+
       const currentURL = window.location.href;
       
       // Prova prima popup, poi redirect
@@ -209,6 +226,8 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     } catch (error) {
       console.error('Errore login:', error);
       showToast('Errore durante il login: ' + error.message, 'error');
+    } finally {
+      setAuthLoading(false);
     }
   };
 
