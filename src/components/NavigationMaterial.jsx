@@ -44,6 +44,7 @@ import {
   Store as StoreIcon
 } from '@mui/icons-material';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
+import { getUserDisplayName } from '../utils/helpers.js';
 
 /**
  * Componente di navigazione Material UI con drawer e app bar
@@ -63,7 +64,8 @@ const NavigationMaterial = ({
   mode,
   bottomBar = false,
   userInfo = null,
-  isAuthenticated = false
+  isAuthenticated = false,
+  settings = {}
 }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { isEnabled, isInProgress, error, nextSync, manualSync } = useSyncStatus();
@@ -141,39 +143,40 @@ const NavigationMaterial = ({
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Header con info utente se autenticato */}
-      {isAuthenticated && userInfo ? (
-        <Box sx={{ p: 2, borderBottom: '1px solid rgba(0, 0, 0, 0.08)' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <Avatar
-              src={userInfo.picture}
-              sx={{ width: 40, height: 40 }}
-            >
-              {userInfo.name ? userInfo.name.charAt(0).toUpperCase() : <PersonIcon />}
-            </Avatar>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                {userInfo.name || userInfo.email}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {userInfo.email}
-              </Typography>
-            </Box>
+      {/* Header con info utente */}
+      <Box sx={{ p: 2, borderBottom: '1px solid rgba(0, 0, 0, 0.08)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <Avatar
+            src={isAuthenticated && userInfo ? userInfo.picture : null}
+            sx={{ width: 40, height: 40 }}
+          >
+            {isAuthenticated && userInfo ? 
+              (userInfo.name ? userInfo.name.charAt(0).toUpperCase() : <PersonIcon />) :
+              getUserDisplayName(settings).charAt(0).toUpperCase()
+            }
+          </Avatar>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
+              {isAuthenticated && userInfo ? 
+                (userInfo.name || userInfo.email) : 
+                getUserDisplayName(settings)
+              }
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {isAuthenticated && userInfo ? 
+                userInfo.email : 
+                'Utente locale'
+              }
+            </Typography>
           </Box>
-          <Chip
-            label="Sincronizzato"
-            size="small"
-            color="success"
-            sx={{ height: 20, fontSize: '0.7rem' }}
-          />
         </Box>
-      ) : (
-        <Box sx={{ p: 2, borderBottom: '1px solid rgba(0, 0, 0, 0.08)' }}>
-          <Typography variant="caption" color="text.secondary">
-            Non sincronizzato
-          </Typography>
-        </Box>
-      )}
+        <Chip
+          label={isAuthenticated ? "Sincronizzato" : "Locale"}
+          size="small"
+          color={isAuthenticated ? "success" : "default"}
+          sx={{ height: 20, fontSize: '0.7rem' }}
+        />
+      </Box>
 
       {/* Lista principale */}
       <List sx={{ flexGrow: 1, py: 0 }}>

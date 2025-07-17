@@ -704,6 +704,45 @@ export function showResetSettingsConfirm() {
   });
 }
 
+/**
+ * Genera un nome utente casuale combinando colori e frutti
+ * @returns {string} Nome utente casuale (es. "Purple Melon", "Azure Kiwi")
+ */
+export const generateRandomUsername = () => {
+  const colors = [
+    'Purple', 'Azure', 'Crimson', 'Emerald', 'Golden', 'Indigo', 'Jade', 'Lavender',
+    'Magenta', 'Navy', 'Orange', 'Pink', 'Ruby', 'Sapphire', 'Teal', 'Violet',
+    'Amber', 'Bronze', 'Copper', 'Diamond', 'Fuchsia', 'Garnet', 'Honey', 'Ivory',
+    'Jet', 'Lime', 'Maroon', 'Onyx', 'Pearl', 'Quartz', 'Rose', 'Silver'
+  ];
+  
+  const fruits = [
+    'Apple', 'Banana', 'Cherry', 'Dragon', 'Elderberry', 'Fig', 'Grape', 'Honeydew',
+    'Kiwi', 'Lemon', 'Mango', 'Nectarine', 'Orange', 'Papaya', 'Quince', 'Raspberry',
+    'Strawberry', 'Tangerine', 'Ugli', 'Vanilla', 'Watermelon', 'Xigua', 'Yuzu', 'Zucchini',
+    'Apricot', 'Blackberry', 'Cantaloupe', 'Date', 'Guava', 'Jackfruit', 'Lychee', 'Mulberry'
+  ];
+  
+  const randomColor = colors[Math.floor(Math.random() * colors.length)];
+  const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
+  
+  return `${randomColor} ${randomFruit}`;
+};
+
+/**
+ * Ottiene il nome utente dalle impostazioni o genera un nome casuale
+ * @param {Object} settings - Impostazioni dell'app
+ * @returns {string} Nome utente
+ */
+export const getUserDisplayName = (settings) => {
+  if (settings?.username && settings.username.trim()) {
+    return settings.username.trim();
+  }
+  
+  // Se non c'è un nome utente, genera un nome casuale
+  return generateRandomUsername();
+};
+
 export default {
   // Toast
   showToast,

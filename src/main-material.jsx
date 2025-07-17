@@ -60,7 +60,7 @@ import {
 } from '@mui/icons-material';
 
 import StorageService from './services/StorageService.js';
-import { showToast, hideToast } from './utils/helpers.js';
+import { showToast, hideToast, getUserDisplayName } from './utils/helpers.js';
 import { DEBUG, ErrorTracker } from './utils/debug.js';
 import AppCardMaterial from './components/AppCardMaterial.jsx';
 import AppImporterMaterial from './components/AppImporterMaterial.jsx';
@@ -374,7 +374,18 @@ function AIdeasApp() {
   const loadUserSettings = async () => {
     try {
       const settingsData = await StorageService.getAllSettings();
-      setSettings(settingsData);
+      
+      // Se non c'è un nome utente, genera un nome casuale e salvalo
+      if (!settingsData.username || !settingsData.username.trim()) {
+        const randomUsername = getUserDisplayName(settingsData);
+        const updatedSettings = { ...settingsData, username: randomUsername };
+        await StorageService.setAllSettings(updatedSettings);
+        setSettings(updatedSettings);
+        console.log('👤 Nome utente generato e salvato:', randomUsername);
+      } else {
+        setSettings(settingsData);
+      }
+      
       console.log('⚙️ Impostazioni caricate:', settingsData);
     } catch (error) {
       console.error('Errore caricamento impostazioni:', error);
@@ -1660,6 +1671,7 @@ function AIdeasApp() {
         bottomBar={settings.bottomBar || false}
         userInfo={userInfo}
         isAuthenticated={isAuthenticated}
+        settings={settings}
       />
 
       {/* Main Content */}
