@@ -123,17 +123,43 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     }
   }, [puterInitialized]);
 
+  // Controlla autenticazione quando il modale si apre
+  useEffect(() => {
+    if (open) {
+      // Se Puter è già disponibile globalmente, controlla lo stato
+      if (window.puter && !puterInitialized) {
+        puter = window.puter;
+        setPuterInitialized(true);
+        checkAuthStatus();
+      }
+    }
+  }, [open]);
+
   // Listener per quando l'utente torna dal login
   useEffect(() => {
     const handleFocus = () => {
-      if (puterInitialized && puter && !isAuthenticated) {
+      // Controlla se Puter è disponibile e se non siamo già autenticati
+      if (window.puter && !isAuthenticated) {
+        puter = window.puter;
+        setPuterInitialized(true);
         checkAuthStatus();
       }
     };
 
+    // Controllo periodico per verificare autenticazione
+    const checkAuthInterval = setInterval(() => {
+      if (window.puter && !isAuthenticated && puterInitialized) {
+        checkAuthStatus();
+      }
+    }, 2000); // Controlla ogni 2 secondi
+
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [puterInitialized, puter, isAuthenticated]);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(checkAuthInterval);
+    };
+  }, [isAuthenticated, puterInitialized]);
 
   // Inizializza Puter.js
   const initializePuter = async () => {
@@ -199,6 +225,12 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     setAuthLoading(true);
     
     try {
+      // Controlla se Puter è già disponibile globalmente
+      if (window.puter && !puterInitialized) {
+        puter = window.puter;
+        setPuterInitialized(true);
+      }
+      
       // Inizializza Puter se necessario
       if (!puterInitialized) {
         await initializePuter();
