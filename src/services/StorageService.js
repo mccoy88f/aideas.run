@@ -107,6 +107,11 @@ class StorageService {
 
       const appId = await this.db.apps.add(app);
       
+      // Rimuovi l'app dalla lista delle eliminazioni se era stata eliminata prima
+      if (app.uniqueId) {
+        await this.removeFromDeletedApps(app.uniqueId);
+      }
+      
       // Salva i file se è un'app ZIP
       if (appData.files && appData.files.length > 0) {
         try {
@@ -349,19 +354,65 @@ class StorageService {
   // Elimina app
   async deleteApp(appId) {
     try {
+      const app = await this.getApp(appId);
+      if (!app) {
+        DEBUG.warn(`App ${appId} non trovata per eliminazione`);
+        return false;
+      }
+
       await this.db.transaction('rw', [this.db.apps, this.db.appFiles], async () => {
         await this.db.apps.delete(appId);
         await this.db.appFiles.where('appId').equals(appId).delete();
       });
 
+      // Salva l'eliminazione nella lista delle app eliminate
+      await this.addDeletedApp(app.uniqueId || app.name);
+
       // Aggiorna timestamp di ultima modifica
       await this.setSetting('lastDataModification', new Date().toISOString());
 
-      await this.addSyncEvent('app_deleted', { appId });
+      await this.addSyncEvent('app_deleted', { appId, uniqueId: app.uniqueId, name: app.name });
       return true;
     } catch (error) {
       DEBUG.error('Errore eliminazione app:', error);
       return false;
+    }
+  }
+
+  // Aggiunge un'app alla lista delle app eliminate
+  async addDeletedApp(uniqueId) {
+    try {
+      const deletedApps = await this.getSetting('deletedApps', []);
+      if (!deletedApps.includes(uniqueId)) {
+        deletedApps.push(uniqueId);
+        await this.setSetting('deletedApps', deletedApps);
+        DEBUG.log(`📝 App ${uniqueId} aggiunta alla lista eliminazioni`);
+      }
+    } catch (error) {
+      DEBUG.error('Errore aggiunta app eliminata:', error);
+    }
+  }
+
+  // Verifica se un'app è stata eliminata localmente
+  async isAppDeleted(uniqueId) {
+    try {
+      const deletedApps = await this.getSetting('deletedApps', []);
+      return deletedApps.includes(uniqueId);
+    } catch (error) {
+      DEBUG.error('Errore verifica app eliminata:', error);
+      return false;
+    }
+  }
+
+  // Pulisce la lista delle app eliminate (per app che vengono reinstallate)
+  async removeFromDeletedApps(uniqueId) {
+    try {
+      const deletedApps = await this.getSetting('deletedApps', []);
+      const filtered = deletedApps.filter(id => id !== uniqueId);
+      await this.setSetting('deletedApps', filtered);
+      DEBUG.log(`🧹 App ${uniqueId} rimossa dalla lista eliminazioni`);
+    } catch (error) {
+      DEBUG.error('Errore rimozione app eliminata:', error);
     }
   }
 
@@ -372,6 +423,9 @@ class StorageService {
         await this.db.apps.clear();
         await this.db.appFiles.clear();
       });
+
+      // Pulisci la lista delle app eliminate
+      await this.setSetting('deletedApps', []);
 
       // Aggiorna timestamp di ultima modifica
       await this.setSetting('lastDataModification', new Date().toISOString());
@@ -406,7 +460,8 @@ class StorageService {
         'googleDriveToken',
         'cloudSyncEnabled',
         'selectedProvider',
-        'lastDataModification'
+        'lastDataModification',
+        'deletedApps'
       ];
       
       keysToRemove.forEach(key => {
@@ -731,10 +786,14 @@ class StorageService {
         await this.setSetting('lastDataModification', persistentTimestamp);
       }
 
+      // Ottieni la lista delle app eliminate
+      const deletedApps = await this.getSetting('deletedApps', []);
+
       return {
         settings: settings,
         apps: apps,
         appFiles: appFiles, // Aggiungi i file delle app
+        deletedApps: deletedApps, // Aggiungi la lista delle eliminazioni
         timestamp: persistentTimestamp,
         version: '1.0.0'
       };
@@ -765,6 +824,18 @@ class StorageService {
         throw new Error('Formato backup non valido - apps deve essere un array');
       }
 
+      // Ottieni la lista delle app eliminate localmente e dal backup
+      const localDeletedApps = await this.getSetting('deletedApps', []);
+      const backupDeletedApps = backupData.deletedApps || [];
+      
+      // Unisci le liste delle eliminazioni (mantieni entrambe)
+      const allDeletedApps = [...new Set([...localDeletedApps, ...backupDeletedApps])];
+      await this.setSetting('deletedApps', allDeletedApps);
+      
+      DEBUG.log('📝 App eliminate localmente:', localDeletedApps);
+      DEBUG.log('📝 App eliminate dal backup:', backupDeletedApps);
+      DEBUG.log('📝 App eliminate totali:', allDeletedApps);
+
       await this.db.transaction('rw', [this.db.apps, this.db.settings, this.db.appFiles], async () => {
         // Importa settings
         if (backupData.settings && typeof backupData.settings === 'object') {
@@ -779,24 +850,36 @@ class StorageService {
           DEBUG.log('✅ Settings importate:', Object.keys(backupData.settings).length);
         }
 
-        // Importa apps
+        // Importa apps (escludendo quelle eliminate localmente)
         if (backupData.apps && backupData.apps.length > 0) {
           await this.db.apps.clear();
           
           // Mappa gli ID originali con i nuovi ID generati
           const appIdMapping = {};
+          let appsImported = 0;
+          let appsSkipped = 0;
           
           for (const app of backupData.apps) {
             const originalId = app.id;
+            const uniqueId = app.uniqueId || app.name;
+            
+            // Salta le app che sono state eliminate localmente
+            if (allDeletedApps.includes(uniqueId)) {
+              DEBUG.log(`⏭️ App ${uniqueId} saltata (eliminata localmente)`);
+              appsSkipped++;
+              continue;
+            }
+            
             // Rimuovi l'ID per permettere al database di generarne uno nuovo
             const { id, ...appWithoutId } = app;
             const newId = await this.db.apps.add(appWithoutId);
             appIdMapping[originalId] = newId;
+            appsImported++;
           }
           
-          DEBUG.log('✅ Apps importate:', backupData.apps.length);
+          DEBUG.log(`✅ Apps importate: ${appsImported}, saltate: ${appsSkipped}`);
 
-          // Importa file delle app se presenti
+          // Importa file delle app se presenti (solo per le app importate)
           if (backupData.appFiles && typeof backupData.appFiles === 'object') {
             await this.db.appFiles.clear();
             
