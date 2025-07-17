@@ -120,7 +120,45 @@ const AppInfoModal = ({ open, onClose, app }) => {
       console.log('✅ Analisi completata:', result);
     } catch (err) {
       console.error('❌ Errore analisi:', err);
-      setError(err.message || 'Errore durante l\'analisi dell\'app');
+      
+      // Per le app dello store, crea un'analisi di fallback con i metadati disponibili
+      if (!app.id && app.githubUrl) {
+        console.log('🔄 Creazione analisi di fallback per app dello store...');
+        setAnalysis({
+          appId: app.storeId || app.githubUrl,
+          appName: app.name,
+          appType: 'github',
+          timestamp: new Date().toISOString(),
+          summary: {
+            totalFiles: 0,
+            totalSize: 0,
+            htmlFiles: 0,
+            scriptFiles: 0,
+            styleFiles: 0,
+            imageFiles: 0,
+            otherFiles: 0,
+            externalReferences: 0,
+            localReferences: 0
+          },
+          files: [],
+          externalReferences: [],
+          localReferences: [],
+          permissions: ['internet-access', 'external-content'],
+          security: {
+            risks: [],
+            warnings: [`Impossibile analizzare il repository: ${err.message}`],
+            info: ['Analisi limitata ai metadati disponibili']
+          },
+          metadata: {
+            githubUrl: app.githubUrl,
+            source: 'store',
+            hasMainFile: false
+          }
+        });
+        setError(null); // Non mostrare errore se abbiamo un fallback
+      } else {
+        setError(err.message || 'Errore durante l\'analisi dell\'app');
+      }
     } finally {
       setLoading(false);
     }
@@ -442,7 +480,7 @@ const AppInfoModal = ({ open, onClose, app }) => {
                         </Typography>
                         <Tooltip title="Numero totale di file che compongono l'applicazione">
                           <Typography variant="body2" sx={{ cursor: 'help' }}>
-                            File app
+                            File totali
                           </Typography>
                         </Tooltip>
                       </Paper>
@@ -472,9 +510,9 @@ const AppInfoModal = ({ open, onClose, app }) => {
                         <Typography variant="h4" color="info.main">
                           {analysis.summary.localReferences}
                         </Typography>
-                        <Tooltip title="File interni dell'app memorizzati localmente">
+                        <Tooltip title="Riferimenti a file locali dell'app">
                           <Typography variant="body2" sx={{ cursor: 'help' }}>
-                            File interni
+                            Riferimenti locali
                           </Typography>
                         </Tooltip>
                       </Paper>
@@ -590,14 +628,14 @@ const AppInfoModal = ({ open, onClose, app }) => {
                 </AccordionDetails>
               </Accordion>
 
-              {/* File interni */}
+              {/* File di installazione */}
               <Accordion 
                 expanded={expandedSections.files}
                 onChange={() => handleSectionToggle('files')}
               >
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Typography variant="h6">
-                    File interni ({analysis.files.length})
+                    File di installazione ({analysis.files.length})
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>

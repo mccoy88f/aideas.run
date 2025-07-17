@@ -590,10 +590,10 @@ export default class GitHubService {
    */
 
   /**
-   * Effettua richiesta HTTP con gestione rate limit
-   * @param {string} endpoint - Endpoint API
-   * @param {Object} options - Opzioni fetch
-   * @returns {Promise<Response>} Response
+   * Effettua una richiesta HTTP con gestione errori
+   * @param {string} endpoint - Endpoint da chiamare
+   * @param {Object} options - Opzioni della richiesta
+   * @returns {Promise<Response>} Response della richiesta
    */
   async makeRequest(endpoint, options = {}) {
     const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`;
@@ -609,10 +609,16 @@ export default class GitHubService {
       }
     }
 
+    // Headers di base per repository pubblici
+    const baseHeaders = {
+      'User-Agent': 'AIdeas-App/1.0.0',
+      'Accept': 'application/vnd.github.v3+json'
+    };
+
     const response = await fetch(url, {
       ...options,
       headers: {
-        'User-Agent': 'AIdeas-App/1.0.0',
+        ...baseHeaders,
         ...options.headers
       }
     });
