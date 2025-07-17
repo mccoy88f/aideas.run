@@ -251,8 +251,50 @@ const AppInfoModal = ({ open, onClose, app }) => {
       zip.file('aideas.json', JSON.stringify(manifest, null, 2));
       
       // Gestisci diversi tipi di app
-      if (app.type === 'zip') {
-        // App ZIP con file salvati
+      if (app.source === 'store' && app.githubUrl) {
+        // App dello store - scarica file originali da GitHub
+        console.log(`🔗 Scaricando file da GitHub: ${app.githubUrl}`);
+        
+        // Importa GitHubService
+        const GitHubService = (await import('../services/GitHubService.js')).default;
+        const githubService = new GitHubService();
+        
+        // Estrai owner/repo dall'URL GitHub
+        const githubInfo = githubService.parseGitHubUrl(app.githubUrl);
+        if (!githubInfo) {
+          throw new Error('URL GitHub non valido');
+        }
+        
+        // Scarica tutti i file del repository
+        const repositoryBlob = await githubService.downloadRepositoryZip(
+          githubInfo.owner, 
+          githubInfo.repo, 
+          githubInfo.ref || 'main'
+        );
+        
+        // Converti il blob JSON in oggetto
+        const repositoryData = JSON.parse(await repositoryBlob.text());
+        
+        // Aggiungi tutti i file al ZIP
+        for (const [filePath, fileData] of Object.entries(repositoryData.files)) {
+          if (fileData.decodedContent) {
+            zip.file(filePath, fileData.decodedContent);
+          } else if (fileData.content) {
+            // Se il contenuto è ancora in base64, decodificalo
+            const binaryString = atob(fileData.content.replace(/\n/g, ''));
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            const decodedContent = new TextDecoder('utf-8').decode(bytes);
+            zip.file(filePath, decodedContent);
+          }
+        }
+        
+        console.log(`✅ Scaricati ${Object.keys(repositoryData.files).length} file da GitHub`);
+        
+      } else if (app.type === 'zip') {
+        // App ZIP con file salvati localmente
         const appData = await StorageService.getAppWithFiles(app.id);
         if (appData && appData.files && appData.files.length > 0) {
           appData.files.forEach(file => {
