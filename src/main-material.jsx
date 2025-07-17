@@ -1522,6 +1522,7 @@ function AIdeasApp() {
         drawerOpen={drawerOpen}
         onDrawerToggle={() => setDrawerOpen((open) => !open)}
         onSettingsOpen={() => setSettingsDialogOpen(true)}
+        onThemeToggle={handleThemeToggle}
         onSyncManagerOpen={() => setSyncManagerOpen(true)}
 
         currentView={currentView}
