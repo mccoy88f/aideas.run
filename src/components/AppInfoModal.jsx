@@ -24,7 +24,8 @@ import {
   Paper,
   Grid,
   Menu,
-  MenuItem
+  MenuItem,
+  LinearProgress
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -70,6 +71,8 @@ const AppInfoModal = ({ open, onClose, app }) => {
     permissions: false,
     security: false
   });
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadStatus, setDownloadStatus] = useState('');
 
   const analyzer = new AppAnalyzer();
 
@@ -79,9 +82,109 @@ const AppInfoModal = ({ open, onClose, app }) => {
     }
   }, [open, app]);
 
+  // Funzione per installazione temporanea sandboxed
+  const installAppTemporarily = async (appData) => {
+    try {
+      setDownloadStatus('Scaricando file dal repository...');
+      setDownloadProgress(10);
+      
+      // Importa GitHubService
+      const GitHubService = (await import('../services/GitHubService.js')).default;
+      const githubService = new GitHubService();
+      
+      // Estrai info GitHub
+      const githubInfo = githubService.parseGitHubUrl(appData.githubUrl);
+      if (!githubInfo) {
+        throw new Error('URL GitHub non valido');
+      }
+      
+      setDownloadProgress(20);
+      setDownloadStatus('Analizzando struttura repository...');
+      
+      // Scarica tutti i file del repository
+      const repositoryBlob = await githubService.downloadRepositoryZip(
+        githubInfo.owner, 
+        githubInfo.repo, 
+        githubInfo.ref || 'main'
+      );
+      
+      setDownloadProgress(50);
+      setDownloadStatus('Estraendo contenuti...');
+      
+      // Converti il blob JSON in oggetto
+      const repositoryData = JSON.parse(await repositoryBlob.text());
+      
+      setDownloadProgress(70);
+      setDownloadStatus('Processando file...');
+      
+      // Crea un oggetto app temporaneo con i file scaricati
+      const tempApp = {
+        ...appData,
+        id: `temp_${Date.now()}`, // ID temporaneo
+        type: 'zip',
+        source: 'store',
+        files: Object.entries(repositoryData.files).map(([filePath, fileData]) => {
+          let content;
+          if (fileData.decodedContent) {
+            content = fileData.decodedContent;
+          } else if (fileData.content) {
+            // Decodifica base64 se necessario
+            const binaryString = atob(fileData.content.replace(/\n/g, ''));
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            content = new TextDecoder('utf-8').decode(bytes);
+          } else {
+            content = '';
+          }
+          
+          return {
+            filename: filePath,
+            content: content,
+            size: content.length,
+            mimeType: getMimeType(filePath)
+          };
+        })
+      };
+      
+      setDownloadProgress(90);
+      setDownloadStatus('Analizzando app...');
+      
+      return tempApp;
+      
+    } catch (error) {
+      console.error('❌ Errore installazione temporanea:', error);
+      throw error;
+    }
+  };
+
+  // Funzione helper per determinare MIME type
+  const getMimeType = (filename) => {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const mimeTypes = {
+      'html': 'text/html',
+      'htm': 'text/html',
+      'css': 'text/css',
+      'js': 'application/javascript',
+      'json': 'application/json',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'svg': 'image/svg+xml',
+      'ico': 'image/x-icon',
+      'txt': 'text/plain',
+      'md': 'text/markdown'
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
+  };
+
   const analyzeApp = async () => {
     setLoading(true);
     setError(null);
+    setDownloadProgress(0);
+    setDownloadStatus('');
     
     try {
       console.log('🔍 Avvio analisi app:', app.name);
@@ -92,32 +195,48 @@ const AppInfoModal = ({ open, onClose, app }) => {
       let appToAnalyze = app;
       
       if (isStoreApp) {
-        console.log('📦 App dello store rilevata, uso metadati disponibili...');
+        console.log('📦 App dello store rilevata, installazione temporanea sandboxed...');
         
-        // Crea un oggetto app temporaneo per l'analisi con i dati dello store
-        appToAnalyze = {
-          ...app,
-          id: app.storeId || app.githubUrl, // Usa storeId o githubUrl come ID temporaneo
-          type: 'github', // Le app dello store sono su GitHub
-          url: app.githubUrl,
-          source: 'store', // Marca esplicitamente come app dello store
-          // Mantieni i metadati originali
-          name: app.name,
-          description: app.description,
-          author: app.author,
-          category: app.category,
-          tags: app.tags,
-          icon: app.icon,
-          version: app.version,
-          lastModified: app.lastModified
-        };
-        
-        console.log('🔗 Uso dati GitHub per analisi:', appToAnalyze.url);
+        try {
+          // Installa temporaneamente l'app per l'analisi
+          const tempApp = await installAppTemporarily(app);
+          
+          setDownloadProgress(100);
+          setDownloadStatus('Analisi completata!');
+          
+          // Usa l'app temporanea per l'analisi
+          appToAnalyze = tempApp;
+          
+          console.log(`✅ App temporanea creata con ${tempApp.files.length} file`);
+          
+        } catch (downloadError) {
+          console.warn('⚠️ Fallback a metadati per errore download:', downloadError);
+          
+          // Fallback ai metadati disponibili
+          appToAnalyze = {
+            ...app,
+            id: app.storeId || app.githubUrl,
+            type: 'github',
+            url: app.githubUrl,
+            source: 'store',
+            name: app.name,
+            description: app.description,
+            author: app.author,
+            category: app.category,
+            tags: app.tags,
+            icon: app.icon,
+            version: app.version,
+            lastModified: app.lastModified
+          };
+          
+          setDownloadStatus('Analisi con metadati limitati');
+        }
       }
       
       const result = await analyzer.analyzeApp(appToAnalyze);
       setAnalysis(result);
       console.log('✅ Analisi completata:', result);
+      
     } catch (err) {
       console.error('❌ Errore analisi:', err);
       
@@ -161,6 +280,8 @@ const AppInfoModal = ({ open, onClose, app }) => {
       }
     } finally {
       setLoading(false);
+      setDownloadProgress(0);
+      setDownloadStatus('');
     }
   };
 
@@ -315,6 +436,7 @@ const AppInfoModal = ({ open, onClose, app }) => {
         // App ZIP con file salvati localmente
         const appData = await StorageService.getAppWithFiles(app.id);
         if (appData && appData.files && appData.files.length > 0) {
+          console.log(`📦 Scaricando ${appData.files.length} file dal database locale`);
           appData.files.forEach(file => {
             zip.file(file.filename, file.content);
           });
@@ -447,11 +569,35 @@ const AppInfoModal = ({ open, onClose, app }) => {
 
         <DialogContent dividers>
           {loading && (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-              <CircularProgress />
-              <Typography variant="body2" sx={{ ml: 2 }}>
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <CircularProgress size={60} sx={{ mb: 2 }} />
+              <Typography variant="h6" sx={{ mb: 1 }}>
                 Analisi in corso...
               </Typography>
+              {downloadStatus && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  {downloadStatus}
+                </Typography>
+              )}
+              {downloadProgress > 0 && (
+                <Box sx={{ width: '100%', mt: 2 }}>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={downloadProgress} 
+                    sx={{ 
+                      height: 8, 
+                      borderRadius: 4,
+                      backgroundColor: 'rgba(0,0,0,0.1)',
+                      '& .MuiLinearProgress-bar': {
+                        borderRadius: 4
+                      }
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                    {downloadProgress}% completato
+                  </Typography>
+                </Box>
+              )}
             </Box>
           )}
 
