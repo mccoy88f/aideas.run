@@ -10,7 +10,8 @@ import {
   Avatar,
   Box,
   useTheme,
-  Tooltip
+  Tooltip,
+  Checkbox
 } from '@mui/material';
 import {
   Launch as LaunchIcon,
@@ -31,7 +32,10 @@ const AppCardMaterial = ({
   onDelete, 
   onShowMenu,
   onShowInfo,
-  showMenu = true 
+  showMenu = true,
+  selectionMode = false,
+  isSelected = false,
+  onSelect = null
 }) => {
   const theme = useTheme();
 
@@ -171,6 +175,21 @@ const AppCardMaterial = ({
       }}>
         {/* Header con avatar e titolo */}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
+          {/* Checkbox per selezione multipla */}
+          {selectionMode && (
+            <Checkbox
+              checked={isSelected}
+              onChange={() => onSelect && onSelect(app.id)}
+              sx={{ 
+                mr: 1,
+                mt: 0.5,
+                '&.Mui-checked': {
+                  color: theme.palette.primary.main
+                }
+              }}
+            />
+          )}
+          
           <Avatar
             sx={{
               width: 56,

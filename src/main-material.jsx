@@ -3,7 +3,7 @@
  * Punto di ingresso principale dell'applicazione con Material Design
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ThemeProvider, useTheme } from './theme/ThemeProvider.jsx';
 import { 
@@ -32,7 +32,9 @@ import {
   Avatar,
   LinearProgress,
   Box,
-  useMediaQuery
+  useMediaQuery,
+  Divider,
+  Checkbox
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -51,7 +53,10 @@ import {
   List as ListIcon,
     ViewList as ViewListIcon,
   OpenInNew as OpenInNewIcon,
-  Store as StoreIcon
+  Store as StoreIcon,
+  CheckBox as CheckBoxIcon,
+  SelectAll as SelectAllIcon,
+  Category as CategoryIcon
 } from '@mui/icons-material';
 
 import StorageService from './services/StorageService.js';
@@ -80,40 +85,48 @@ function AIdeasApp() {
   const { theme, mode, toggleTheme } = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
-  const [apps, setApps] = React.useState([]);
-  const [filteredApps, setFilteredApps] = React.useState([]);
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [currentView, setCurrentView] = React.useState(() => {
+  // State per gestione app
+  const [apps, setApps] = useState([]);
+  const [filteredApps, setFilteredApps] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentView, setCurrentView] = useState(() => {
     const path = window.location.pathname;
     const isStorePage = path === '/store' || path.endsWith('/store');
     return isStorePage ? 'store' : 'all';
   });
-  const [currentSort, setCurrentSort] = React.useState('lastUsed');
-  const [currentViewMode, setCurrentViewMode] = React.useState('grid');
-  const [loading, setLoading] = React.useState(true);
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [addAppDialogOpen, setAddAppDialogOpen] = React.useState(false);
-  const [settingsDialogOpen, setSettingsDialogOpen] = React.useState(false);
-  const [selectedApp, setSelectedApp] = React.useState(null);
-  const [importerOpen, setImporterOpen] = React.useState(false);
-  const [settings, setSettings] = React.useState({});
-  const [launchModalOpen, setLaunchModalOpen] = React.useState(false);
-  const [launchingApp, setLaunchingApp] = React.useState(null);
-  const [longPressTimer, setLongPressTimer] = React.useState(null);
-  const [longPressApp, setLongPressApp] = React.useState(null);
-  const [syncManagerOpen, setSyncManagerOpen] = React.useState(false);
-  const [userInfo, setUserInfo] = React.useState(null);
-  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
-  const [emojiSelectorOpen, setEmojiSelectorOpen] = React.useState(false);
-  const [iconSelectorOpen, setIconSelectorOpen] = React.useState(false);
-  const [faviconUrl, setFaviconUrl] = React.useState('');
-  const [appInfoModalOpen, setAppInfoModalOpen] = React.useState(false);
-  const [appInfoData, setAppInfoData] = React.useState(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-  const [appToDelete, setAppToDelete] = React.useState(null);
+  const [currentSort, setCurrentSort] = useState('lastUsed');
+  const [currentViewMode, setCurrentViewMode] = useState('grid');
+  const [loading, setLoading] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [addAppDialogOpen, setAddAppDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [selectedApp, setSelectedApp] = useState(null);
+  const [importerOpen, setImporterOpen] = useState(false);
+  const [settings, setSettings] = useState({});
+  const [launchModalOpen, setLaunchModalOpen] = useState(false);
+  const [launchingApp, setLaunchingApp] = useState(null);
+  const [longPressTimer, setLongPressTimer] = useState(null);
+  const [longPressApp, setLongPressApp] = useState(null);
+  const [syncManagerOpen, setSyncManagerOpen] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [emojiSelectorOpen, setEmojiSelectorOpen] = useState(false);
+  const [iconSelectorOpen, setIconSelectorOpen] = useState(false);
+  const [faviconUrl, setFaviconUrl] = useState('');
+  const [appInfoModalOpen, setAppInfoModalOpen] = useState(false);
+  const [appInfoData, setAppInfoData] = useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [appToDelete, setAppToDelete] = useState(null);
+
+  // State per selezione multipla
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedApps, setSelectedApps] = useState(new Set());
+  const [bulkActionDialogOpen, setBulkActionDialogOpen] = useState(false);
+  const [bulkActionType, setBulkActionType] = useState(null);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
   // Routing state
-  const [currentRoute, setCurrentRoute] = React.useState(() => {
+  const [currentRoute, setCurrentRoute] = useState(() => {
     const path = window.location.pathname;
     const isStorePage = path === '/store' || path.endsWith('/store');
     return isStorePage ? 'store' : 'apps';
@@ -1498,7 +1511,109 @@ function AIdeasApp() {
     }
   };
 
+  // Funzioni per selezione multipla
+  const handleToggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    if (selectionMode) {
+      setSelectedApps(new Set());
+    }
+  };
 
+  const handleSelectApp = (appId) => {
+    const newSelected = new Set(selectedApps);
+    if (newSelected.has(appId)) {
+      newSelected.delete(appId);
+    } else {
+      newSelected.add(appId);
+    }
+    setSelectedApps(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedApps.size === filteredApps.length) {
+      setSelectedApps(new Set());
+    } else {
+      setSelectedApps(new Set(filteredApps.map(app => app.id)));
+    }
+  };
+
+  const handleBulkAction = (actionType) => {
+    setBulkActionType(actionType);
+    setBulkActionDialogOpen(true);
+  };
+
+  const handleConfirmBulkAction = async () => {
+    if (selectedApps.size === 0) return;
+
+    try {
+      const selectedAppIds = Array.from(selectedApps);
+      
+      switch (bulkActionType) {
+        case 'delete':
+          // Elimina le app selezionate
+          for (const appId of selectedAppIds) {
+            await StorageService.deleteApp(appId);
+          }
+          showToast(`${selectedAppIds.length} app eliminate con successo`, 'success');
+          break;
+          
+        case 'category':
+          // Apri dialog per selezionare categoria
+          setCategoryDialogOpen(true);
+          return;
+          
+        default:
+          break;
+      }
+      
+      // Ricarica le app e resetta la selezione
+      await loadApps();
+      setSelectedApps(new Set());
+      setSelectionMode(false);
+      setBulkActionDialogOpen(false);
+      setBulkActionType(null);
+      
+    } catch (error) {
+      DEBUG.error('❌ Errore azione bulk:', error);
+      showToast(`Errore durante l'operazione: ${error.message}`, 'error');
+    }
+  };
+
+  const handleCancelBulkAction = () => {
+    setBulkActionDialogOpen(false);
+    setBulkActionType(null);
+  };
+
+  const handleCategoryChange = async (category) => {
+    try {
+      const selectedAppIds = Array.from(selectedApps);
+      
+      // Aggiorna la categoria per tutte le app selezionate
+      for (const appId of selectedAppIds) {
+        await StorageService.updateApp(appId, { category });
+      }
+      
+      showToast(`Categoria aggiornata per ${selectedAppIds.length} app`, 'success');
+      
+      // Ricarica le app e resetta la selezione
+      await loadApps();
+      setSelectedApps(new Set());
+      setSelectionMode(false);
+      setCategoryDialogOpen(false);
+      setBulkActionDialogOpen(false);
+      setBulkActionType(null);
+      
+    } catch (error) {
+      DEBUG.error('❌ Errore aggiornamento categoria:', error);
+      showToast(`Errore durante l'aggiornamento: ${error.message}`, 'error');
+    }
+  };
+
+  const handleCancelCategoryChange = () => {
+    setCategoryDialogOpen(false);
+    setBulkActionDialogOpen(false);
+    setBulkActionType(null);
+  };
 
   if (loading) {
     return (
@@ -1717,8 +1832,67 @@ function AIdeasApp() {
             >
               <ViewListIcon />
             </IconButton>
-
+            
+            {/* Separatore */}
+            <Divider orientation="vertical" flexItem />
+            
+            {/* Pulsante selezione multipla */}
+            <IconButton
+              onClick={handleToggleSelectionMode}
+              color={selectionMode ? 'primary' : 'default'}
+              title={selectionMode ? 'Esci dalla selezione multipla' : 'Attiva selezione multipla'}
+            >
+              <CheckBoxIcon />
+            </IconButton>
           </Box>
+          
+          {/* Controlli azioni bulk quando in modalità selezione */}
+          {selectionMode && (
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 1, 
+              justifyContent: 'center',
+              backgroundColor: 'background.paper',
+              borderRadius: 2,
+              px: 2,
+              py: 1,
+              mt: 1
+            }}>
+              <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+                {selectedApps.size} app selezionate
+              </Typography>
+              
+              <Button
+                size="small"
+                onClick={handleSelectAll}
+                variant="outlined"
+                startIcon={<SelectAllIcon />}
+              >
+                {selectedApps.size === filteredApps.length ? 'Deseleziona tutto' : 'Seleziona tutto'}
+              </Button>
+              
+              <Button
+                size="small"
+                onClick={() => handleBulkAction('category')}
+                variant="outlined"
+                startIcon={<CategoryIcon />}
+                disabled={selectedApps.size === 0}
+              >
+                Cambia categoria
+              </Button>
+              
+              <Button
+                size="small"
+                onClick={() => handleBulkAction('delete')}
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                disabled={selectedApps.size === 0}
+              >
+                Elimina
+              </Button>
+            </Box>
+          )}
         </Box>
 
         {/* Apps con visualizzazione condizionale - Griglia vera come vanilla */}
@@ -1757,8 +1931,11 @@ function AIdeasApp() {
                   onToggleFavorite={handleToggleFavorite}
                   onEdit={setSelectedApp}
                   onDelete={handleDeleteApp}
-                                    onShowMenu={() => {}}
+                  onShowMenu={() => {}}
                   onShowInfo={handleShowAppInfo}
+                  selectionMode={selectionMode}
+                  isSelected={selectedApps.has(app.id)}
+                  onSelect={handleSelectApp}
                 />
               </Box>
             ))}
@@ -1770,6 +1947,15 @@ function AIdeasApp() {
           <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {filteredApps.map(app => (
               <Card key={app.id} sx={{ display: 'flex', alignItems: 'center', p: 2 }}>
+                {/* Checkbox per selezione multipla */}
+                {selectionMode && (
+                  <Checkbox
+                    checked={selectedApps.has(app.id)}
+                    onChange={() => handleSelectApp(app.id)}
+                    sx={{ mr: 1 }}
+                  />
+                )}
+                
                 <Avatar 
                   sx={{ 
                     width: 48, 
@@ -1847,6 +2033,7 @@ function AIdeasApp() {
                   borderRadius: 2,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  position: 'relative',
                   '&:hover': {
                     backgroundColor: theme.palette.action.hover,
                     transform: 'scale(1.05)'
@@ -1871,6 +2058,26 @@ function AIdeasApp() {
                   setSelectedApp(app);
                 }}
               >
+                {/* Checkbox per selezione multipla */}
+                {selectionMode && (
+                  <Checkbox
+                    checked={selectedApps.has(app.id)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleSelectApp(app.id);
+                    }}
+                    sx={{ 
+                      position: 'absolute',
+                      top: 4,
+                      left: 4,
+                      zIndex: 2,
+                      '&.Mui-checked': {
+                        color: theme.palette.primary.main
+                      }
+                    }}
+                  />
+                )}
+                
                 <Avatar
                   sx={{
                     width: 56,
@@ -2540,6 +2747,74 @@ function AIdeasApp() {
           </Button>
           <Button onClick={handleConfirmDelete} color="error" variant="contained">
             Elimina
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog conferma azione bulk */}
+      <Dialog
+        open={bulkActionDialogOpen}
+        onClose={handleCancelBulkAction}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ErrorIcon color="error" />
+          Azione Bulk
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Sei sicuro di voler eseguire questa azione su {selectedApps.size} app selezionate?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelBulkAction} color="inherit">
+            Annulla
+          </Button>
+          <Button onClick={handleConfirmBulkAction} color="error" variant="contained">
+            Conferma
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog per selezione categoria */}
+      <Dialog
+        open={categoryDialogOpen}
+        onClose={handleCancelCategoryChange}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ErrorIcon color="error" />
+          Seleziona Categoria
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            select
+            fullWidth
+            label="Categoria"
+            value={selectedApp?.category || ''}
+            onChange={(e) => handleCategoryChange(e.target.value)}
+            sx={{ mb: 2 }}
+            SelectProps={{ native: true }}
+          >
+            <option value="" disabled>
+              Seleziona una categoria
+            </option>
+            <option value="Produttività">Produttività</option>
+            <option value="Intrattenimento">Intrattenimento</option>
+            <option value="Sviluppo">Sviluppo</option>
+            <option value="Social">Social</option>
+            <option value="Utility">Utility</option>
+            <option value="Altro">Altro</option>
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelCategoryChange} color="inherit">
+            Annulla
+          </Button>
+          <Button onClick={handleConfirmBulkAction} color="error" variant="contained">
+            Conferma
           </Button>
         </DialogActions>
       </Dialog>
