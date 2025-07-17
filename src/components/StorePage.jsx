@@ -47,7 +47,7 @@ import {
 } from '@mui/icons-material';
 import { storeService } from '../services/StoreService.js';
 import StoreAppCard from './StoreAppCard.jsx';
-import AppInfoModal from './AppInfoModal.jsx';
+import StoreAppInfoModal from './StoreAppInfoModal.jsx';
 import { showToast } from '../utils/helpers.js';
 import { DEBUG } from '../utils/debug.js';
 
@@ -706,12 +706,13 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
         <ArrowBackIcon sx={{ transform: 'rotate(90deg)' }} />
       </Fab>
 
-      {/* Modal informazioni app */}
+      {/* Modal informazioni app dello store */}
       {showAppInfo && (
-        <AppInfoModal
+        <StoreAppInfoModal
           open={Boolean(showAppInfo)}
           onClose={handleCloseAppInfo}
           app={showAppInfo}
+          onInstall={handleInstallApp}
         />
       )}
 
