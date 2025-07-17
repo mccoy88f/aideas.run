@@ -41,7 +41,8 @@ import {
   Info as InfoIcon,
   Help as HelpIcon,
   Close as CloseIcon,
-  Store as StoreIcon
+  Store as StoreIcon,
+  SmartToy as AIIcon
 } from '@mui/icons-material';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
 import { getUserDisplayName } from '../utils/helpers.js';
@@ -65,7 +66,8 @@ const NavigationMaterial = ({
   bottomBar = false,
   userInfo = null,
   isAuthenticated = false,
-  settings = {}
+  settings = {},
+  onAIGeneratorOpen = null
 }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { isEnabled, isInProgress, error, nextSync, manualSync } = useSyncStatus();
@@ -111,6 +113,13 @@ const NavigationMaterial = ({
       label: 'AIdeas Store',
       icon: <StoreIcon />,
       color: 'secondary'
+    },
+    {
+      id: 'ai-generator',
+      label: 'Genera App con AI',
+      icon: <AIIcon />,
+      color: 'error',
+      action: 'ai-generator'
     },
     {
       id: 'recent',
@@ -184,20 +193,32 @@ const NavigationMaterial = ({
           <ListItem key={item.id} disablePadding>
             <ListItemButton
               selected={currentView === item.id}
-              onClick={() => onViewChange(item.id)}
+              onClick={() => {
+                if (item.action === 'ai-generator' && onAIGeneratorOpen) {
+                  onAIGeneratorOpen();
+                } else {
+                  onViewChange(item.id);
+                }
+              }}
               sx={{
                 mx: 1,
                 borderRadius: 1,
                 mb: 0.5,
                 '&.Mui-selected': {
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  background: item.action === 'ai-generator' 
+                    ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)'
+                    : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
                   color: 'white',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)'
+                    background: item.action === 'ai-generator'
+                      ? 'linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%)'
+                      : 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)'
                   }
                 },
                 '&:hover': {
-                  background: 'rgba(99, 102, 241, 0.1)'
+                  background: item.action === 'ai-generator' 
+                    ? 'rgba(255, 107, 107, 0.1)'
+                    : 'rgba(99, 102, 241, 0.1)'
                 }
               }}
             >

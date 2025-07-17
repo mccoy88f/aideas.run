@@ -56,7 +56,8 @@ import {
   Store as StoreIcon,
   CheckBox as CheckBoxIcon,
   SelectAll as SelectAllIcon,
-  Category as CategoryIcon
+  Category as CategoryIcon,
+  SmartToy as AIIcon
 } from '@mui/icons-material';
 
 import StorageService from './services/StorageService.js';
@@ -69,6 +70,7 @@ import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
 import AppInfoModal from './components/AppInfoModal.jsx';
 import StorePage from './components/StorePage.jsx';
+import AIGeneratorModal from './components/AIGeneratorModal.jsx';
 
 
 
@@ -117,6 +119,7 @@ function AIdeasApp() {
   const [appInfoData, setAppInfoData] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [appToDelete, setAppToDelete] = useState(null);
+  const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
 
   // State per selezione multipla
   const [selectionMode, setSelectionMode] = useState(false);
@@ -187,6 +190,12 @@ function AIdeasApp() {
         navigateToStore();
       }
       
+      // Ctrl/Cmd + G per aprire il generatore AI
+      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+        e.preventDefault();
+        setAiGeneratorOpen(true);
+      }
+      
       // Escape per chiudere modals
       if (e.key === 'Escape') {
         setImporterOpen(false);
@@ -194,6 +203,7 @@ function AIdeasApp() {
         setSelectedApp(null);
         setLaunchModalOpen(false);
         setLaunchingApp(null);
+        setAiGeneratorOpen(false);
       }
     };
 
@@ -907,6 +917,46 @@ function AIdeasApp() {
     } catch (error) {
       console.error('Errore aggiunta app:', error);
       showToast(`Errore nell'aggiunta dell'applicazione: ${error.message}`, 'error');
+    }
+  };
+
+  // Handler per app generate con AI
+  const handleAIGeneratedApp = async (appData) => {
+    try {
+      // Estrai metadati dall'app
+      const { name, description, icon, htmlContent, metadata } = appData;
+      
+      // Prepara i dati dell'app nel formato corretto per StorageService.installApp
+      const appToInstall = {
+        name: name || 'App AI senza nome',
+        description: description || 'App generata con AI',
+        icon: icon || '🤖',
+        htmlContent: htmlContent,
+        source: 'ai-generated',
+        metadata: {
+          ...metadata,
+          aiModel: metadata?.aiModel || 'unknown',
+          generatedAt: metadata?.generatedAt || new Date().toISOString(),
+          type: metadata?.type || 'other'
+        },
+        category: 'AI Generated'
+      };
+      
+      // Usa StorageService.installApp come nel resto dell'app
+      const appId = await StorageService.installApp(appToInstall);
+      
+      // Ricarica tutte le app
+      await loadApps();
+      
+      // Mostra messaggio di successo
+      showToast('App AI importata con successo!', 'success');
+      
+      // Chiudi dialog
+      setAiGeneratorOpen(false);
+      
+    } catch (error) {
+      console.error('Errore importazione app AI:', error);
+      showToast('Errore durante l\'importazione dell\'app AI', 'error');
     }
   };
 
@@ -1672,6 +1722,7 @@ function AIdeasApp() {
         userInfo={userInfo}
         isAuthenticated={isAuthenticated}
         settings={settings}
+        onAIGeneratorOpen={() => setAiGeneratorOpen(true)}
       />
 
       {/* Main Content */}
@@ -1794,6 +1845,21 @@ function AIdeasApp() {
                 }}
               >
                 <StoreIcon />
+              </IconButton>
+              <IconButton
+                aria-label="Genera app con AI"
+                onClick={() => setAiGeneratorOpen(true)}
+                sx={{
+                  background: `linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)`,
+                  color: 'white',
+                  '&:hover': {
+                    background: `linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%)`,
+                    boxShadow: theme.shadows[4]
+                  },
+                  boxShadow: theme.shadows[2]
+                }}
+              >
+                <AIIcon />
               </IconButton>
               <IconButton
                 aria-label="Aggiungi app"
@@ -2187,6 +2253,13 @@ function AIdeasApp() {
         open={importerOpen}
         onClose={() => setImporterOpen(false)}
         onImport={handleAddApp}
+      />
+
+      {/* AIGeneratorModal per generazione app con AI */}
+      <AIGeneratorModal
+        open={aiGeneratorOpen}
+        onClose={() => setAiGeneratorOpen(false)}
+        onAppGenerated={handleAIGeneratedApp}
       />
 
       {/* SettingsMaterial */}
