@@ -171,8 +171,8 @@ const StoreAppCard = ({
         overflow: 'visible'
       }}
     >
-      {/* Badge per app installata */}
-      {isInstalled && (
+      {/* Badge per app installata - RIMOSSO perché ridondante con il pulsante Disinstalla */}
+      {/* {isInstalled && (
         <Box
           sx={{
             position: 'absolute',
@@ -192,7 +192,7 @@ const StoreAppCard = ({
             }}
           />
         </Box>
-      )}
+      )} */}
 
       <CardContent sx={{ flexGrow: 1, pb: 1 }}>
         {/* Header con icona e info base */}

@@ -107,7 +107,21 @@ export default class GitHubService {
       if (cached) return cached;
 
       const endpoint = `/repos/${owner}/${repo}`;
-      const response = await this.makeRequest(endpoint);
+      
+      // Per repository pubblici, prova prima senza autenticazione
+      let response = await this.makeRequest(endpoint);
+      
+      // Se fallisce senza auth, prova con auth se disponibile
+      if (!response.ok && response.status === 401) {
+        try {
+          const authHeaders = await this.getAuthHeadersSafe();
+          if (authHeaders) {
+            response = await this.makeRequest(endpoint, { headers: authHeaders });
+          }
+        } catch (authError) {
+          DEBUG.warn('Autenticazione GitHub non disponibile per repository pubblico');
+        }
+      }
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -142,7 +156,21 @@ export default class GitHubService {
       if (cached) return cached;
 
       const endpoint = `/repos/${owner}/${repo}/contents/${path}?ref=${ref}`;
-      const response = await this.makeRequest(endpoint);
+      
+      // Per repository pubblici, prova prima senza autenticazione
+      let response = await this.makeRequest(endpoint);
+      
+      // Se fallisce senza auth, prova con auth se disponibile
+      if (!response.ok && response.status === 401) {
+        try {
+          const authHeaders = await this.getAuthHeadersSafe();
+          if (authHeaders) {
+            response = await this.makeRequest(endpoint, { headers: authHeaders });
+          }
+        } catch (authError) {
+          DEBUG.warn('Autenticazione GitHub non disponibile per file pubblico');
+        }
+      }
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -193,7 +221,21 @@ export default class GitHubService {
       if (cached) return cached;
 
       const endpoint = `/repos/${owner}/${repo}/contents/${path}?ref=${ref}`;
-      const response = await this.makeRequest(endpoint);
+      
+      // Per repository pubblici, prova prima senza autenticazione
+      let response = await this.makeRequest(endpoint);
+      
+      // Se fallisce senza auth, prova con auth se disponibile
+      if (!response.ok && response.status === 401) {
+        try {
+          const authHeaders = await this.getAuthHeadersSafe();
+          if (authHeaders) {
+            response = await this.makeRequest(endpoint, { headers: authHeaders });
+          }
+        } catch (authError) {
+          DEBUG.warn('Autenticazione GitHub non disponibile per directory pubblica');
+        }
+      }
 
       if (!response.ok) {
         throw new Error(`Errore recupero directory: ${response.statusText}`);
@@ -611,6 +653,18 @@ export default class GitHubService {
       'Authorization': `token ${token}`,
       'Accept': 'application/vnd.github.v3+json'
     };
+  }
+
+  /**
+   * Ottiene headers di autenticazione (versione sicura che non lancia errori)
+   * @returns {Promise<Object|null>} Headers con token o null se non disponibile
+   */
+  async getAuthHeadersSafe() {
+    try {
+      return await this.getAuthHeaders();
+    } catch (error) {
+      return null;
+    }
   }
 
   /**
