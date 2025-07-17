@@ -24,7 +24,12 @@ import {
   Skeleton,
   Link,
   Tooltip,
-  Badge
+  Badge,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -37,7 +42,8 @@ import {
   Store as StoreIcon,
   GitHub as GitHubIcon,
   Upload as UploadIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { storeService } from '../services/StoreService.js';
 import StoreAppCard from './StoreAppCard.jsx';
@@ -70,6 +76,11 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [appsPerPage] = useState(12);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
+  
+  // State per disinstallazione
+  const [uninstallDialogOpen, setUninstallDialogOpen] = useState(false);
+  const [appToUninstall, setAppToUninstall] = useState(null);
+  const [uninstallingApp, setUninstallingApp] = useState(null);
 
   // Carica dati all'inizializzazione
   useEffect(() => {
@@ -213,6 +224,55 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
     } finally {
       setInstallingApp(null);
     }
+  };
+
+  const handleUninstallApp = async (app) => {
+    setAppToUninstall(app);
+    setUninstallDialogOpen(true);
+  };
+
+  const handleConfirmUninstall = async () => {
+    if (!appToUninstall) return;
+    
+    setUninstallingApp(appToUninstall.id);
+    setUninstallDialogOpen(false);
+    
+    try {
+      DEBUG.log(`🗑️ Disinstallazione app ${appToUninstall.name}...`);
+      
+      // Trova l'app installata corrispondente
+      const installedApp = installedApps.find(installedApp => 
+        installedApp.storeId === appToUninstall.storeId || 
+        (installedApp.githubUrl && appToUninstall.githubUrl && installedApp.githubUrl === appToUninstall.githubUrl)
+      );
+      
+      if (!installedApp) {
+        throw new Error('App non trovata tra quelle installate');
+      }
+      
+      // Importa StorageService dinamicamente per evitare dipendenze circolari
+      const { StorageService } = await import('../services/StorageService.js');
+      await StorageService.deleteApp(installedApp.id);
+      
+      showToast(`App ${appToUninstall.name} disinstallata con successo!`, 'success');
+      
+      // Notifica al componente padre per aggiornare la lista delle app installate
+      if (onAppInstalled) {
+        onAppInstalled(null); // Passa null per indicare una disinstallazione
+      }
+      
+    } catch (error) {
+      DEBUG.error('❌ Errore disinstallazione:', error);
+      showToast(`Errore disinstallazione: ${error.message}`, 'error');
+    } finally {
+      setUninstallingApp(null);
+      setAppToUninstall(null);
+    }
+  };
+
+  const handleCancelUninstall = () => {
+    setUninstallDialogOpen(false);
+    setAppToUninstall(null);
   };
 
   const handleRefresh = async () => {
@@ -559,10 +619,12 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
                   <StoreAppCard
                     app={app}
                     onInstall={handleInstallApp}
+                    onUninstall={handleUninstallApp}
                     onShowInfo={handleShowAppInfo}
                     isInstalled={isAppInstalled(app)}
                     isInstalling={installingApp === app.id}
                     isInstallingApp={installingApp}
+                    isUninstalling={uninstallingApp === app.id}
                   />
                 </Box>
               ))}
@@ -620,6 +682,39 @@ const StorePage = ({ onNavigateBack, onAppInstalled, installedApps = [] }) => {
           app={showAppInfo}
         />
       )}
+
+      {/* Modal conferma disinstallazione */}
+      <Dialog
+        open={uninstallDialogOpen}
+        onClose={handleCancelUninstall}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Conferma Disinstallazione
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Sei sicuro di voler disinstallare l'app <strong>{appToUninstall?.name}</strong>?
+            <br />
+            <br />
+            Questa azione rimuoverà l'app dal tuo dispositivo e tutti i dati associati andranno persi.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelUninstall} color="primary">
+            Annulla
+          </Button>
+          <Button 
+            onClick={handleConfirmUninstall} 
+            color="error" 
+            variant="contained"
+            startIcon={<DeleteIcon />}
+          >
+            Disinstalla
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

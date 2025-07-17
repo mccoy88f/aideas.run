@@ -22,7 +22,8 @@ import {
   Tag as TagIcon,
   Person as PersonIcon,
   Category as CategoryIcon,
-  Star as StarIcon
+  Star as StarIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 
 /**
@@ -31,10 +32,12 @@ import {
 const StoreAppCard = ({ 
   app, 
   onInstall, 
+  onUninstall,
   onShowInfo,
   isInstalled = false,
   isInstalling = false,
-  isInstallingApp = null
+  isInstallingApp = null,
+  isUninstalling = false
 }) => {
   const theme = useTheme();
 
@@ -136,6 +139,12 @@ const StoreAppCard = ({
     }
   };
 
+  const handleUninstall = () => {
+    if (onUninstall && isInstalled && !isUninstalling) {
+      onUninstall(app);
+    }
+  };
+
   const handleShowInfo = () => {
     if (onShowInfo) {
       onShowInfo(app);
@@ -143,6 +152,7 @@ const StoreAppCard = ({
   };
 
   const isCurrentlyInstalling = isInstalling && isInstallingApp === app.id;
+  const isCurrentlyUninstalling = isUninstalling;
 
   return (
     <Card 
@@ -273,14 +283,16 @@ const StoreAppCard = ({
         {/* Pulsante principale */}
         <Button
           variant={isInstalled ? "outlined" : "contained"}
-          color={isInstalled ? "success" : "primary"}
-          onClick={handleInstall}
-          disabled={isInstalled || isCurrentlyInstalling}
+          color={isInstalled ? "error" : "primary"}
+          onClick={isInstalled ? handleUninstall : handleInstall}
+          disabled={isCurrentlyInstalling || isCurrentlyUninstalling}
           startIcon={
             isCurrentlyInstalling ? (
               <CircularProgress size={16} />
+            ) : isCurrentlyUninstalling ? (
+              <CircularProgress size={16} />
             ) : isInstalled ? (
-              <CheckCircleIcon />
+              <DeleteIcon />
             ) : (
               <DownloadIcon />
             )
@@ -288,7 +300,8 @@ const StoreAppCard = ({
           sx={{ flexGrow: 1 }}
         >
           {isCurrentlyInstalling ? 'Installando...' : 
-           isInstalled ? 'Installata' : 'Installa'}
+           isCurrentlyUninstalling ? 'Disinstallando...' :
+           isInstalled ? 'Disinstalla' : 'Installa'}
         </Button>
 
         {/* Pulsante informazioni */}

@@ -1389,12 +1389,19 @@ function AIdeasApp() {
   // Handler per app installata dallo store
   const handleStoreAppInstalled = async (appId) => {
     try {
-      // Ricarica le app per mostrare quella appena installata
+      // Ricarica le app per mostrare i cambiamenti
       await loadApps();
+      
+      // Se appId è null, significa che è stata disinstallata un'app
+      if (appId === null) {
+        // Rimani nello store dopo la disinstallazione
+        return;
+      }
+      
       // Naviga alla home per vedere l'app installata
       navigateToApps();
     } catch (error) {
-      DEBUG.error('❌ Errore ricaricamento dopo installazione store:', error);
+      DEBUG.error('❌ Errore ricaricamento dopo operazione store:', error);
     }
   };
 
