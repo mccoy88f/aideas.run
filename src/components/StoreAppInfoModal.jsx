@@ -310,6 +310,14 @@ const StoreAppInfoModal = ({ open, onClose, app, onInstall }) => {
     return labels[permission] || permission;
   };
 
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
   if (!app) return null;
 
   return (
@@ -345,10 +353,10 @@ const StoreAppInfoModal = ({ open, onClose, app, onInstall }) => {
             </Avatar>
             <Box>
               <Typography variant="h6" component="h2">
-                {app.name}
+                Informazioni App
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                di {app.author || 'Autore sconosciuto'}
+                {app.name} {app.author ? `di ${app.author}` : ''}
               </Typography>
             </Box>
           </Box>
@@ -359,18 +367,35 @@ const StoreAppInfoModal = ({ open, onClose, app, onInstall }) => {
 
         <DialogContent sx={{ pt: 2 }}>
           {loading && (
-            <Box sx={{ mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <CircularProgress size={20} />
-                <Typography variant="body2">
-                  {downloadStatus || 'Analizzando app...'}
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <CircularProgress size={60} sx={{ mb: 2 }} />
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                Analisi in corso...
+              </Typography>
+              {downloadStatus && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  {downloadStatus}
                 </Typography>
-              </Box>
-              <LinearProgress 
-                variant="determinate" 
-                value={downloadProgress} 
-                sx={{ height: 6, borderRadius: 3 }}
-              />
+              )}
+              {downloadProgress > 0 && (
+                <Box sx={{ width: '100%', mt: 2 }}>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={downloadProgress} 
+                    sx={{ 
+                      height: 8, 
+                      borderRadius: 4,
+                      backgroundColor: 'rgba(0,0,0,0.1)',
+                      '& .MuiLinearProgress-bar': {
+                        borderRadius: 4
+                      }
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                    {downloadProgress}% completato
+                  </Typography>
+                </Box>
+              )}
             </Box>
           )}
 
@@ -388,57 +413,174 @@ const StoreAppInfoModal = ({ open, onClose, app, onInstall }) => {
                 onChange={handleSectionChange('overview')}
               >
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <InfoIcon />
-                    <Typography variant="h6">Panoramica</Typography>
-                  </Box>
+                  <Typography variant="h6">Panoramica</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
+                  {/* Statistiche principali */}
                   <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Descrizione
-                      </Typography>
-                      <Typography variant="body1" paragraph>
-                        {app.description || 'Nessuna descrizione disponibile'}
-                      </Typography>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="h4" color="primary">
+                          {analysis.files ? analysis.files.length : 0}
+                        </Typography>
+                        <Tooltip title="Numero totale di file che compongono l'applicazione">
+                          <Typography variant="body2" sx={{ cursor: 'help' }}>
+                            File totali
+                          </Typography>
+                        </Tooltip>
+                      </Paper>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        <Chip 
-                          label={app.category || 'Altro'} 
-                          color={getCategoryColor(app.category)}
-                          size="small"
-                        />
-                        {app.version && (
-                          <Chip 
-                            label={`v${app.version}`} 
-                            variant="outlined" 
-                            size="small"
-                          />
-                        )}
-                        {app.tags && app.tags.length > 0 && (
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {app.tags.slice(0, 3).map((tag, index) => (
-                              <Chip 
-                                key={index} 
-                                label={tag} 
-                                size="small" 
-                                variant="outlined"
-                              />
-                            ))}
-                            {app.tags.length > 3 && (
-                              <Chip 
-                                label={`+${app.tags.length - 3}`} 
-                                size="small" 
-                                variant="outlined"
-                              />
-                            )}
-                          </Box>
-                        )}
-                      </Box>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="h4" color="secondary.main">
+                          {analysis.files ? formatFileSize(analysis.files.reduce((total, file) => total + (file.size || 0), 0)) : '0 KB'}
+                        </Typography>
+                        <Typography variant="body2">Spazio occupato</Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="h4" color="warning.main">
+                          {analysis.permissions ? analysis.permissions.filter(p => p.includes('external')).length : 0}
+                        </Typography>
+                        <Tooltip title="Risorse esterne caricate da internet (CDN, API, ecc.)">
+                          <Typography variant="body2" sx={{ cursor: 'help' }}>
+                            Risorse esterne
+                          </Typography>
+                        </Tooltip>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="h4" color="info.main">
+                          {analysis.files ? analysis.files.filter(f => f.filename.match(/\.(html|css|js)$/i)).length : 0}
+                        </Typography>
+                        <Tooltip title="Riferimenti a file locali dell'app">
+                          <Typography variant="body2" sx={{ cursor: 'help' }}>
+                            File principali
+                          </Typography>
+                        </Tooltip>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="h4" color="success.main">
+                          {analysis.permissions ? analysis.permissions.length : 0}
+                        </Typography>
+                        <Typography variant="body2">Permessi richiesti</Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="h4" color="error.main">
+                          {analysis.security && analysis.security.externalScripts ? 'Sì' : 'No'}
+                        </Typography>
+                        <Typography variant="body2">Script esterni</Typography>
+                      </Paper>
                     </Grid>
                   </Grid>
+
+                  {/* Distribuzione tipi di file */}
+                  {analysis.files && (
+                    <Box sx={{ mt: 3 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Distribuzione file:
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {analysis.files.filter(f => f.filename.match(/\.html?$/i)).length > 0 && (
+                          <Chip 
+                            label={`${analysis.files.filter(f => f.filename.match(/\.html?$/i)).length} HTML`} 
+                            color="primary" 
+                            size="small" 
+                          />
+                        )}
+                        {analysis.files.filter(f => f.filename.match(/\.js$/i)).length > 0 && (
+                          <Chip 
+                            label={`${analysis.files.filter(f => f.filename.match(/\.js$/i)).length} Script`} 
+                            color="warning" 
+                            size="small" 
+                          />
+                        )}
+                        {analysis.files.filter(f => f.filename.match(/\.css$/i)).length > 0 && (
+                          <Chip 
+                            label={`${analysis.files.filter(f => f.filename.match(/\.css$/i)).length} CSS`} 
+                            color="info" 
+                            size="small" 
+                          />
+                        )}
+                        {analysis.files.filter(f => f.filename.match(/\.(png|jpg|jpeg|gif|svg|ico)$/i)).length > 0 && (
+                          <Chip 
+                            label={`${analysis.files.filter(f => f.filename.match(/\.(png|jpg|jpeg|gif|svg|ico)$/i)).length} Immagini`} 
+                            color="success" 
+                            size="small" 
+                          />
+                        )}
+                        {analysis.files.filter(f => !f.filename.match(/\.(html?|js|css|png|jpg|jpeg|gif|svg|ico)$/i)).length > 0 && (
+                          <Chip 
+                            label={`${analysis.files.filter(f => !f.filename.match(/\.(html?|js|css|png|jpg|jpeg|gif|svg|ico)$/i)).length} Altri`} 
+                            color="default" 
+                            size="small" 
+                          />
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* Informazioni origine app */}
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Origine app:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                      <Chip 
+                        label="Store AIdeas" 
+                        color="secondary" 
+                        size="small" 
+                        icon={<StoreIcon />}
+                      />
+                      {app.author && (
+                        <Chip label={`Autore: ${app.author}`} variant="outlined" size="small" />
+                      )}
+                      {app.storeId && (
+                        <Chip label={`ID: ${app.storeId}`} variant="outlined" size="small" />
+                      )}
+                      {app.version && (
+                        <Chip label={`v${app.version}`} variant="outlined" size="small" />
+                      )}
+                      {app.category && (
+                        <Chip label={app.category} variant="outlined" size="small" />
+                      )}
+                    </Box>
+                  </Box>
+
+                  {/* Descrizione */}
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Descrizione:
+                    </Typography>
+                    <Typography variant="body1" paragraph>
+                      {app.description || 'Nessuna descrizione disponibile'}
+                    </Typography>
+                  </Box>
+
+                  {/* Tag */}
+                  {app.tags && app.tags.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Tag:
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {app.tags.map((tag, index) => (
+                          <Chip 
+                            key={index} 
+                            label={tag} 
+                            size="small" 
+                            variant="outlined"
+                          />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
                 </AccordionDetails>
               </Accordion>
 
@@ -448,12 +590,9 @@ const StoreAppInfoModal = ({ open, onClose, app, onInstall }) => {
                   expanded={expandedSections.files} 
                   onChange={handleSectionChange('files')}
                 >
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <FolderIcon />
-                      <Typography variant="h6">File ({analysis.files.length})</Typography>
-                    </Box>
-                  </AccordionSummary>
+                                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography variant="h6">File ({analysis.files.length})</Typography>
+                </AccordionSummary>
                   <AccordionDetails>
                     <List dense>
                       {analysis.files.map((file, index) => (
@@ -488,12 +627,9 @@ const StoreAppInfoModal = ({ open, onClose, app, onInstall }) => {
                   expanded={expandedSections.permissions} 
                   onChange={handleSectionChange('permissions')}
                 >
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <SecurityIcon />
-                      <Typography variant="h6">Permessi ({analysis.permissions.length})</Typography>
-                    </Box>
-                  </AccordionSummary>
+                                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography variant="h6">Permessi ({analysis.permissions.length})</Typography>
+                </AccordionSummary>
                   <AccordionDetails>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                       {analysis.permissions.map((permission, index) => (
@@ -516,12 +652,9 @@ const StoreAppInfoModal = ({ open, onClose, app, onInstall }) => {
                   expanded={expandedSections.security} 
                   onChange={handleSectionChange('security')}
                 >
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <SecurityIcon />
-                      <Typography variant="h6">Sicurezza</Typography>
-                    </Box>
-                  </AccordionSummary>
+                                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography variant="h6">Sicurezza</Typography>
+                </AccordionSummary>
                   <AccordionDetails>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       {analysis.security.externalScripts && (
