@@ -57,6 +57,9 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
+  // Dichiarazione variabile globale puter
+  let puter;
+  
   // State per il form
   const [formData, setFormData] = useState({
     appName: '',
@@ -117,29 +120,38 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   const initializePuter = async () => {
     try {
       // Carica Puter.js se non è già caricato
-      if (typeof puter === 'undefined') {
+      if (typeof window.Puter === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://js.puter.com/v2/';
-        script.onload = () => {
-          setPuterInitialized(true);
-          checkAuthStatus();
-        };
-        script.onerror = () => {
-          console.error('Errore caricamento Puter.js');
-        };
-        document.head.appendChild(script);
+        
+        await new Promise((resolve, reject) => {
+          script.onload = () => {
+            // Inizializza Puter e assegna alla variabile globale
+            puter = new window.Puter({
+              app: 'ai-launcher'
+            });
+            setPuterInitialized(true);
+            resolve();
+          };
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
       } else {
+        // Puter è già caricato, inizializza direttamente
+        puter = new window.Puter({
+          app: 'ai-launcher'
+        });
         setPuterInitialized(true);
-        checkAuthStatus();
       }
     } catch (error) {
       console.error('Errore inizializzazione Puter:', error);
+      throw error;
     }
   };
 
   // Controlla stato autenticazione
   const checkAuthStatus = async () => {
-    if (!puterInitialized || typeof puter === 'undefined') return;
+    if (!puterInitialized || !puter) return;
     
     try {
       const isSignedIn = puter.auth.isSignedIn();
@@ -167,7 +179,6 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
       setAuthLoading(true);
       try {
         await initializePuter();
-        setPuterInitialized(true);
         await checkAuthStatus();
       } catch (error) {
         showToast('Errore caricamento Puter: ' + error.message, 'error');
@@ -203,6 +214,8 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
 
   // Logout
   const handleSignOut = async () => {
+    if (!puter) return;
+    
     try {
       await puter.auth.signOut();
       setIsAuthenticated(false);
@@ -215,6 +228,8 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
 
   // Carica app generate
   const loadGeneratedApps = async () => {
+    if (!puter) return;
+    
     try {
       const savedApps = await puter.kv.get('ai-launcher-apps');
       if (savedApps) {
@@ -227,6 +242,8 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
 
   // Salva app generate
   const saveGeneratedApps = async (apps) => {
+    if (!puter) return;
+    
     try {
       await puter.kv.set('ai-launcher-apps', JSON.stringify(apps));
     } catch (error) {
@@ -253,6 +270,10 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     setIsGenerating(true);
 
     try {
+      if (!puter) {
+        throw new Error('Puter non inizializzato');
+      }
+
       const prompt = `Crea una app web HTML completa chiamata "${appName}".
 
 DESCRIZIONE: ${appDescription}
@@ -366,7 +387,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
 
   // Invia messaggio chat
   const handleSendChatMessage = async () => {
-    if (!chatInput.trim() || !currentApp) return;
+    if (!chatInput.trim() || !currentApp || !puter) return;
     
     const message = chatInput.trim();
     setChatInput('');
