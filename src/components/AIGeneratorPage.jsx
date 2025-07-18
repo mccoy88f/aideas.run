@@ -113,6 +113,10 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
     { value: 'claude-3-haiku', label: 'Claude 3 Haiku (Anthropic)', group: '⚡ Altri' },
     { value: 'gemini-pro', label: 'Gemini Pro (Google)', group: '⚡ Altri' }
   ];
+
+  // State per i modelli AI dinamici
+  const [dynamicModels, setDynamicModels] = useState([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
   
   // Tipi di app
   const appTypes = [
@@ -132,6 +136,13 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
       saveAuthState();
     }
   }, [isAuthenticated, userInfo]);
+
+  // Carica modelli AI quando l'utente è autenticato
+  useEffect(() => {
+    if (isAuthenticated && puterRef.current) {
+      fetchAvailableModels();
+    }
+  }, [isAuthenticated, puterRef.current]);
 
   // Controlla autenticazione quando la pagina si carica
   useEffect(() => {
@@ -510,6 +521,128 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
       console.error('❌ Errore caricamento stato auth:', error);
     }
     return false;
+  };
+
+  // Ottieni modelli AI disponibili da Puter
+  const fetchAvailableModels = async () => {
+    if (!puterRef.current || !isAuthenticated) return;
+    
+    setModelsLoading(true);
+    try {
+      console.log('🔍 Caricamento modelli AI disponibili...');
+      
+      // Prova diversi endpoint per ottenere i modelli
+      const endpoints = [
+        '/ai/models',
+        '/api/ai/models', 
+        '/api/models',
+        '/models'
+      ];
+      
+      let models = [];
+      
+      // Prova prima con puter.ai se esiste un metodo per listare i modelli
+      if (puterRef.current.ai && typeof puterRef.current.ai.list === 'function') {
+        try {
+          models = await puterRef.current.ai.list();
+          console.log('✅ Modelli ottenuti tramite puter.ai.list():', models);
+        } catch (error) {
+          console.log('⚠️ puter.ai.list() non disponibile:', error);
+        }
+      }
+      
+      // Se non funziona, prova con fetch diretta agli endpoint
+      if (models.length === 0) {
+        for (const endpoint of endpoints) {
+          try {
+            const response = await fetch(`https://api.puter.com${endpoint}`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${puterRef.current.auth.getToken()}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              models = data.models || data.data || data;
+              console.log(`✅ Modelli ottenuti da ${endpoint}:`, models);
+              break;
+            }
+          } catch (error) {
+            console.log(`⚠️ Endpoint ${endpoint} non disponibile:`, error);
+          }
+        }
+      }
+      
+      // Se ancora non funziona, usa la lista hardcoded aggiornata
+      if (models.length === 0) {
+        console.log('📋 Usando lista modelli hardcoded aggiornata');
+        models = [
+          // Modelli gratuiti di OpenRouter
+          { id: 'openrouter:deepseek/deepseek-r1', name: 'DeepSeek R1 (Gratuito)', pricing: { prompt: 0, completion: 0 } },
+          { id: 'openrouter:openai/o1-mini', name: 'o1-mini (Reasoning)', pricing: { prompt: 0, completion: 0 } },
+          { id: 'openrouter:mistralai/mistral-7b-instruct', name: 'Mistral 7B (Gratuito)', pricing: { prompt: 0, completion: 0 } },
+          { id: 'openrouter:meta-llama/llama-2-7b-chat', name: 'Llama 2 7B (Gratuito)', pricing: { prompt: 0, completion: 0 } },
+          { id: 'openrouter:google/gemma-2b-it', name: 'Gemma 2B (Gratuito)', pricing: { prompt: 0, completion: 0 } },
+          { id: 'openrouter:google/gemma-7b-it', name: 'Gemma 7B (Gratuito)', pricing: { prompt: 0, completion: 0 } },
+          { id: 'openrouter:anthropic/claude-3-haiku', name: 'Claude 3 Haiku (Gratuito)', pricing: { prompt: 0, completion: 0 } },
+          { id: 'openrouter:openai/gpt-3.5-turbo', name: 'GPT-3.5 Turbo (Gratuito)', pricing: { prompt: 0, completion: 0 } },
+          
+          // Modelli a pagamento (per riferimento)
+          { id: 'gpt-4o', name: 'GPT-4o (OpenAI)', pricing: { prompt: 0.0025, completion: 0.01 } },
+          { id: 'claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Anthropic)', pricing: { prompt: 0.003, completion: 0.015 } },
+          { id: 'gpt-4-turbo', name: 'GPT-4 Turbo (OpenAI)', pricing: { prompt: 0.01, completion: 0.03 } },
+          { id: 'claude-3-opus', name: 'Claude 3 Opus (Anthropic)', pricing: { prompt: 0.015, completion: 0.075 } }
+        ];
+      }
+      
+      // Filtra solo i modelli gratuiti (pricing = 0 o finiscono con :free)
+      const freeModels = models.filter(model => {
+        const isFree = model.pricing && 
+          model.pricing.prompt === 0 && 
+          model.pricing.completion === 0;
+        const endsWithFree = model.id && model.id.includes(':free');
+        const isOpenRouterFree = model.id && model.id.startsWith('openrouter:') && 
+          (model.id.includes('deepseek-r1') || 
+           model.id.includes('o1-mini') || 
+           model.id.includes('mistral-7b') || 
+           model.id.includes('llama-2-7b') || 
+           model.id.includes('gemma-2b') || 
+           model.id.includes('gemma-7b') || 
+           model.id.includes('claude-3-haiku') || 
+           model.id.includes('gpt-3.5-turbo'));
+        
+        return isFree || endsWithFree || isOpenRouterFree;
+      });
+      
+      // Converti nel formato richiesto
+      const formattedModels = freeModels.map(model => ({
+        value: model.id,
+        label: model.name || model.id,
+        group: '🆓 Modelli Gratuiti'
+      }));
+      
+      // Aggiungi alcuni modelli premium come riferimento
+      const premiumModels = models.filter(model => 
+        model.pricing && 
+        (model.pricing.prompt > 0 || model.pricing.completion > 0)
+      ).slice(0, 5).map(model => ({
+        value: model.id,
+        label: `${model.name || model.id} ($${model.pricing.prompt}/1K tokens)`,
+        group: '💎 Modelli Premium'
+      }));
+      
+      setDynamicModels([...formattedModels, ...premiumModels]);
+      console.log(`✅ Caricati ${formattedModels.length} modelli gratuiti e ${premiumModels.length} premium`);
+      
+    } catch (error) {
+      console.error('❌ Errore caricamento modelli:', error);
+      // Fallback alla lista hardcoded
+      setDynamicModels(aiModels);
+    } finally {
+      setModelsLoading(false);
+    }
   };
 
   // Genera app
@@ -898,8 +1031,9 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
     }));
   };
 
-  // Raggruppa modelli AI per select
-  const groupedModels = aiModels.reduce((groups, model) => {
+  // Raggruppa modelli AI per select (usa modelli dinamici se disponibili, altrimenti fallback)
+  const modelsToUse = dynamicModels.length > 0 ? dynamicModels : aiModels;
+  const groupedModels = modelsToUse.reduce((groups, model) => {
     if (!groups[model.group]) {
       groups[model.group] = [];
     }
@@ -1100,13 +1234,14 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                 </Select>
               </FormControl>
               
-              <FormControl fullWidth sx={{ mb: 3 }} disabled={!isAuthenticated}>
+              <FormControl fullWidth sx={{ mb: 2 }} disabled={!isAuthenticated}>
                 <InputLabel>Modello AI</InputLabel>
                 <Select
                   value={formData.aiModel}
                   onChange={(e) => handleFormChange('aiModel', e.target.value)}
                   label="Modello AI"
                   required
+                  disabled={modelsLoading}
                 >
                   {Object.entries(groupedModels).map(([group, models]) => [
                     <MenuItem key={group} disabled sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
@@ -1119,7 +1254,27 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                     ))
                   ])}
                 </Select>
+                {modelsLoading && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                    <CircularProgress size={16} />
+                    <Typography variant="caption" color="text.secondary">
+                      Caricamento modelli...
+                    </Typography>
+                  </Box>
+                )}
               </FormControl>
+              
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={fetchAvailableModels}
+                disabled={modelsLoading || !isAuthenticated}
+                startIcon={<RefreshIcon />}
+                sx={{ mb: 3 }}
+                fullWidth
+              >
+                Aggiorna Modelli AI
+              </Button>
               
               <Button
                 type="submit"
