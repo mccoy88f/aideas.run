@@ -273,6 +273,7 @@ export const SECURITY_CONFIG = {
     'script-src': ['\'self\'', '\'unsafe-inline\'', 'https://cdnjs.cloudflare.com'],
     'style-src': ['\'self\'', '\'unsafe-inline\'', 'https://fonts.googleapis.com'],
     'img-src': ['\'self\'', 'data:', 'https:', 'blob:'],
+    'media-src': ['\'self\'', 'data:', 'https:', 'blob:'],
     'connect-src': ['\'self\'', 'https://api.github.com', 'https://www.googleapis.com'],
     'font-src': ['\'self\'', 'https://fonts.gstatic.com']
   }
