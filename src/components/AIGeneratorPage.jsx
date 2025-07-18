@@ -38,6 +38,7 @@ import {
   DialogContentText
 } from '@mui/material';
 import StorageService from '../services/StorageService.js';
+import { aiServiceManager } from '../services/ai/AIServiceManager.js';
 import { showToast } from '../utils/helpers.js';
 import {
   ArrowBack as ArrowBackIcon,
@@ -60,7 +61,7 @@ import {
 } from '@mui/icons-material';
 
 /**
- * Pagina per la generazione di app tramite AI usando Puter.js
+ * Pagina per la generazione di app tramite AI usando OpenRouter
  */
 const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp }) => {
   const theme = useTheme();
@@ -71,10 +72,10 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
     appName: '',
     appDescription: '',
     appType: '',
-    aiModel: 'gpt-4o'
+    aiModel: 'openai/gpt-4o-mini'
   });
   
-  // State per l'autenticazione Puter
+  // State per l'autenticazione AI
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
@@ -93,18 +94,6 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
   // State per preview
   const [previewOpen, setPreviewOpen] = useState(false);
   
-  // Inizializzazione Puter.js solo quando l'utente clicca su login
-  const [puterInitialized, setPuterInitialized] = useState(false);
-  
-  // Ref per mantenere l'istanza Puter
-  const puterRef = useRef(null);
-  
-  // Flag per indicare se il login è in corso
-  const [loginInProgress, setLoginInProgress] = useState(false);
-
-  // Modelli AI disponibili (caricati dinamicamente da Puter)
-  const aiModels = [];
-
   // State per i modelli AI dinamici
   const [dynamicModels, setDynamicModels] = useState([]);
   const [modelsLoading, setModelsLoading] = useState(false);
@@ -121,331 +110,59 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
     { value: 'other', label: 'Altro', icon: '⚡' }
   ];
 
-  // Salva stato autenticazione quando cambia
-  useEffect(() => {
-    if (isAuthenticated && userInfo) {
-      saveAuthState();
-    }
-  }, [isAuthenticated, userInfo]);
-
   // Carica modelli AI quando l'utente è autenticato
   useEffect(() => {
-    if (isAuthenticated && puterRef.current) {
+    if (isAuthenticated) {
       fetchAvailableModels();
     }
-  }, [isAuthenticated, puterRef.current]);
+  }, [isAuthenticated]);
 
-  // Controlla autenticazione quando la pagina si carica
+    // Controlla autenticazione quando la pagina si carica
   useEffect(() => {
-    console.log('🚪 Pagina caricata, controllo stato autenticazione...');
-    
-    // Prima prova a caricare lo stato salvato (come Google Drive)
-    const loaded = loadAuthState();
-    if (loaded) {
-      console.log('✅ Stato autenticazione caricato da localStorage');
-      // Se lo stato è stato caricato, inizializza Puter e controlla l'autenticazione
-      if (window.puter && !puterInitialized) {
-        puterRef.current = window.puter.init({
-          appId: 'aideas-ai-generator',
-          appName: 'AIdeas AI Generator',
-          appIcon: '🤖'
-        });
-        setPuterInitialized(true);
-        // Controlla subito l'autenticazione se Puter è disponibile
-        setTimeout(() => {
-          checkAuthStatus();
-        }, 500);
-      }
-    }
-    
-    // Se Puter è già disponibile globalmente, controlla lo stato
-    if (window.puter && !puterInitialized) {
-      console.log('✅ Puter già disponibile globalmente');
-      // Inizializza con la nuova API
-      puterRef.current = window.puter.init({
-        appId: 'aideas-ai-generator',
-        appName: 'AIdeas AI Generator',
-        appIcon: '🤖'
-      });
-      setPuterInitialized(true);
-      // Controlla subito l'autenticazione se Puter è disponibile
-      setTimeout(() => {
-        checkAuthStatus();
-      }, 500);
-    }
-    
-    // Controlla se c'è un parametro di ritorno dall'autenticazione
-    const urlParams = new URLSearchParams(window.location.search);
-    const authReturn = urlParams.get('auth_return');
-    
-    if (authReturn === 'success') {
-      console.log('🔄 Rilevato ritorno da autenticazione');
-      // Rimuovi il parametro dall'URL
-      const newURL = new URL(window.location);
-      newURL.searchParams.delete('auth_return');
-      window.history.replaceState({}, '', newURL);
-      
-      // Controlla l'autenticazione dopo un breve delay
-      setTimeout(() => {
-        if (window.puter) {
-          puterRef.current = window.puter.init({
-            appId: 'aideas-ai-generator',
-            appName: 'AIdeas AI Generator',
-            appIcon: '🤖'
-          });
-          setPuterInitialized(true);
-          checkAuthStatus();
-        }
-      }, 1000);
-    }
+    console.log('🚪 Pagina caricata, controllo stato autenticazione AI...');
+    checkAuthStatus();
   }, []);
 
-  // Listener intelligente per cambiamenti di stato Puter
-  useEffect(() => {
-    // Listener per cambiamenti di visibilità della pagina
-    const handleVisibilityChange = () => {
-      // Non controllare se il login è in corso
-      if (loginInProgress) {
-        console.log('⏳ Login in corso, salto controllo visibility');
-        return;
-      }
-      
-      if (!document.hidden && window.puter && !isAuthenticated && puterInitialized) {
-        // Assicurati che Puter sia inizializzato correttamente
-        if (!puterRef.current) {
-          puterRef.current = window.puter.init({
-            appId: 'aideas-ai-generator',
-            appName: 'AIdeas AI Generator',
-            appIcon: '🤖'
-          });
-        }
-        // Aspetta un momento prima di controllare l'autenticazione
-        setTimeout(() => {
-          checkAuthStatus();
-        }, 1000);
-      }
-    };
-
-    // Listener per messaggi da Puter (se supportato)
-    const handleMessage = (event) => {
-      if (event.origin === 'https://puter.com' && event.data?.type === 'auth') {
-        // Non controllare se il login è in corso
-        if (loginInProgress) {
-          console.log('⏳ Login in corso, salto controllo messaggio');
-          return;
-        }
-        
-        if (window.puter && !isAuthenticated && puterInitialized) {
-          // Assicurati che Puter sia inizializzato correttamente
-          if (!puterRef.current) {
-            puterRef.current = window.puter.init({
-              appId: 'aideas-ai-generator',
-              appName: 'AIdeas AI Generator',
-              appIcon: '🤖'
-            });
-          }
-          // Aspetta un momento prima di controllare l'autenticazione
-          setTimeout(() => {
-            checkAuthStatus();
-          }, 1000);
-        }
-      }
-    };
-
-    // Controllo periodico per autenticazione (solo se non autenticato)
-    const authCheckInterval = setInterval(() => {
-      if (!loginInProgress && !isAuthenticated && puterInitialized && window.puter) {
-        // Assicurati che Puter sia inizializzato correttamente
-        if (!puterRef.current) {
-          puterRef.current = window.puter;
-        }
-        checkAuthStatus();
-      }
-    }, 3000); // Controlla ogni 3 secondi
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('message', handleMessage);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('message', handleMessage);
-      clearInterval(authCheckInterval);
-    };
-  }, [isAuthenticated, puterInitialized, loginInProgress]);
-
-  // Salva stato quando cambia (come Google Drive)
-  useEffect(() => {
-    if (puterInitialized) {
-      saveAuthState();
-    }
-  }, [isAuthenticated, userInfo]);
-
-  // Inizializza Puter.js
-  const initializePuter = async () => {
-    try {
-      console.log('🔄 Inizializzazione Puter...');
-      
-      // Carica Puter.js se non è già caricato
-      if (typeof window.puter === 'undefined') {
-        console.log('📥 Caricamento script Puter...');
-        const script = document.createElement('script');
-        script.src = 'https://js.puter.com/v2/';
-        
-        await new Promise((resolve, reject) => {
-          script.onload = () => {
-            console.log('✅ Script Puter caricato');
-            resolve();
-          };
-          script.onerror = () => {
-            console.error('❌ Errore caricamento script Puter');
-            reject(new Error('Errore caricamento Puter.js'));
-          };
-          document.head.appendChild(script);
-        });
-      }
-      
-      // Inizializza Puter con la nuova API
-      if (window.puter) {
-        // Nuova API Puter - usa direttamente window.puter
-        puterRef.current = window.puter;
-        setPuterInitialized(true);
-        console.log('✅ Puter inizializzato con successo');
-        
-        // Controlla se c'è un parametro di ritorno dall'autenticazione
-        const urlParams = new URLSearchParams(window.location.search);
-        const authReturn = urlParams.get('auth_return');
-        
-        if (authReturn === 'success') {
-          console.log('🔄 Rilevato ritorno da autenticazione');
-          // Rimuovi il parametro dall'URL
-          const newURL = new URL(window.location);
-          newURL.searchParams.delete('auth_return');
-          window.history.replaceState({}, '', newURL);
-          
-          // Controlla l'autenticazione dopo un breve delay
-          setTimeout(() => {
-            checkAuthStatus();
-          }, 1000);
-        } else {
-          // Controlla subito l'autenticazione
-          setTimeout(() => {
-            checkAuthStatus();
-          }, 500);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Errore inizializzazione Puter:', error);
-      showToast('Errore inizializzazione Puter', 'error');
-    }
-  };
-
-  // Controlla stato autenticazione
+  // Controlla stato autenticazione AI
   const checkAuthStatus = async () => {
-    if (!puterRef.current) {
-      console.log('⚠️ Puter non ancora inizializzato');
-      return;
-    }
-    
     try {
-      console.log('🔍 Controllo stato autenticazione Puter...');
+      console.log('🔍 Controllo stato autenticazione AI...');
       
-      // Controlla se l'utente è autenticato
-      const isSignedIn = puterRef.current.auth.isSignedIn();
-      console.log('🔐 Stato autenticazione:', isSignedIn);
+      // Verifica se il servizio AI è configurato
+      const isConfigured = aiServiceManager.isCurrentProviderConfigured();
+      console.log('🔐 Stato configurazione AI:', isConfigured);
       
-      if (isSignedIn) {
-        // Ottieni informazioni utente
-        const user = await puterRef.current.auth.getUser();
-        console.log('✅ Utente autenticato:', user);
+      if (isConfigured) {
         setIsAuthenticated(true);
-        setUserInfo(user);
+        setUserInfo({ name: 'OpenRouter User', email: 'openrouter@aideas.run' });
         
         // Carica le app generate
         await loadGeneratedApps();
       } else {
-        console.log('❌ Utente non autenticato');
+        console.log('❌ Servizio AI non configurato');
         setIsAuthenticated(false);
         setUserInfo(null);
       }
     } catch (error) {
-      console.error('❌ Errore controllo autenticazione:', error);
+      console.error('❌ Errore controllo autenticazione AI:', error);
       setIsAuthenticated(false);
       setUserInfo(null);
     }
   };
 
-  // Gestione login
+  // Gestione login (reindirizza alle impostazioni)
   const handleSignIn = async () => {
-    if (!puterRef.current) {
-      await initializePuter();
-    }
-    
-    if (!puterRef.current) {
-      showToast('Errore inizializzazione Puter', 'error');
-      return;
-    }
-    
-    try {
-      setAuthLoading(true);
-      setLoginInProgress(true);
-      console.log('🔐 Avvio login Puter...');
-      
-      // Avvia il processo di autenticazione
-      const currentURL = window.location.href;
-      const redirectURL = new URL(currentURL);
-      redirectURL.searchParams.set('auth_return', 'success');
-      
-      console.log('🌐 URL corrente:', currentURL);
-      console.log('🔄 URL di redirect:', redirectURL.toString());
-      
-      // Prova prima popup, poi redirect
-      try {
-        console.log('🪟 Tentativo login con popup...');
-        await puterRef.current.auth.signIn({ 
-          mode: 'popup',
-          redirectURL: redirectURL.toString()
-        });
-        console.log('✅ Login popup completato');
-        
-        // Aspetta un momento prima di controllare l'autenticazione
-        setTimeout(() => {
-          setLoginInProgress(false);
-          checkAuthStatus();
-        }, 3000);
-        
-      } catch (popupError) {
-        console.log('⚠️ Popup fallito, uso redirect:', popupError);
-        await puterRef.current.auth.signIn({ 
-          mode: 'redirect',
-          redirectURL: redirectURL.toString()
-        });
-        console.log('✅ Login redirect completato');
-        setLoginInProgress(false);
-      }
-      
-      console.log('✅ Login completato');
-      showToast('Login completato!', 'success');
-      
-    } catch (error) {
-      console.error('❌ Errore login:', error);
-      showToast('Errore durante il login', 'error');
-    } finally {
-      setAuthLoading(false);
-      setLoginInProgress(false);
-    }
+    showToast('Configura la tua API key OpenRouter nelle impostazioni', 'info');
+    // Qui potresti aprire le impostazioni automaticamente
   };
 
   // Gestione logout
   const handleSignOut = async () => {
     try {
-      if (puterRef.current) {
-        // Logout
-        await puterRef.current.auth.signOut();
-      }
       setIsAuthenticated(false);
       setUserInfo(null);
       setGeneratedApps([]);
-      showToast('Logout completato', 'success');
+      showToast('Disconnesso da OpenRouter', 'success');
     } catch (error) {
       console.error('❌ Errore logout:', error);
       showToast('Errore durante il logout', 'error');
@@ -454,10 +171,8 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
 
   // Carica app generate
   const loadGeneratedApps = async () => {
-    if (!puterRef.current) return;
-    
     try {
-      const savedApps = await puterRef.current.kv.get('ai-launcher-apps');
+      const savedApps = localStorage.getItem('aideas-ai-generated-apps');
       if (savedApps) {
         setGeneratedApps(JSON.parse(savedApps));
         console.log(`📱 Caricate ${JSON.parse(savedApps).length} app generate`);
@@ -469,130 +184,38 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
 
   // Salva app generate
   const saveGeneratedApps = async (apps) => {
-    if (!puterRef.current) return;
-    
     try {
-      await puterRef.current.kv.set('ai-launcher-apps', JSON.stringify(apps));
+      localStorage.setItem('aideas-ai-generated-apps', JSON.stringify(apps));
       console.log(`💾 Salvate ${apps.length} app generate`);
     } catch (error) {
       console.error('❌ Errore salvataggio app generate:', error);
     }
   };
 
-  // Salva stato autenticazione
-  const saveAuthState = () => {
-    try {
-      const authState = {
-        isAuthenticated,
-        userInfo,
-        timestamp: Date.now()
-      };
-      localStorage.setItem('puter_auth_state', JSON.stringify(authState));
-    } catch (error) {
-      console.error('❌ Errore salvataggio stato auth:', error);
-    }
-  };
-
-  // Carica stato autenticazione
-  const loadAuthState = () => {
-    try {
-      const saved = localStorage.getItem('puter_auth_state');
-      if (saved) {
-        const authState = JSON.parse(saved);
-        // Controlla se lo stato è ancora valido (max 1 ora)
-        if (Date.now() - authState.timestamp < 60 * 60 * 1000) {
-          setIsAuthenticated(authState.isAuthenticated);
-          setUserInfo(authState.userInfo);
-          return true;
-        } else {
-          localStorage.removeItem('puter_auth_state');
-        }
-      }
-    } catch (error) {
-      console.error('❌ Errore caricamento stato auth:', error);
-    }
-    return false;
-  };
-
-  // Ottieni modelli AI disponibili da Puter
+  // Ottieni modelli AI disponibili da OpenRouter
   const fetchAvailableModels = async () => {
-    if (!puterRef.current || !isAuthenticated) return;
+    if (!isAuthenticated) return;
     
     setModelsLoading(true);
     try {
-      console.log('🔍 Caricamento modelli AI da Puter...');
+      console.log('🔍 Caricamento modelli AI da OpenRouter...');
       
-      // Modelli Puter nativi
-      const puterModels = [
-        { value: 'gpt-4o-mini', label: 'GPT-4o Mini', group: '🚀 Modelli Puter' },
-        { value: 'gpt-4o', label: 'GPT-4o', group: '🚀 Modelli Puter' },
-        { value: 'o1', label: 'O1', group: '🚀 Modelli Puter' },
-        { value: 'o1-mini', label: 'O1 Mini', group: '🚀 Modelli Puter' },
-        { value: 'o1-pro', label: 'O1 Pro', group: '🚀 Modelli Puter' },
-        { value: 'o3', label: 'O3', group: '🚀 Modelli Puter' },
-        { value: 'o3-mini', label: 'O3 Mini', group: '🚀 Modelli Puter' },
-        { value: 'o4-mini', label: 'O4 Mini', group: '🚀 Modelli Puter' },
-        { value: 'gpt-4.1', label: 'GPT-4.1', group: '🚀 Modelli Puter' },
-        { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', group: '🚀 Modelli Puter' },
-        { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano', group: '🚀 Modelli Puter' },
-        { value: 'gpt-4.5-preview', label: 'GPT-4.5 Preview', group: '🚀 Modelli Puter' },
-        { value: 'claude-sonnet-4', label: 'Claude Sonnet 4', group: '🚀 Modelli Puter' },
-        { value: 'claude-opus-4', label: 'Claude Opus 4', group: '🚀 Modelli Puter' },
-        { value: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet', group: '🚀 Modelli Puter' },
-        { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet', group: '🚀 Modelli Puter' },
-        { value: 'deepseek-chat', label: 'DeepSeek Chat', group: '🚀 Modelli Puter' },
-        { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner', group: '🚀 Modelli Puter' },
-        { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', group: '🚀 Modelli Puter' },
-        { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', group: '🚀 Modelli Puter' },
-        { value: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo', label: 'Meta Llama 3.1 8B', group: '🚀 Modelli Puter' },
-        { value: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo', label: 'Meta Llama 3.1 70B', group: '🚀 Modelli Puter' },
-        { value: 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo', label: 'Meta Llama 3.1 405B', group: '🚀 Modelli Puter' },
-        { value: 'mistral-large-latest', label: 'Mistral Large', group: '🚀 Modelli Puter' },
-        { value: 'pixtral-large-latest', label: 'Pixtral Large', group: '🚀 Modelli Puter' },
-        { value: 'codestral-latest', label: 'Codestral', group: '🚀 Modelli Puter' },
-        { value: 'google/gemma-2-27b-it', label: 'Google Gemma 2 27B', group: '🚀 Modelli Puter' },
-        { value: 'grok-beta', label: 'Grok Beta', group: '🚀 Modelli Puter' }
-      ];
-
-      // Modelli OpenRouter gratuiti (selezionati)
-      const openRouterFreeModels = [
-        { value: 'openrouter:meta-llama/llama-3.1-8b-instruct:free', label: 'Meta Llama 3.1 8B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:anthropic/claude-3.5-sonnet:free', label: 'Claude 3.5 Sonnet (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:google/gemini-pro-1.5:free', label: 'Gemini Pro 1.5 (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:openai/gpt-4o-mini:free', label: 'GPT-4o Mini (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:qwen/qwen-2.5-72b-instruct:free', label: 'Qwen 2.5 72B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:qwen/qwen-2.5-coder-32b-instruct:free', label: 'Qwen 2.5 Coder 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:qwen/qwen2.5-vl-32b-instruct:free', label: 'Qwen 2.5 VL 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:qwen/qwen2.5-vl-72b-instruct:free', label: 'Qwen 2.5 VL 72B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:qwen/qwen3-14b:free', label: 'Qwen 3 14B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:qwen/qwen3-235b-a22b:free', label: 'Qwen 3 235B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:qwen/qwen3-30b-a3b:free', label: 'Qwen 3 30B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:qwen/qwen3-32b:free', label: 'Qwen 3 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:qwen/qwen3-8b:free', label: 'Qwen 3 8B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:qwen/qwq-32b:free', label: 'QWQ 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:mistralai/mistral-small-3.1-24b-instruct:free', label: 'Mistral Small 3.1 24B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:mistralai/mistral-small-3.2-24b-instruct:free', label: 'Mistral Small 3.2 24B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:moonshotai/kimi-dev-72b:free', label: 'Kimi Dev 72B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:moonshotai/kimi-vl-a3b-thinking:free', label: 'Kimi VL A3B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:nousresearch/deephermes-3-llama-3-8b-preview:free', label: 'DeepHermes 3 Llama 3 8B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:nvidia/llama-3.1-nemotron-ultra-253b-v1:free', label: 'Nemotron Ultra 253B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:nvidia/llama-3.3-nemotron-super-49b-v1:free', label: 'Nemotron Super 49B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:thudm/glm-4-32b:free', label: 'GLM-4 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:thudm/glm-z1-32b:free', label: 'GLM-Z1 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:tngtech/deepseek-r1t-chimera:free', label: 'DeepSeek R1T Chimera (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:rekaai/reka-flash-3:free', label: 'Reka Flash 3 (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:sarvamai/sarvam-m:free', label: 'Sarvam M (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:shisa-ai/shisa-v2-llama3.3-70b:free', label: 'Shisa V2 Llama 3.3 70B (Free)', group: '🆓 OpenRouter Gratuiti' },
-        { value: 'openrouter:openrouter/cypher-alpha:free', label: 'Cypher Alpha (Free)', group: '🆓 OpenRouter Gratuiti' }
-      ];
-
-      // Combina tutti i modelli
-      const allModels = [...puterModels, ...openRouterFreeModels];
+      const models = await aiServiceManager.getAvailableModels();
       
-      setDynamicModels(allModels);
-      console.log('✅ Modelli caricati con successo:', allModels.length, 'modelli disponibili');
-      console.log('📊 Breakdown:', puterModels.length, 'modelli Puter +', openRouterFreeModels.length, 'modelli OpenRouter gratuiti');
+      // Converti il formato per il dropdown
+      const formattedModels = [];
+      Object.entries(models).forEach(([group, groupModels]) => {
+        groupModels.forEach(model => {
+          formattedModels.push({
+            value: model.value,
+            label: model.label,
+            group: group
+          });
+        });
+      });
+      
+      setDynamicModels(formattedModels);
+      console.log('✅ Modelli caricati con successo:', formattedModels.length, 'modelli disponibili');
       
     } catch (error) {
       console.error('❌ Errore caricamento modelli:', error);
@@ -602,114 +225,96 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
     }
   };
 
-  // Genera app
+  // Genera app con AI
   const handleGenerateApp = async (e) => {
     e.preventDefault();
     
     if (!isAuthenticated) {
-      showToast('Per usare l\'AI devi prima fare il login con Puter.', 'warning');
+      showToast('Configura la tua API key OpenRouter nelle impostazioni', 'warning');
       return;
     }
     
     const { appName, appDescription, appType, aiModel } = formData;
     
-    if (!appName || !appDescription || !appType) {
-      showToast('Per favore compila tutti i campi richiesti', 'warning');
+    if (!appName.trim() || !appDescription.trim() || !appType || !aiModel) {
+      showToast('Compila tutti i campi richiesti', 'warning');
       return;
     }
-
+    
     setIsGenerating(true);
-
+    
     try {
-      if (!puterRef.current) {
-        throw new Error('Puter non inizializzato');
-      }
-
+      console.log('🚀 Avvio generazione app con AI...');
+      console.log('📋 Parametri:', { appName, appDescription, appType, aiModel });
+      
       const prompt = `Crea una app web HTML completa chiamata "${appName}".
 
 DESCRIZIONE: ${appDescription}
 TIPO: ${appType}
 
-REQUISITI SPECIFICI:
-- File HTML singolo autocontenuto
-- Design moderno e responsive  
-- Funzionalità completamente implementate
-- Solo tecnologie client-side (HTML, CSS, JS)
-- Usa Material Design o design moderno
-- Colori e stile coerenti con il tema dell'app
+REQUISITI:
+- Crea un'app HTML completa e funzionante
+- Usa HTML5, CSS3 e JavaScript moderno
+- Includi tutti gli stili CSS necessari
+- Aggiungi funzionalità JavaScript interattive
+- Rendi l'app responsive e user-friendly
+- Usa un design moderno e accattivante
+- Includi icone e elementi visivi appropriati
+- Assicurati che l'app sia completamente autonoma
 
 Implementa tutte le funzionalità richieste senza usare placeholder.`;
 
-      const response = await puterRef.current.ai.chat(prompt, {
-        model: aiModel
+      const response = await aiServiceManager.generateResponse(prompt, {
+        model: aiModel,
+        temperature: 0.7,
+        maxTokens: 4000
       });
 
-      let generatedCode = response.message.content;
+      let generatedCode = response;
       
-      console.log('📄 Codice grezzo ricevuto:', generatedCode.substring(0, 200) + '...');
-      
-      // Pulisci il codice da eventuali markdown e testo extra
-      generatedCode = generatedCode.replace(/```html\n?/g, '').replace(/```\n?/g, '');
-      
-      // Rimuovi tutto il testo prima del primo tag HTML
-      const htmlStartIndex = generatedCode.search(/<!DOCTYPE html>|<html/i);
-      if (htmlStartIndex !== -1) {
-        generatedCode = generatedCode.substring(htmlStartIndex);
-        console.log('✅ Trovato inizio HTML a posizione:', htmlStartIndex);
+      // Estrai il codice HTML dalla risposta
+      const htmlMatch = generatedCode.match(/```html\n?([\s\S]*?)\n?```/);
+      if (htmlMatch) {
+        generatedCode = htmlMatch[1];
       } else {
-        console.log('⚠️ Tag HTML non trovato, uso tutto il codice');
+        // Se non c'è un blocco HTML, cerca di estrarre il codice HTML
+        const htmlStart = generatedCode.indexOf('<html');
+        const htmlEnd = generatedCode.lastIndexOf('</html>') + 7;
+        if (htmlStart !== -1 && htmlEnd !== -1) {
+          generatedCode = generatedCode.substring(htmlStart, htmlEnd);
+        }
       }
       
-      // Rimuovi tutto il testo dopo l'ultimo tag di chiusura HTML
-      const htmlEndIndex = generatedCode.lastIndexOf('</html>');
-      if (htmlEndIndex !== -1) {
-        generatedCode = generatedCode.substring(0, htmlEndIndex + 7); // +7 per includere </html>
-        console.log('✅ Trovata fine HTML a posizione:', htmlEndIndex);
-      } else {
-        console.log('⚠️ Tag di chiusura HTML non trovato');
-      }
-      
-      // Rimuovi eventuali spiegazioni o testo extra rimanente
-      generatedCode = generatedCode.replace(/###.*?(?=<!DOCTYPE html>|<html)/gis, '');
-      generatedCode = generatedCode.replace(/###.*?(?=<\/html>)/gis, '');
-      generatedCode = generatedCode.replace(/Spiegazione.*$/gis, '');
-      generatedCode = generatedCode.replace(/Note.*$/gis, '');
-      generatedCode = generatedCode.replace(/Come Utilizzare.*$/gis, '');
-      generatedCode = generatedCode.replace(/Caratteristiche.*$/gis, '');
-      generatedCode = generatedCode.replace(/Codice Completo:.*$/gis, '');
-      generatedCode = generatedCode.replace(/Spero che questa soluzione.*$/gis, '');
-      generatedCode = generatedCode.replace(/Se hai ulteriori domande.*$/gis, '');
-      
-      // Rimuovi righe vuote multiple e spazi extra
-      generatedCode = generatedCode.replace(/\n\s*\n\s*\n/g, '\n\n');
-      generatedCode = generatedCode.trim();
-      
-      console.log('🧹 Codice HTML pulito:', generatedCode.substring(0, 200) + '...');
-      console.log('📏 Lunghezza codice finale:', generatedCode.length);
-      
-      const newApp = {
-        id: Date.now(),
+      // Crea l'oggetto app
+      const app = {
+        id: Date.now().toString(),
         name: appName,
         description: appDescription,
+        icon: getIconForType(appType),
+        code: generatedCode,
         type: appType,
         model: aiModel,
-        code: generatedCode,
-        icon: getIconForType(appType),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        uniqueId: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        source: 'ai-generated'
       };
-
-      setCurrentApp(newApp);
+      
+      setCurrentApp(app);
       setPreviewOpen(true);
       
-      // Inizializza chat history
+      // Inizializza la chat con il prompt e la risposta
       setChatMessages([
+        { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' },
         { role: 'user', content: prompt },
-        { role: 'assistant', content: response.message.content }
+        { role: 'assistant', content: response }
       ]);
-
+      
+      console.log('✅ App generata con successo!');
+      showToast('App generata con successo!', 'success');
+      
     } catch (error) {
-      console.error('Errore generazione:', error);
-      showToast('Errore durante la generazione dell\'app: ' + error.message, 'error');
+      console.error('❌ Errore generazione:', error);
+      showToast('Errore durante la generazione: ' + error.message, 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -839,6 +444,10 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     }
   };
 
+  // State per conferma aggiornamento
+  const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
+  const [appToUpdate, setAppToUpdate] = useState(null);
+
   // Aggiorna app nella lista generate con le modifiche
   const handleUpdateGeneratedApp = async (app) => {
     if (!currentApp || !currentApp.isModification) {
@@ -846,10 +455,18 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       return;
     }
 
+    setAppToUpdate(app);
+    setUpdateConfirmOpen(true);
+  };
+
+  // Conferma aggiornamento app
+  const handleConfirmUpdate = async () => {
+    if (!appToUpdate || !currentApp) return;
+
     try {
       // Aggiorna l'app nella lista generate
       const updatedApps = generatedApps.map(generatedApp => 
-        generatedApp.id === app.id ? currentApp : generatedApp
+        generatedApp.id === appToUpdate.id ? currentApp : generatedApp
       );
       setGeneratedApps(updatedApps);
       await saveGeneratedApps(updatedApps);
@@ -858,7 +475,16 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     } catch (error) {
       console.error('❌ Errore aggiornamento app:', error);
       showToast('Errore aggiornamento app', 'error');
+    } finally {
+      setUpdateConfirmOpen(false);
+      setAppToUpdate(null);
     }
+  };
+
+  // Annulla aggiornamento
+  const handleCancelUpdate = () => {
+    setUpdateConfirmOpen(false);
+    setAppToUpdate(null);
   };
 
   // Esponi la funzione globalmente quando il componente è montato
@@ -872,7 +498,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
 
   // Invia messaggio chat
   const handleSendChatMessage = async () => {
-    if (!chatInput.trim() || !currentApp || !puterRef.current) return;
+    if (!chatInput.trim() || !currentApp) return;
     
     const message = chatInput.trim();
     setChatInput('');
@@ -890,11 +516,13 @@ ${currentApp.code}
 Modifica il codice HTML in base alla richiesta, mantenendo tutte le funzionalità esistenti e aggiungendo le 
 modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
 
-      const response = await puterRef.current.ai.chat(modifyPrompt, {
-        model: formData.aiModel
+      const response = await aiServiceManager.generateResponse(modifyPrompt, {
+        model: currentApp.model || 'openai/gpt-4o-mini',
+        temperature: 0.7,
+        maxTokens: 4000
       });
 
-      const fullResponse = response.message.content;
+      const fullResponse = response;
       
       // Estrai il codice HTML dalla risposta
       const htmlMatch = fullResponse.match(/```html\n?([\s\S]*?)\n?```/);
@@ -1382,31 +1010,53 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                     Chat per Modifiche
                   </Typography>
                   
-                  <Box sx={{ height: 200, overflowY: 'auto', mb: 2, p: 1, border: 1, borderColor: 'divider', borderRadius: 1, display: 'flex', flexDirection: 'column' }}>
-                                        {chatMessages.map((msg, index) => (
+                  <Box sx={{ 
+                    height: 200, 
+                    overflowY: 'auto', 
+                    mb: 2, 
+                    p: 1, 
+                    border: 1, 
+                    borderColor: 'divider', 
+                    borderRadius: 1, 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    gap: 1
+                  }}>
+                    {chatMessages.map((msg, index) => (
                       <Box
                         key={index}
                         sx={{
-                          mb: 1,
-                          p: 1,
-                          borderRadius: 1,
-                          background: msg.role === 'user' ? 'primary.main' : 'grey.100',
-                          color: msg.role === 'user' ? 'white' : 'text.primary',
-                          ml: msg.role === 'user' ? 'auto' : 0,
-                          mr: msg.role === 'user' ? 0 : 'auto',
-                          maxWidth: '80%',
-                          alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start'
+                          p: 1.5,
+                          borderRadius: 2,
+                          background: msg.role === 'user' 
+                            ? theme.palette.primary.main 
+                            : theme.palette.mode === 'dark' 
+                              ? 'rgba(255, 255, 255, 0.08)' 
+                              : 'rgba(0, 0, 0, 0.04)',
+                          color: msg.role === 'user' 
+                            ? 'white' 
+                            : theme.palette.text.primary,
+                          maxWidth: '85%',
+                          alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                          wordBreak: 'break-word',
+                          boxShadow: theme.shadows[1]
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          <Typography variant="body2" sx={{ 
+                            fontWeight: 'bold',
+                            color: msg.role === 'user' ? 'white' : theme.palette.text.primary
+                          }}>
                             {msg.role === 'user' ? '👤 Tu' : '🤖 AI'}:
                           </Typography>
                           {msg.role === 'user' && isModifying && index === chatMessages.length - 1 && (
                             <CircularProgress size={16} sx={{ color: 'white' }} />
                           )}
                         </Box>
-                        <Typography variant="body2">
+                        <Typography variant="body2" sx={{
+                          color: msg.role === 'user' ? 'white' : theme.palette.text.primary,
+                          lineHeight: 1.4
+                        }}>
                           {msg.content}
                         </Typography>
                       </Box>
@@ -1447,6 +1097,32 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
           )}
         </Box>
       </Stack>
+
+      {/* Dialog di conferma aggiornamento */}
+      <Dialog
+        open={updateConfirmOpen}
+        onClose={handleCancelUpdate}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Conferma Aggiornamento
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Sei sicuro di voler aggiornare l'app "{appToUpdate?.name}" con le modifiche correnti?
+            Questa azione sovrascriverà la versione precedente.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelUpdate}>
+            Annulla
+          </Button>
+          <Button onClick={handleConfirmUpdate} variant="contained" color="primary">
+            Aggiorna
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -79,6 +79,7 @@ import EmojiSelector from './components/EmojiSelector.jsx';
 import GoogleDriveService from './services/GoogleDriveService.js';
 import GitHubService from './services/GitHubService.js';
 import AppRouteService from './services/AppRouteService.js';
+import { aiServiceManager } from './services/ai/AIServiceManager.js';
 
 /**
  * Componente principale dell'applicazione AIdeas con Material UI
@@ -358,6 +359,22 @@ function AIdeasApp() {
       console.log('⚙️ Caricamento impostazioni...');
       await loadUserSettings();
       await loadUserInfo();
+      
+      // Inizializza AI Service Manager
+      console.log('🤖 Inizializzazione AI Service Manager...');
+      try {
+        const aiSettings = await StorageService.getSetting('ai', {});
+        if (aiSettings.openrouter?.apiKey) {
+          await aiServiceManager.initialize({
+            openrouter: { apiKey: aiSettings.openrouter.apiKey }
+          });
+          console.log('✅ AI Service Manager inizializzato con successo');
+        } else {
+          console.log('ℹ️ AI Service Manager non configurato - nessuna API key trovata');
+        }
+      } catch (error) {
+        console.error('❌ Errore inizializzazione AI Service Manager:', error);
+      }
       
       console.log('🎯 Impostazione loading a false...');
       setLoading(false);
