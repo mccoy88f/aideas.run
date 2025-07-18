@@ -118,9 +118,8 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
 
   // Controlla stato autenticazione quando Puter è inizializzato
   useEffect(() => {
-    if (puterInitialized && puterRef.current) {
-      checkAuthStatus();
-    }
+    // Non controllare automaticamente l'autenticazione quando Puter viene inizializzato
+    // Il controllo verrà fatto solo quando l'utente clicca su login o quando torna da un redirect
   }, [puterInitialized]);
 
   // Controlla autenticazione quando il modale si apre
@@ -137,7 +136,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
         console.log('✅ Puter già disponibile globalmente');
         puterRef.current = window.puter;
         setPuterInitialized(true);
-        checkAuthStatus();
+        // Non controllare subito l'autenticazione, aspetta che l'utente clicchi login
       }
       
       // Controlla se c'è un parametro di ritorno dall'autenticazione
@@ -151,9 +150,16 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
         if (window.puter) {
           puterRef.current = window.puter;
           setPuterInitialized(true);
-          checkAuthStatus();
+          // Aspetta un momento prima di controllare l'autenticazione
+          setTimeout(() => {
+            checkAuthStatus();
+          }, 500);
         } else {
-          initializePuter();
+          initializePuter().then(() => {
+            setTimeout(() => {
+              checkAuthStatus();
+            }, 500);
+          });
         }
       }
     }
@@ -163,29 +169,35 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   useEffect(() => {
     const handleFocus = () => {
       // Controlla se Puter è disponibile e se non siamo già autenticati
-      if (window.puter && !isAuthenticated) {
+      if (window.puter && !isAuthenticated && puterInitialized) {
         puterRef.current = window.puter;
-        setPuterInitialized(true);
-        checkAuthStatus();
+        // Aspetta un momento prima di controllare l'autenticazione
+        setTimeout(() => {
+          checkAuthStatus();
+        }, 500);
       }
     };
 
     // Listener per cambiamenti di visibilità della pagina
     const handleVisibilityChange = () => {
-      if (!document.hidden && window.puter && !isAuthenticated) {
+      if (!document.hidden && window.puter && !isAuthenticated && puterInitialized) {
         puterRef.current = window.puter;
-        setPuterInitialized(true);
-        checkAuthStatus();
+        // Aspetta un momento prima di controllare l'autenticazione
+        setTimeout(() => {
+          checkAuthStatus();
+        }, 500);
       }
     };
 
     // Listener per messaggi da Puter (se supportato)
     const handleMessage = (event) => {
       if (event.origin === 'https://puter.com' && event.data?.type === 'auth') {
-        if (window.puter && !isAuthenticated) {
+        if (window.puter && !isAuthenticated && puterInitialized) {
           puterRef.current = window.puter;
-          setPuterInitialized(true);
-          checkAuthStatus();
+          // Aspetta un momento prima di controllare l'autenticazione
+          setTimeout(() => {
+            checkAuthStatus();
+          }, 500);
         }
       }
     };
@@ -199,7 +211,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('message', handleMessage);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, puterInitialized]);
 
   // Salva stato quando cambia (come Google Drive)
   useEffect(() => {
@@ -276,13 +288,23 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
         const user = await puterRef.current.auth.getUser();
         console.log('👤 Utente:', user);
         
-        // Aggiorna solo se i dati sono cambiati
-        if (!userInfo || userInfo.id !== user.id) {
-          setUserInfo(user);
-          setIsAuthenticated(true);
-          await loadGeneratedApps();
-          saveAuthState(); // Salva stato come Google Drive
-          showToast('✅ Autenticazione Puter completata', 'success');
+        // Verifica che l'utente abbia un username valido (non utente temporaneo)
+        if (user && user.username && !user.is_temp) {
+          // Aggiorna solo se i dati sono cambiati
+          if (!userInfo || userInfo.id !== user.id) {
+            setUserInfo(user);
+            setIsAuthenticated(true);
+            await loadGeneratedApps();
+            saveAuthState(); // Salva stato come Google Drive
+            showToast('✅ Autenticazione Puter completata', 'success');
+          }
+        } else {
+          console.log('⚠️ Utente temporaneo o senza username, non considerare autenticato');
+          // Non considerare autenticato se è un utente temporaneo
+          if (isAuthenticated) {
+            setIsAuthenticated(false);
+            setUserInfo(null);
+          }
         }
       } else {
         // Aggiorna solo se lo stato è cambiato
@@ -343,6 +365,13 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
           redirectURL: redirectURL.toString()
         });
         console.log('✅ Login popup completato');
+        
+        // Aspetta un momento prima di controllare l'autenticazione
+        // per dare tempo al popup di completare il processo
+        setTimeout(() => {
+          checkAuthStatus();
+        }, 1000);
+        
       } catch (popupError) {
         console.log('⚠️ Popup fallito, uso redirect:', popupError);
         await puterRef.current.auth.signIn({ 
@@ -350,6 +379,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
           redirectURL: redirectURL.toString()
         });
         console.log('✅ Login redirect completato');
+        // Per il redirect, il controllo verrà fatto quando la pagina si ricarica
       }
     } catch (error) {
       console.error('❌ Errore login:', error);
@@ -477,8 +507,34 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
 
       let generatedCode = response.message.content;
       
-      // Pulisci il codice da eventuali markdown
+      // Pulisci il codice da eventuali markdown e testo extra
       generatedCode = generatedCode.replace(/```html\n?/g, '').replace(/```\n?/g, '');
+      
+      // Rimuovi tutto il testo prima del primo tag HTML
+      const htmlStartIndex = generatedCode.search(/<!DOCTYPE html>|<html/i);
+      if (htmlStartIndex !== -1) {
+        generatedCode = generatedCode.substring(htmlStartIndex);
+      }
+      
+      // Rimuovi tutto il testo dopo l'ultimo tag di chiusura HTML
+      const htmlEndIndex = generatedCode.lastIndexOf('</html>');
+      if (htmlEndIndex !== -1) {
+        generatedCode = generatedCode.substring(0, htmlEndIndex + 7); // +7 per includere </html>
+      }
+      
+      // Rimuovi eventuali spiegazioni o testo extra rimanente
+      generatedCode = generatedCode.replace(/###.*?(?=<!DOCTYPE html>|<html)/gis, '');
+      generatedCode = generatedCode.replace(/###.*?(?=<\/html>)/gis, '');
+      generatedCode = generatedCode.replace(/Spiegazione.*$/gis, '');
+      generatedCode = generatedCode.replace(/Note.*$/gis, '');
+      generatedCode = generatedCode.replace(/Come Utilizzare.*$/gis, '');
+      generatedCode = generatedCode.replace(/Caratteristiche.*$/gis, '');
+      generatedCode = generatedCode.replace(/Codice Completo:.*$/gis, '');
+      
+      // Pulisci spazi extra e righe vuote
+      generatedCode = generatedCode.trim();
+      
+      console.log('🧹 Codice HTML pulito:', generatedCode.substring(0, 200) + '...');
       
       const newApp = {
         id: Date.now(),
