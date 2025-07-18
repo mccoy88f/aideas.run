@@ -196,6 +196,8 @@ const NavigationMaterial = ({
               onClick={() => {
                 if (item.action === 'ai-generator' && onAIGeneratorOpen) {
                   onAIGeneratorOpen();
+                } else if (item.id === 'ai-generator') {
+                  onAIGeneratorOpen();
                 } else {
                   onViewChange(item.id);
                 }

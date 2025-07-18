@@ -70,7 +70,8 @@ import SettingsMaterial from './components/SettingsMaterial.jsx';
 import SyncManagerMaterial from './components/SyncManagerMaterial.jsx';
 import AppInfoModal from './components/AppInfoModal.jsx';
 import StorePage from './components/StorePage.jsx';
-import AIGeneratorModal from './components/AIGeneratorModal.jsx';
+
+import AIGeneratorPage from './components/AIGeneratorPage.jsx';
 
 
 
@@ -94,7 +95,10 @@ function AIdeasApp() {
   const [currentView, setCurrentView] = useState(() => {
     const path = window.location.pathname;
     const isStorePage = path === '/store' || path.endsWith('/store');
-    return isStorePage ? 'store' : 'all';
+    const isAIGeneratorPage = path === '/ai-generator' || path.endsWith('/ai-generator');
+    if (isStorePage) return 'store';
+    if (isAIGeneratorPage) return 'ai-generator';
+    return 'all';
   });
   const [currentSort, setCurrentSort] = useState('lastUsed');
   const [currentViewMode, setCurrentViewMode] = useState('grid');
@@ -119,7 +123,6 @@ function AIdeasApp() {
   const [appInfoData, setAppInfoData] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [appToDelete, setAppToDelete] = useState(null);
-  const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
 
   // State per selezione multipla
   const [selectionMode, setSelectionMode] = useState(false);
@@ -132,7 +135,10 @@ function AIdeasApp() {
   const [currentRoute, setCurrentRoute] = useState(() => {
     const path = window.location.pathname;
     const isStorePage = path === '/store' || path.endsWith('/store');
-    return isStorePage ? 'store' : 'apps';
+    const isAIGeneratorPage = path === '/ai-generator' || path.endsWith('/ai-generator');
+    if (isStorePage) return 'store';
+    if (isAIGeneratorPage) return 'ai-generator';
+    return 'apps';
   });
 
   // Gestione routing URL
@@ -143,13 +149,19 @@ function AIdeasApp() {
       
       // Gestisci sia /store che percorsi con base diversa che terminano con /store
       const isStorePage = path === '/store' || path.endsWith('/store');
-      const newRoute = isStorePage ? 'store' : 'apps';
+      const isAIGeneratorPage = path === '/ai-generator' || path.endsWith('/ai-generator');
+      
+      let newRoute = 'apps';
+      if (isStorePage) newRoute = 'store';
+      else if (isAIGeneratorPage) newRoute = 'ai-generator';
       
       console.log('🔄 handlePopState - newRoute:', newRoute);
       
       setCurrentRoute(newRoute);
       // Sincronizza currentView con la route per il menu laterale
-      setCurrentView(newRoute === 'store' ? 'store' : 'all');
+      if (newRoute === 'store') setCurrentView('store');
+      else if (newRoute === 'ai-generator') setCurrentView('ai-generator');
+      else setCurrentView('all');
     };
     
     window.addEventListener('popstate', handlePopState);
@@ -193,7 +205,7 @@ function AIdeasApp() {
       // Ctrl/Cmd + G per aprire il generatore AI
       if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
-        setAiGeneratorOpen(true);
+        navigateToAIGenerator();
       }
       
       // Escape per chiudere modals
@@ -203,7 +215,6 @@ function AIdeasApp() {
         setSelectedApp(null);
         setLaunchModalOpen(false);
         setLaunchingApp(null);
-        setAiGeneratorOpen(false);
       }
     };
 
@@ -966,8 +977,8 @@ function AIdeasApp() {
       // Mostra messaggio di successo
       showToast('App AI importata con successo!', 'success');
       
-      // Chiudi dialog
-      setAiGeneratorOpen(false);
+      // Torna alla pagina principale
+      setCurrentView('apps');
       
     } catch (error) {
       console.error('❌ Errore importazione app AI:', error);
@@ -1475,6 +1486,22 @@ function AIdeasApp() {
     setCurrentView('all');
   };
 
+  const navigateToAIGenerator = () => {
+    // Se siamo già su /ai-generator, non fare nulla
+    const currentPath = window.location.pathname;
+    if (currentPath === '/ai-generator' || currentPath.endsWith('/ai-generator')) {
+      setCurrentRoute('ai-generator');
+      setCurrentView('ai-generator');
+      return;
+    }
+    
+    // Naviga al generatore AI
+    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+    window.history.pushState(null, '', `${baseUrl}/ai-generator`);
+    setCurrentRoute('ai-generator');
+    setCurrentView('ai-generator');
+  };
+
   // Handler per app installata dallo store
   const handleStoreAppInstalled = async (appId) => {
     try {
@@ -1737,7 +1764,7 @@ function AIdeasApp() {
         userInfo={userInfo}
         isAuthenticated={isAuthenticated}
         settings={settings}
-        onAIGeneratorOpen={() => setAiGeneratorOpen(true)}
+        onAIGeneratorOpen={navigateToAIGenerator}
       />
 
       {/* Main Content */}
@@ -1760,6 +1787,11 @@ function AIdeasApp() {
             onNavigateBack={navigateToApps}
             onAppInstalled={handleStoreAppInstalled}
             installedApps={apps}
+          />
+        ) : currentRoute === 'ai-generator' ? (
+          <AIGeneratorPage 
+            onNavigateBack={navigateToApps}
+            onAppGenerated={handleAIGeneratedApp}
           />
         ) : (
           <Box sx={{ 
@@ -1863,7 +1895,7 @@ function AIdeasApp() {
               </IconButton>
               <IconButton
                 aria-label="Genera app con AI"
-                onClick={() => setAiGeneratorOpen(true)}
+                onClick={navigateToAIGenerator}
                 sx={{
                   background: `linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)`,
                   color: 'white',
@@ -2270,12 +2302,7 @@ function AIdeasApp() {
         onImport={handleAddApp}
       />
 
-      {/* AIGeneratorModal per generazione app con AI */}
-      <AIGeneratorModal
-        open={aiGeneratorOpen}
-        onClose={() => setAiGeneratorOpen(false)}
-        onAppGenerated={handleAIGeneratedApp}
-      />
+
 
       {/* SettingsMaterial */}
       <SettingsMaterial
