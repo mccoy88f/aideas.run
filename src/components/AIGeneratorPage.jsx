@@ -126,11 +126,12 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
     { value: 'other', label: 'Altro', icon: '⚡' }
   ];
 
-  // Controlla stato autenticazione quando Puter è inizializzato
+  // Salva stato autenticazione quando cambia
   useEffect(() => {
-    // Non controllare automaticamente l'autenticazione quando Puter viene inizializzato
-    // Il controllo verrà fatto solo quando l'utente clicca su login o quando torna da un redirect
-  }, [puterInitialized]);
+    if (isAuthenticated && userInfo) {
+      saveAuthState();
+    }
+  }, [isAuthenticated, userInfo]);
 
   // Controlla autenticazione quando la pagina si carica
   useEffect(() => {
@@ -140,6 +141,19 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
     const loaded = loadAuthState();
     if (loaded) {
       console.log('✅ Stato autenticazione caricato da localStorage');
+      // Se lo stato è stato caricato, inizializza Puter e controlla l'autenticazione
+      if (window.puter && !puterInitialized) {
+        puterRef.current = window.puter.init({
+          appId: 'aideas-ai-generator',
+          appName: 'AIdeas AI Generator',
+          appIcon: '🤖'
+        });
+        setPuterInitialized(true);
+        // Controlla subito l'autenticazione se Puter è disponibile
+        setTimeout(() => {
+          checkAuthStatus();
+        }, 500);
+      }
     }
     
     // Se Puter è già disponibile globalmente, controlla lo stato
@@ -169,18 +183,18 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
       newURL.searchParams.delete('auth_return');
       window.history.replaceState({}, '', newURL);
       
-              // Controlla l'autenticazione dopo un breve delay
-        setTimeout(() => {
-          if (window.puter) {
-            puterRef.current = window.puter.init({
-              appId: 'aideas-ai-generator',
-              appName: 'AIdeas AI Generator',
-              appIcon: '🤖'
-            });
-            setPuterInitialized(true);
-            checkAuthStatus();
-          }
-        }, 1000);
+      // Controlla l'autenticazione dopo un breve delay
+      setTimeout(() => {
+        if (window.puter) {
+          puterRef.current = window.puter.init({
+            appId: 'aideas-ai-generator',
+            appName: 'AIdeas AI Generator',
+            appIcon: '🤖'
+          });
+          setPuterInitialized(true);
+          checkAuthStatus();
+        }
+      }, 1000);
     }
   }, []);
 
@@ -618,10 +632,19 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     try {
       console.log('📤 Avvio importazione app:', currentApp);
       
-      // Aggiungi l'app alla lista generate
-      const updatedApps = [currentApp, ...generatedApps];
-      setGeneratedApps(updatedApps);
-      await saveGeneratedApps(updatedApps);
+      // Se è una modifica di un'app esistente, aggiorna quella nella lista
+      if (currentApp.isModification && currentApp.originalAppId) {
+        const updatedApps = generatedApps.map(app => 
+          app.id === currentApp.originalAppId ? currentApp : app
+        );
+        setGeneratedApps(updatedApps);
+        await saveGeneratedApps(updatedApps);
+      } else {
+        // Aggiungi l'app alla lista generate (nuova app)
+        const updatedApps = [currentApp, ...generatedApps];
+        setGeneratedApps(updatedApps);
+        await saveGeneratedApps(updatedApps);
+      }
       
       // Chiama la callback per importare in AIdeas
       if (onAppGenerated) {
@@ -726,6 +749,28 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     }
   };
 
+  // Aggiorna app nella lista generate con le modifiche
+  const handleUpdateGeneratedApp = async (app) => {
+    if (!currentApp || !currentApp.isModification) {
+      showToast('Nessuna modifica da applicare', 'warning');
+      return;
+    }
+
+    try {
+      // Aggiorna l'app nella lista generate
+      const updatedApps = generatedApps.map(generatedApp => 
+        generatedApp.id === app.id ? currentApp : generatedApp
+      );
+      setGeneratedApps(updatedApps);
+      await saveGeneratedApps(updatedApps);
+      
+      showToast('App aggiornata nella lista generate', 'success');
+    } catch (error) {
+      console.error('❌ Errore aggiornamento app:', error);
+      showToast('Errore aggiornamento app', 'error');
+    }
+  };
+
   // Esponi la funzione globalmente quando il componente è montato
   useEffect(() => {
     window.handleEditInstalledApp = handleEditInstalledApp;
@@ -783,12 +828,8 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
       // Aggiorna chat
       setChatMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
       
-      // Aggiorna nella lista generate
-      const updatedApps = generatedApps.map(app => 
-        app.id === currentApp.id ? updatedApp : app
-      );
-      setGeneratedApps(updatedApps);
-      await saveGeneratedApps(updatedApps);
+      // NON aggiornare la lista generate qui - verrà fatto solo quando si clicca su "Importa"
+      // Questo evita che tutte le app mostrino il nuovo codice
       
     } catch (error) {
       console.error('Errore modifica:', error);
@@ -1137,6 +1178,16 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                       <IconButton size="small" onClick={() => handleEditGeneratedApp(app)} title="Modifica">
                         <ChatIcon />
                       </IconButton>
+                      {currentApp && currentApp.isModification && currentApp.originalAppId === app.id && (
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleUpdateGeneratedApp(app)} 
+                          title="Aggiorna con modifiche"
+                          color="primary"
+                        >
+                          <CheckIcon />
+                        </IconButton>
+                      )}
                       <IconButton size="small" onClick={() => handleDeleteApp(app.id)} title="Elimina">
                         <DeleteIcon />
                       </IconButton>
