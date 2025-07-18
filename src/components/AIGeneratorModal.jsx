@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -57,9 +57,6 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
-  // Dichiarazione variabile globale puter
-  let puter;
-  
   // State per il form
   const [formData, setFormData] = useState({
     appName: '',
@@ -87,6 +84,12 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   // State per preview
   const [previewOpen, setPreviewOpen] = useState(false);
   
+  // Inizializzazione Puter.js solo quando l'utente clicca su login
+  const [puterInitialized, setPuterInitialized] = useState(false);
+  
+  // Ref per mantenere l'istanza Puter
+  const puterRef = useRef(null);
+
   // Modelli AI disponibili
   const aiModels = [
     { value: 'gpt-4o', label: 'GPT-4o (OpenAI)', group: '🔥 Consigliati' },
@@ -113,12 +116,9 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     { value: 'other', label: 'Altro', icon: '⚡' }
   ];
 
-  // Inizializzazione Puter.js solo quando l'utente clicca su login
-  const [puterInitialized, setPuterInitialized] = useState(false);
-
   // Controlla stato autenticazione quando Puter è inizializzato
   useEffect(() => {
-    if (puterInitialized && puter) {
+    if (puterInitialized && puterRef.current) {
       checkAuthStatus();
     }
   }, [puterInitialized]);
@@ -134,9 +134,27 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
       
       // Se Puter è già disponibile globalmente, controlla lo stato
       if (window.puter && !puterInitialized) {
-        puter = window.puter;
+        console.log('✅ Puter già disponibile globalmente');
+        puterRef.current = window.puter;
         setPuterInitialized(true);
         checkAuthStatus();
+      }
+      
+      // Controlla se c'è un parametro di ritorno dall'autenticazione
+      const urlParams = new URLSearchParams(window.location.search);
+      const authReturn = urlParams.get('auth_return');
+      if (authReturn === 'success' && !puterInitialized) {
+        console.log('🔄 Ritorno da autenticazione, inizializza Puter...');
+        // Rimuovi il parametro dall'URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        // Inizializza Puter se non è già fatto
+        if (window.puter) {
+          puterRef.current = window.puter;
+          setPuterInitialized(true);
+          checkAuthStatus();
+        } else {
+          initializePuter();
+        }
       }
     }
   }, [open]);
@@ -146,7 +164,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     const handleFocus = () => {
       // Controlla se Puter è disponibile e se non siamo già autenticati
       if (window.puter && !isAuthenticated) {
-        puter = window.puter;
+        puterRef.current = window.puter;
         setPuterInitialized(true);
         checkAuthStatus();
       }
@@ -155,7 +173,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     // Listener per cambiamenti di visibilità della pagina
     const handleVisibilityChange = () => {
       if (!document.hidden && window.puter && !isAuthenticated) {
-        puter = window.puter;
+        puterRef.current = window.puter;
         setPuterInitialized(true);
         checkAuthStatus();
       }
@@ -165,7 +183,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     const handleMessage = (event) => {
       if (event.origin === 'https://puter.com' && event.data?.type === 'auth') {
         if (window.puter && !isAuthenticated) {
-          puter = window.puter;
+          puterRef.current = window.puter;
           setPuterInitialized(true);
           checkAuthStatus();
         }
@@ -193,52 +211,70 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   // Inizializza Puter.js
   const initializePuter = async () => {
     try {
+      console.log('🔄 Inizializzazione Puter...');
+      
       // Carica Puter.js se non è già caricato
       if (typeof window.puter === 'undefined') {
+        console.log('📥 Caricamento script Puter...');
         const script = document.createElement('script');
         script.src = 'https://js.puter.com/v2/';
         
         await new Promise((resolve, reject) => {
           script.onload = () => {
+            console.log('✅ Script Puter caricato');
             // Aspetta un momento per assicurarsi che Puter sia completamente caricato
             setTimeout(() => {
               if (window.puter) {
-                puter = window.puter;
+                puterRef.current = window.puter;
                 setPuterInitialized(true);
+                console.log('✅ Puter inizializzato con successo');
                 resolve();
               } else {
+                console.error('❌ Puter non disponibile dopo il caricamento');
                 reject(new Error('Puter non disponibile dopo il caricamento'));
               }
-            }, 100);
+            }, 500); // Aumentato il timeout
           };
-          script.onerror = reject;
+          script.onerror = (error) => {
+            console.error('❌ Errore caricamento script Puter:', error);
+            reject(error);
+          };
           document.head.appendChild(script);
         });
       } else {
         // Puter è già caricato
-        puter = window.puter;
+        console.log('✅ Puter già disponibile');
+        puterRef.current = window.puter;
         setPuterInitialized(true);
       }
     } catch (error) {
-      console.error('Errore inizializzazione Puter:', error);
+      console.error('❌ Errore inizializzazione Puter:', error);
       throw error;
     }
   };
 
   // Controlla stato autenticazione (approccio intelligente)
   const checkAuthStatus = async () => {
-    if (!puterInitialized || !puter) return;
+    if (!puterInitialized || !puterRef.current) {
+      console.log('⏳ Puter non ancora inizializzato');
+      return;
+    }
     
     try {
+      console.log('🔍 Controllo stato autenticazione...');
+      
       // Controlla se siamo già autenticati per evitare controlli inutili
       if (isAuthenticated && userInfo) {
+        console.log('✅ Già autenticato');
         return;
       }
 
-      const isSignedIn = puter.auth.isSignedIn();
+      const isSignedIn = puterRef.current.auth.isSignedIn();
+      console.log('🔐 Stato autenticazione:', isSignedIn);
       
       if (isSignedIn) {
-        const user = await puter.auth.getUser();
+        const user = await puterRef.current.auth.getUser();
+        console.log('👤 Utente:', user);
         
         // Aggiorna solo se i dati sono cambiati
         if (!userInfo || userInfo.id !== user.id) {
@@ -257,7 +293,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
         }
       }
     } catch (error) {
-      console.error('Errore controllo auth:', error);
+      console.error('❌ Errore controllo auth:', error);
       // Non aggiornare lo stato se c'è un errore temporaneo
       if (isAuthenticated) {
         setIsAuthenticated(false);
@@ -273,38 +309,50 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     setAuthLoading(true);
     
     try {
+      console.log('🚀 Avvio processo di login...');
+      
       // Controlla se Puter è già disponibile globalmente
       if (window.puter && !puterInitialized) {
-        puter = window.puter;
+        console.log('✅ Puter già disponibile globalmente');
+        puterRef.current = window.puter;
         setPuterInitialized(true);
       }
       
       // Inizializza Puter se necessario
       if (!puterInitialized) {
+        console.log('🔄 Inizializzazione Puter necessaria...');
         await initializePuter();
       }
       
-      if (!puter) {
+      if (!puterRef.current) {
         throw new Error('Puter non inizializzato');
       }
 
       const currentURL = window.location.href;
+      const redirectURL = new URL(currentURL);
+      redirectURL.searchParams.set('auth_return', 'success');
+      
+      console.log('🌐 URL corrente:', currentURL);
+      console.log('🔄 URL di redirect:', redirectURL.toString());
       
       // Prova prima popup, poi redirect
       try {
-        await puter.auth.signIn({ 
+        console.log('🪟 Tentativo login con popup...');
+        await puterRef.current.auth.signIn({ 
           mode: 'popup',
-          redirectURL: currentURL
+          redirectURL: redirectURL.toString()
         });
+        console.log('✅ Login popup completato');
       } catch (popupError) {
-        console.log('Popup fallito, uso redirect:', popupError);
-        await puter.auth.signIn({ 
+        console.log('⚠️ Popup fallito, uso redirect:', popupError);
+        await puterRef.current.auth.signIn({ 
           mode: 'redirect',
-          redirectURL: currentURL
+          redirectURL: redirectURL.toString()
         });
+        console.log('✅ Login redirect completato');
       }
     } catch (error) {
-      console.error('Errore login:', error);
+      console.error('❌ Errore login:', error);
       showToast('Errore durante il login: ' + error.message, 'error');
     } finally {
       setAuthLoading(false);
@@ -313,10 +361,10 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
 
   // Logout
   const handleSignOut = async () => {
-    if (!puter) return;
+    if (!puterRef.current) return;
     
     try {
-      await puter.auth.signOut();
+      await puterRef.current.auth.signOut();
       setIsAuthenticated(false);
       setUserInfo(null);
       setGeneratedApps([]);
@@ -329,10 +377,10 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
 
   // Carica app generate
   const loadGeneratedApps = async () => {
-    if (!puter) return;
+    if (!puterRef.current) return;
     
     try {
-      const savedApps = await puter.kv.get('ai-launcher-apps');
+      const savedApps = await puterRef.current.kv.get('ai-launcher-apps');
       if (savedApps) {
         setGeneratedApps(JSON.parse(savedApps));
       }
@@ -343,10 +391,10 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
 
   // Salva app generate
   const saveGeneratedApps = async (apps) => {
-    if (!puter) return;
+    if (!puterRef.current) return;
     
     try {
-      await puter.kv.set('ai-launcher-apps', JSON.stringify(apps));
+      await puterRef.current.kv.set('ai-launcher-apps', JSON.stringify(apps));
     } catch (error) {
       console.error('Errore salvataggio app:', error);
     }
@@ -404,7 +452,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     setIsGenerating(true);
 
     try {
-      if (!puter) {
+      if (!puterRef.current) {
         throw new Error('Puter non inizializzato');
       }
 
@@ -423,7 +471,7 @@ REQUISITI SPECIFICI:
 
 Implementa tutte le funzionalità richieste senza usare placeholder.`;
 
-      const response = await puter.ai.chat(prompt, {
+      const response = await puterRef.current.ai.chat(prompt, {
         model: aiModel
       });
 
@@ -521,7 +569,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
 
   // Invia messaggio chat
   const handleSendChatMessage = async () => {
-    if (!chatInput.trim() || !currentApp || !puter) return;
+    if (!chatInput.trim() || !currentApp || !puterRef.current) return;
     
     const message = chatInput.trim();
     setChatInput('');
@@ -538,7 +586,7 @@ ${currentApp.code}
 
 Modifica il codice HTML in base alla richiesta, mantenendo tutte le funzionalità esistenti e aggiungendo le modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
 
-      const response = await puter.ai.chat(modifyPrompt, {
+      const response = await puterRef.current.ai.chat(modifyPrompt, {
         model: formData.aiModel
       });
 

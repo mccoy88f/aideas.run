@@ -121,7 +121,15 @@ export default defineConfig({
       },
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html}'],
+        // Escludi le icone dal precache per evitare conflitti
+        globIgnores: [
+          '**/assets/icons/**',
+          '**/icons/**',
+          '**/*.ico',
+          '**/*.png',
+          '**/*.svg'
+        ],
         // Evita conflitti di cache
         skipWaiting: true,
         clientsClaim: true,
@@ -146,6 +154,17 @@ export default defineConfig({
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24 * 7 // 7 giorni
+              }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/js\.puter\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'puter-js-cache',
+              expiration: {
+                maxEntries: 5,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 giorni
               }
             }
           }
