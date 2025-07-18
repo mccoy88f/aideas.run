@@ -89,19 +89,20 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   
   // Ref per mantenere l'istanza Puter
   const puterRef = useRef(null);
+  
+  // Flag per indicare se il login è in corso
+  const [loginInProgress, setLoginInProgress] = useState(false);
 
-  // Modelli AI disponibili
+  // Modelli AI disponibili (solo quelli supportati da Puter)
   const aiModels = [
     { value: 'gpt-4o', label: 'GPT-4o (OpenAI)', group: '🔥 Consigliati' },
     { value: 'claude-3.5-sonnet', label: 'Claude 3.5 Sonnet (Anthropic)', group: '🔥 Consigliati' },
     { value: 'openrouter:deepseek/deepseek-r1', label: 'DeepSeek R1 (Gratuito)', group: '🔥 Consigliati' },
     { value: 'openrouter:openai/o1-mini', label: 'o1-mini (Reasoning)', group: '🔥 Consigliati' },
-    { value: 'openrouter:microsoft/phi-3-mini-128k-instruct:free', label: 'Phi-3 Mini (Microsoft)', group: '⚡ Gratuiti' },
-    { value: 'openrouter:microsoft/phi-3-medium-128k-instruct:free', label: 'Phi-3 Medium (Microsoft)', group: '⚡ Gratuiti' },
-    { value: 'openrouter:mistralai/mistral-7b-instruct:free', label: 'Mistral 7B', group: '⚡ Gratuiti' },
-    { value: 'openrouter:google/gemma-7b-it:free', label: 'Gemma 7B (Google)', group: '⚡ Gratuiti' },
-    { value: 'openrouter:meta-llama/llama-3-8b-instruct:free', label: 'Llama 3 8B (Meta)', group: '⚡ Gratuiti' },
-    { value: 'openrouter:qwen/qwen-2-7b-instruct:free', label: 'Qwen 2 7B', group: '⚡ Gratuiti' }
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo (OpenAI)', group: '⚡ Altri' },
+    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (OpenAI)', group: '⚡ Altri' },
+    { value: 'claude-3-haiku', label: 'Claude 3 Haiku (Anthropic)', group: '⚡ Altri' },
+    { value: 'gemini-pro', label: 'Gemini Pro (Google)', group: '⚡ Altri' }
   ];
   
   // Tipi di app
@@ -168,6 +169,12 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   // Listener intelligente per cambiamenti di stato Puter
   useEffect(() => {
     const handleFocus = () => {
+      // Non controllare se il login è in corso
+      if (loginInProgress) {
+        console.log('⏳ Login in corso, salto controllo focus');
+        return;
+      }
+      
       // Controlla se Puter è disponibile e se non siamo già autenticati
       if (window.puter && !isAuthenticated && puterInitialized) {
         puterRef.current = window.puter;
@@ -180,6 +187,12 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
 
     // Listener per cambiamenti di visibilità della pagina
     const handleVisibilityChange = () => {
+      // Non controllare se il login è in corso
+      if (loginInProgress) {
+        console.log('⏳ Login in corso, salto controllo visibility');
+        return;
+      }
+      
       if (!document.hidden && window.puter && !isAuthenticated && puterInitialized) {
         puterRef.current = window.puter;
         // Aspetta un momento prima di controllare l'autenticazione
@@ -192,6 +205,12 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
     // Listener per messaggi da Puter (se supportato)
     const handleMessage = (event) => {
       if (event.origin === 'https://puter.com' && event.data?.type === 'auth') {
+        // Non controllare se il login è in corso
+        if (loginInProgress) {
+          console.log('⏳ Login in corso, salto controllo messaggio');
+          return;
+        }
+        
         if (window.puter && !isAuthenticated && puterInitialized) {
           puterRef.current = window.puter;
           // Aspetta un momento prima di controllare l'autenticazione
@@ -211,7 +230,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('message', handleMessage);
     };
-  }, [isAuthenticated, puterInitialized]);
+  }, [isAuthenticated, puterInitialized, loginInProgress]);
 
   // Salva stato quando cambia (come Google Drive)
   useEffect(() => {
@@ -289,7 +308,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
         console.log('👤 Utente:', user);
         
         // Verifica che l'utente abbia un username valido (non utente temporaneo)
-        if (user && user.username && !user.is_temp) {
+        if (user && user.username && !user.is_temp && user.username !== '') {
           // Aggiorna solo se i dati sono cambiati
           if (!userInfo || userInfo.id !== user.id) {
             setUserInfo(user);
@@ -300,6 +319,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
           }
         } else {
           console.log('⚠️ Utente temporaneo o senza username, non considerare autenticato');
+          console.log('👤 Dettagli utente:', { username: user?.username, is_temp: user?.is_temp });
           // Non considerare autenticato se è un utente temporaneo
           if (isAuthenticated) {
             setIsAuthenticated(false);
@@ -329,6 +349,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   // Login con Puter
   const handleSignIn = async () => {
     setAuthLoading(true);
+    setLoginInProgress(true);
     
     try {
       console.log('🚀 Avvio processo di login...');
@@ -369,8 +390,9 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
         // Aspetta un momento prima di controllare l'autenticazione
         // per dare tempo al popup di completare il processo
         setTimeout(() => {
+          setLoginInProgress(false);
           checkAuthStatus();
-        }, 1000);
+        }, 2000); // Aumentato a 2 secondi
         
       } catch (popupError) {
         console.log('⚠️ Popup fallito, uso redirect:', popupError);
@@ -379,11 +401,13 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
           redirectURL: redirectURL.toString()
         });
         console.log('✅ Login redirect completato');
+        setLoginInProgress(false);
         // Per il redirect, il controllo verrà fatto quando la pagina si ricarica
       }
     } catch (error) {
       console.error('❌ Errore login:', error);
       showToast('Errore durante il login: ' + error.message, 'error');
+      setLoginInProgress(false);
     } finally {
       setAuthLoading(false);
     }
@@ -507,6 +531,8 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
 
       let generatedCode = response.message.content;
       
+      console.log('📄 Codice grezzo ricevuto:', generatedCode.substring(0, 200) + '...');
+      
       // Pulisci il codice da eventuali markdown e testo extra
       generatedCode = generatedCode.replace(/```html\n?/g, '').replace(/```\n?/g, '');
       
@@ -514,12 +540,18 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       const htmlStartIndex = generatedCode.search(/<!DOCTYPE html>|<html/i);
       if (htmlStartIndex !== -1) {
         generatedCode = generatedCode.substring(htmlStartIndex);
+        console.log('✅ Trovato inizio HTML a posizione:', htmlStartIndex);
+      } else {
+        console.log('⚠️ Tag HTML non trovato, uso tutto il codice');
       }
       
       // Rimuovi tutto il testo dopo l'ultimo tag di chiusura HTML
       const htmlEndIndex = generatedCode.lastIndexOf('</html>');
       if (htmlEndIndex !== -1) {
         generatedCode = generatedCode.substring(0, htmlEndIndex + 7); // +7 per includere </html>
+        console.log('✅ Trovata fine HTML a posizione:', htmlEndIndex);
+      } else {
+        console.log('⚠️ Tag di chiusura HTML non trovato');
       }
       
       // Rimuovi eventuali spiegazioni o testo extra rimanente
@@ -530,11 +562,15 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       generatedCode = generatedCode.replace(/Come Utilizzare.*$/gis, '');
       generatedCode = generatedCode.replace(/Caratteristiche.*$/gis, '');
       generatedCode = generatedCode.replace(/Codice Completo:.*$/gis, '');
+      generatedCode = generatedCode.replace(/Spero che questa soluzione.*$/gis, '');
+      generatedCode = generatedCode.replace(/Se hai ulteriori domande.*$/gis, '');
       
-      // Pulisci spazi extra e righe vuote
+      // Rimuovi righe vuote multiple e spazi extra
+      generatedCode = generatedCode.replace(/\n\s*\n\s*\n/g, '\n\n');
       generatedCode = generatedCode.trim();
       
       console.log('🧹 Codice HTML pulito:', generatedCode.substring(0, 200) + '...');
+      console.log('📏 Lunghezza codice finale:', generatedCode.length);
       
       const newApp = {
         id: Date.now(),
@@ -581,28 +617,15 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
           description: currentApp.description,
           icon: currentApp.icon,
           htmlContent: currentApp.code,
-          source: 'ai-generated',
-          metadata: {
-            aiModel: currentApp.model,
-            generatedAt: currentApp.createdAt,
-            type: currentApp.type
-          }
+          type: currentApp.type || 'utility', // Assicura che il tipo sia sempre definito
+          category: 'ai-generated'
         });
       }
       
-      // Reset form e chiudi preview
-      setFormData({
-        appName: '',
-        appDescription: '',
-        appType: '',
-        aiModel: 'gpt-4o'
-      });
-      setPreviewOpen(false);
-      setChatOpen(false);
-      setCurrentApp(null);
-      
+      showToast('✅ App importata con successo!', 'success');
+      onClose();
     } catch (error) {
-      console.error('Errore importazione:', error);
+      console.error('Errore importazione app:', error);
       showToast('Errore durante l\'importazione: ' + error.message, 'error');
     }
   };
