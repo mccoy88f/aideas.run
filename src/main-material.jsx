@@ -939,14 +939,35 @@ function AIdeasApp() {
       // Estrai metadati dall'app
       const { name, description, icon, htmlContent, type, category, isModification, originalAppId, originalUniqueId } = appData;
       
-      // Se è una modifica di un'app esistente, aggiorna direttamente
+      // Se è una modifica di un'app esistente, controlla se esiste già
       if (isModification && originalAppId) {
-        console.log('🔄 Aggiornamento app esistente:', originalAppId);
-        await updateExistingApp(originalAppId, appData);
-        showToast('App aggiornata con successo!', 'success');
-        await loadApps();
-        setCurrentView('apps');
-        return;
+        console.log('🔄 Modifica app esistente rilevata:', originalAppId);
+        
+        // Trova l'app originale
+        const originalApp = existingApps.find(app => app.id === originalAppId);
+        
+        if (originalApp) {
+          // Mostra sempre il dialog di scelta per le modifiche
+          const choice = await showDuplicateAppDialog(originalApp, appData);
+          
+          if (choice === 'update') {
+            // Aggiorna l'app esistente
+            await updateExistingApp(originalApp.id, appData);
+            showToast('App aggiornata con successo!', 'success');
+          } else if (choice === 'new-version') {
+            // Crea una nuova versione
+            const newVersionApp = await createNewVersionApp(originalApp, appData);
+            showToast(`Nuova versione creata: ${newVersionApp.name}`, 'success');
+          } else {
+            // Annulla
+            console.log('Aggiornamento annullato dall\'utente');
+            return;
+          }
+          
+          await loadApps();
+          setCurrentView('apps');
+          return;
+        }
       }
       
       // Genera uniqueId per controllare duplicati
@@ -1015,23 +1036,31 @@ function AIdeasApp() {
   // Funzione per mostrare dialog di scelta per app duplicate
   const showDuplicateAppDialog = (existingApp, newAppData) => {
     return new Promise((resolve) => {
+      // Determina se è una modifica o una nuova app
+      const isModification = newAppData.isModification;
+      const title = isModification ? 'Modifica App Esistente' : 'App Duplicata Rilevata';
+      const description = isModification 
+        ? `Stai modificando l'app <strong>"${existingApp.name}"</strong>.`
+        : `Esiste già un'app chiamata <strong>"${existingApp.name}"</strong>.`;
+      
       const dialogContent = `
         <div style="padding: 20px; max-width: 500px;">
-          <h3 style="margin-top: 0; color: #1976d2;">App Duplicata Rilevata</h3>
-          <p>Esiste già un'app chiamata <strong>"${existingApp.name}"</strong>.</p>
+          <h3 style="margin-top: 0; color: #1976d2;">${title}</h3>
+          <p>${description}</p>
           
           <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin-top: 0;">App Esistente:</h4>
             <p><strong>Nome:</strong> ${existingApp.name}</p>
             <p><strong>Versione:</strong> ${existingApp.version}</p>
             <p><strong>Ultima modifica:</strong> ${new Date(existingApp.timestamp || existingApp.lastUsed).toLocaleDateString()}</p>
+            ${isModification ? '<p><strong>Tipo:</strong> Modifica tramite AI</p>' : ''}
           </div>
           
           <p>Cosa vuoi fare?</p>
           
           <div style="display: flex; gap: 10px; margin-top: 20px;">
             <button id="update-btn" style="flex: 1; padding: 10px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer;">
-              🔄 Aggiorna App Esistente
+              🔄 ${isModification ? 'Aggiorna App' : 'Aggiorna App Esistente'}
             </button>
             <button id="new-version-btn" style="flex: 1; padding: 10px; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer;">
               ➕ Crea Nuova Versione
