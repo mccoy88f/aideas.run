@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import StorageService from '../services/StorageService.js';
 import GoogleDriveService from '../services/GoogleDriveService.js';
+import { aiServiceManager } from '../services/ai/AIServiceManager.js';
 import { showToast } from '../utils/helpers.js';
 import {
   Dialog,
@@ -46,6 +47,7 @@ import {
   Storage as StorageIcon,
   Sync as SyncIcon,
   ExpandMore as ExpandMoreIcon,
+  SmartToy as SmartToyIcon,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
   AutoAwesome as AutoAwesomeIcon,
@@ -107,6 +109,17 @@ const SettingsMaterial = ({
     isConfigured: false
   });
 
+  // Stati per la configurazione AI
+  const [aiConfig, setAiConfig] = useState({
+    selectedProvider: 'openrouter',
+    openrouterApiKey: '',
+    isTestingConnection: false,
+    testResult: null,
+    testError: null,
+    credits: null,
+    isConfigured: false
+  });
+
   const sections = [
     {
       id: 'general',
@@ -119,6 +132,12 @@ const SettingsMaterial = ({
       title: 'Aspetto',
       icon: <PaletteIcon />,
       description: 'Tema, colori e personalizzazione'
+    },
+    {
+      id: 'ai',
+      title: 'Intelligenza Artificiale',
+      icon: <SmartToyIcon />,
+      description: 'Configurazione servizi AI e API key'
     },
     {
       id: 'notifications',
@@ -308,6 +327,7 @@ const SettingsMaterial = ({
       loadUserInfo();
       // Carica anche i valori di debug dal localStorage
       loadDebugSettings();
+      loadAIConfig();
     }
   }, [open]);
 
@@ -478,6 +498,125 @@ const SettingsMaterial = ({
   };
 
   // === FINE FUNZIONI CLOUD SYNC ===
+
+  // === FUNZIONI CONFIGURAZIONE AI ===
+  const loadAIConfig = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      const aiSettings = settings.ai || {};
+      
+      setAiConfig(prev => ({
+        ...prev,
+        selectedProvider: aiSettings.provider || 'openrouter',
+        openrouterApiKey: aiSettings.openrouter?.apiKey || '',
+        isConfigured: aiSettings.openrouter?.apiKey ? true : false
+      }));
+
+      // Inizializza il gestore AI se c'è una configurazione
+      if (aiSettings.openrouter?.apiKey) {
+        await aiServiceManager.initialize({
+          openrouter: { apiKey: aiSettings.openrouter.apiKey }
+        });
+      }
+    } catch (error) {
+      console.error('Errore caricamento configurazione AI:', error);
+    }
+  };
+
+  const handleAIProviderChange = (newProvider) => {
+    setAiConfig(prev => ({ ...prev, selectedProvider: newProvider }));
+  };
+
+  const handleOpenRouterApiKeyChange = (apiKey) => {
+    setAiConfig(prev => ({ 
+      ...prev, 
+      openrouterApiKey: apiKey,
+      isConfigured: apiKey.length > 0
+    }));
+  };
+
+  const testAIConnection = async () => {
+    if (!aiConfig.openrouterApiKey) {
+      showToast('Inserisci prima la tua API key OpenRouter', 'warning');
+      return;
+    }
+
+    setAiConfig(prev => ({ ...prev, isTestingConnection: true, testResult: null, testError: null }));
+
+    try {
+      // Inizializza il servizio con la nuova API key
+      await aiServiceManager.initialize({
+        openrouter: { apiKey: aiConfig.openrouterApiKey }
+      });
+
+      // Testa la connessione
+      const result = await aiServiceManager.testConnection();
+      
+      if (result.success) {
+        setAiConfig(prev => ({ 
+          ...prev, 
+          testResult: 'success', 
+          testError: null,
+          isConfigured: true
+        }));
+        showToast('Connessione AI testata con successo!', 'success');
+
+        // Carica i crediti
+        try {
+          const credits = await aiServiceManager.getCredits();
+          setAiConfig(prev => ({ ...prev, credits }));
+        } catch (error) {
+          console.warn('Impossibile caricare i crediti:', error);
+        }
+      } else {
+        setAiConfig(prev => ({ 
+          ...prev, 
+          testResult: 'error', 
+          testError: result.error 
+        }));
+        showToast(`Errore test connessione: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      setAiConfig(prev => ({ 
+        ...prev, 
+        testResult: 'error', 
+        testError: error.message 
+      }));
+      showToast(`Errore test connessione: ${error.message}`, 'error');
+    } finally {
+      setAiConfig(prev => ({ ...prev, isTestingConnection: false }));
+    }
+  };
+
+  const saveAIConfig = async () => {
+    try {
+      const updatedSettings = {
+        ...localSettings,
+        ai: {
+          provider: aiConfig.selectedProvider,
+          openrouter: {
+            apiKey: aiConfig.openrouterApiKey
+          }
+        }
+      };
+
+      await StorageService.updateSettings(updatedSettings);
+      
+      // Inizializza il gestore AI
+      if (aiConfig.openrouterApiKey) {
+        await aiServiceManager.initialize({
+          openrouter: { apiKey: aiConfig.openrouterApiKey }
+        });
+      }
+
+      showToast('Configurazione AI salvata con successo!', 'success');
+      setHasChanges(true);
+    } catch (error) {
+      console.error('Errore salvataggio configurazione AI:', error);
+      showToast('Errore salvataggio configurazione AI', 'error');
+    }
+  };
+  // === FINE FUNZIONI CONFIGURAZIONE AI ===
 
   const renderGeneralSettings = () => (
     <Box sx={{ space: 3 }}>
@@ -1107,12 +1246,144 @@ const SettingsMaterial = ({
     </Box>
   );
 
+  const renderAISettings = () => (
+    <Box sx={{ space: 3 }}>
+      <Typography variant="h6" gutterBottom>
+        Configurazione Servizi AI
+      </Typography>
+      
+      <Grid container spacing={3}>
+        {/* Selezione Provider */}
+        <Grid item xs={12} md={6}>
+          <FormControl fullWidth>
+            <InputLabel>Provider AI</InputLabel>
+            <Select
+              value={aiConfig.selectedProvider}
+              onChange={(e) => handleAIProviderChange(e.target.value)}
+              label="Provider AI"
+            >
+              <MenuItem value="openrouter">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  🌐 OpenRouter
+                </Box>
+              </MenuItem>
+              {/* Futuri provider */}
+              {/* <MenuItem value="anthropic">🤖 Anthropic Claude</MenuItem> */}
+              {/* <MenuItem value="google">🔍 Google AI</MenuItem> */}
+            </Select>
+          </FormControl>
+        </Grid>
+
+        {/* API Key OpenRouter */}
+        <Grid item xs={12}>
+          <Typography variant="subtitle1" gutterBottom>
+            🌐 OpenRouter API Key
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Ottieni la tua API key gratuita su{' '}
+            <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" 
+               style={{ color: theme.palette.primary.main }}>
+              openrouter.ai
+            </a>
+          </Typography>
+          
+          <TextField
+            fullWidth
+            type="password"
+            label="API Key OpenRouter"
+            value={aiConfig.openrouterApiKey}
+            onChange={(e) => handleOpenRouterApiKeyChange(e.target.value)}
+            variant="outlined"
+            placeholder="sk-or-v1-..."
+            helperText="La tua API key viene salvata localmente e non viene condivisa"
+          />
+        </Grid>
+
+        {/* Test Connessione */}
+        <Grid item xs={12}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button
+              variant="outlined"
+              onClick={testAIConnection}
+              disabled={!aiConfig.openrouterApiKey || aiConfig.isTestingConnection}
+              startIcon={aiConfig.isTestingConnection ? <CircularProgress size={20} /> : <CheckCircleIcon />}
+            >
+              {aiConfig.isTestingConnection ? 'Test in corso...' : 'Testa Connessione'}
+            </Button>
+            
+            {aiConfig.testResult === 'success' && (
+              <Chip 
+                label="✅ Connessione OK" 
+                color="success" 
+                variant="outlined"
+              />
+            )}
+            
+            {aiConfig.testResult === 'error' && (
+              <Chip 
+                label={`❌ Errore: ${aiConfig.testError}`} 
+                color="error" 
+                variant="outlined"
+              />
+            )}
+          </Box>
+        </Grid>
+
+        {/* Informazioni Crediti */}
+        {aiConfig.credits && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
+              <Typography variant="subtitle2" gutterBottom>
+                💰 Informazioni Crediti
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Crediti disponibili: {aiConfig.credits.credits || 'N/A'}
+              </Typography>
+              {aiConfig.credits.usage && (
+                <Typography variant="body2" color="text.secondary">
+                  Utilizzo: {JSON.stringify(aiConfig.credits.usage)}
+                </Typography>
+              )}
+            </Paper>
+          </Grid>
+        )}
+
+        {/* Salva Configurazione */}
+        <Grid item xs={12}>
+          <Button
+            variant="contained"
+            onClick={saveAIConfig}
+            disabled={!aiConfig.openrouterApiKey}
+            startIcon={<SaveIcon />}
+          >
+            Salva Configurazione AI
+          </Button>
+        </Grid>
+
+        {/* Stato Configurazione */}
+        <Grid item xs={12}>
+          {aiConfig.isConfigured ? (
+            <Alert severity="success">
+              ✅ Configurazione AI attiva - Puoi usare il generatore AI
+            </Alert>
+          ) : (
+            <Alert severity="info">
+              ℹ️ Configura la tua API key OpenRouter per usare il generatore AI
+            </Alert>
+          )}
+        </Grid>
+      </Grid>
+    </Box>
+  );
+
   const renderSectionContent = () => {
     switch (activeSection) {
       case 'general':
         return renderGeneralSettings();
       case 'appearance':
         return renderAppearanceSettings();
+      case 'ai':
+        return renderAISettings();
       case 'notifications':
         return renderNotificationSettings();
       case 'backup':
