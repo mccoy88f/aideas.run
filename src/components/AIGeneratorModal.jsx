@@ -29,7 +29,8 @@ import {
   Paper,
   Fab,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  CircularProgress
 } from '@mui/material';
 import StorageService from '../services/StorageService.js';
 import { showToast } from '../utils/helpers.js';
@@ -47,7 +48,9 @@ import {
   Add as AddIcon,
   Check as CheckIcon,
   Error as ErrorIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Person as PersonIcon,
+  Logout as LogoutIcon
 } from '@mui/icons-material';
 
 /**
@@ -126,6 +129,8 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
   // Controlla autenticazione quando il modale si apre
   useEffect(() => {
     if (open) {
+      console.log('🚪 Modale aperto, controllo stato autenticazione...');
+      
       // Prima prova a caricare lo stato salvato (come Google Drive)
       const loaded = loadAuthState();
       if (loaded) {
@@ -137,54 +142,37 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
         console.log('✅ Puter già disponibile globalmente');
         puterRef.current = window.puter;
         setPuterInitialized(true);
-        // Non controllare subito l'autenticazione, aspetta che l'utente clicchi login
+        // Controlla subito l'autenticazione se Puter è disponibile
+        setTimeout(() => {
+          checkAuthStatus();
+        }, 500);
       }
       
       // Controlla se c'è un parametro di ritorno dall'autenticazione
       const urlParams = new URLSearchParams(window.location.search);
       const authReturn = urlParams.get('auth_return');
-      if (authReturn === 'success' && !puterInitialized) {
-        console.log('🔄 Ritorno da autenticazione, inizializza Puter...');
+      
+      if (authReturn === 'success') {
+        console.log('🔄 Rilevato ritorno da autenticazione');
         // Rimuovi il parametro dall'URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        // Inizializza Puter se non è già fatto
-        if (window.puter) {
-          puterRef.current = window.puter;
-          setPuterInitialized(true);
-          // Aspetta un momento prima di controllare l'autenticazione
-          setTimeout(() => {
+        const newURL = new URL(window.location);
+        newURL.searchParams.delete('auth_return');
+        window.history.replaceState({}, '', newURL);
+        
+        // Controlla l'autenticazione dopo un breve delay
+        setTimeout(() => {
+          if (window.puter) {
+            puterRef.current = window.puter;
+            setPuterInitialized(true);
             checkAuthStatus();
-          }, 500);
-        } else {
-          initializePuter().then(() => {
-            setTimeout(() => {
-              checkAuthStatus();
-            }, 500);
-          });
-        }
+          }
+        }, 1000);
       }
     }
   }, [open]);
 
   // Listener intelligente per cambiamenti di stato Puter
   useEffect(() => {
-    const handleFocus = () => {
-      // Non controllare se il login è in corso
-      if (loginInProgress) {
-        console.log('⏳ Login in corso, salto controllo focus');
-        return;
-      }
-      
-      // Controlla se Puter è disponibile e se non siamo già autenticati
-      if (window.puter && !isAuthenticated && puterInitialized) {
-        puterRef.current = window.puter;
-        // Aspetta un momento prima di controllare l'autenticazione
-        setTimeout(() => {
-          checkAuthStatus();
-        }, 500);
-      }
-    };
-
     // Listener per cambiamenti di visibilità della pagina
     const handleVisibilityChange = () => {
       // Non controllare se il login è in corso
@@ -198,7 +186,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
         // Aspetta un momento prima di controllare l'autenticazione
         setTimeout(() => {
           checkAuthStatus();
-        }, 500);
+        }, 1000);
       }
     };
 
@@ -216,19 +204,26 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
           // Aspetta un momento prima di controllare l'autenticazione
           setTimeout(() => {
             checkAuthStatus();
-          }, 500);
+          }, 1000);
         }
       }
     };
 
-    window.addEventListener('focus', handleFocus);
+    // Controllo periodico per autenticazione (solo se non autenticato)
+    const authCheckInterval = setInterval(() => {
+      if (!loginInProgress && !isAuthenticated && puterInitialized && window.puter) {
+        puterRef.current = window.puter;
+        checkAuthStatus();
+      }
+    }, 3000); // Controlla ogni 3 secondi
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('message', handleMessage);
     
     return () => {
-      window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('message', handleMessage);
+      clearInterval(authCheckInterval);
     };
   }, [isAuthenticated, puterInitialized, loginInProgress]);
 
@@ -305,17 +300,17 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
       
       if (isSignedIn) {
         const user = await puterRef.current.auth.getUser();
-        console.log('👤 Utente:', user);
+        console.log('👤 Utente completo:', user);
         
         // Verifica che l'utente abbia un username valido (non utente temporaneo)
         if (user && user.username && !user.is_temp && user.username !== '') {
           // Aggiorna solo se i dati sono cambiati
-          if (!userInfo || userInfo.id !== user.id) {
+          if (!userInfo || userInfo.uuid !== user.uuid) {
             setUserInfo(user);
             setIsAuthenticated(true);
             await loadGeneratedApps();
             saveAuthState(); // Salva stato come Google Drive
-            showToast('✅ Autenticazione Puter completata', 'success');
+            showToast(`✅ Autenticazione completata come ${user.username}`, 'success');
           }
         } else {
           console.log('⚠️ Utente temporaneo o senza username, non considerare autenticato');
@@ -392,7 +387,7 @@ const AIGeneratorModal = ({ open, onClose, onAppGenerated }) => {
         setTimeout(() => {
           setLoginInProgress(false);
           checkAuthStatus();
-        }, 2000); // Aumentato a 2 secondi
+        }, 3000); // Aumentato a 3 secondi
         
       } catch (popupError) {
         console.log('⚠️ Popup fallito, uso redirect:', popupError);
@@ -794,41 +789,67 @@ Modifica il codice HTML in base alla richiesta, mantenendo tutte le funzionalit�
             minWidth: { md: '50%' }
           }}>
             {/* Sezione autenticazione */}
-            <Paper sx={{ p: 2, mb: 3, background: theme.palette.background.default }}>
-              {authLoading ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <LinearProgress sx={{ flexGrow: 1 }} />
-                  <Typography variant="body2">Controllo autenticazione...</Typography>
-                </Box>
-              ) : isAuthenticated ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Avatar src={userInfo?.picture} sx={{ width: 32, height: 32 }}>
-                      {userInfo?.name?.charAt(0)?.toUpperCase()}
-                    </Avatar>
-                    <Typography variant="body2">
-                      Connesso come: {userInfo?.name || userInfo?.email}
-                    </Typography>
-                  </Box>
-                  <Button size="small" onClick={handleSignOut} variant="outlined">
-                    Logout
-                  </Button>
-                </Box>
-              ) : (
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="body2" sx={{ mb: 2 }}>
-                    Per usare l'AI, devi fare il login gratuito con Puter
+            <Box sx={{ mb: 3 }}>
+              {!isAuthenticated ? (
+                <Stack spacing={2}>
+                  <Typography variant="h6" color="primary">
+                    🔐 Autenticazione Puter
                   </Typography>
-                  <Button 
-                    variant="contained" 
+                  <Typography variant="body2" color="text.secondary">
+                    Accedi con il tuo account Puter per generare app AI
+                  </Typography>
+                  <Button
+                    variant="contained"
                     onClick={handleSignIn}
-                    startIcon={<AIIcon />}
+                    disabled={authLoading}
+                    startIcon={authLoading ? <CircularProgress size={20} /> : <PersonIcon />}
+                    sx={{ 
+                      width: '100%',
+                      height: 48,
+                      fontSize: '1rem',
+                      fontWeight: 600
+                    }}
                   >
-                    Accedi con Puter
+                    {authLoading ? 'Accesso in corso...' : 'Accedi con Puter'}
                   </Button>
-                </Box>
+                  {authLoading && (
+                    <Box sx={{ width: '100%', mt: 1 }}>
+                      <LinearProgress 
+                        sx={{ 
+                          height: 4, 
+                          borderRadius: 2,
+                          backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                          '& .MuiLinearProgress-bar': {
+                            backgroundColor: 'primary.main'
+                          }
+                        }} 
+                      />
+                    </Box>
+                  )}
+                </Stack>
+              ) : (
+                <Stack spacing={2}>
+                  <Typography variant="h6" color="success.main">
+                    ✅ Autenticato come {userInfo?.username || 'Utente'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Pronto per generare app AI
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    onClick={handleSignOut}
+                    startIcon={<LogoutIcon />}
+                    sx={{ 
+                      width: '100%',
+                      height: 48,
+                      fontSize: '1rem'
+                    }}
+                  >
+                    Disconnetti
+                  </Button>
+                </Stack>
               )}
-            </Paper>
+            </Box>
 
             {/* Form generazione */}
             <Paper sx={{ p: 3, mb: 3 }}>
