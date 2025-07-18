@@ -102,17 +102,8 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
   // Flag per indicare se il login è in corso
   const [loginInProgress, setLoginInProgress] = useState(false);
 
-  // Modelli AI disponibili (solo quelli supportati da Puter)
-  const aiModels = [
-    { value: 'gpt-4o', label: 'GPT-4o (OpenAI)', group: '🔥 Consigliati' },
-    { value: 'claude-3.5-sonnet', label: 'Claude 3.5 Sonnet (Anthropic)', group: '🔥 Consigliati' },
-    { value: 'openrouter:deepseek/deepseek-r1', label: 'DeepSeek R1 (Gratuito)', group: '🔥 Consigliati' },
-    { value: 'openrouter:openai/o1-mini', label: 'o1-mini (Reasoning)', group: '🔥 Consigliati' },
-    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo (OpenAI)', group: '⚡ Altri' },
-    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (OpenAI)', group: '⚡ Altri' },
-    { value: 'claude-3-haiku', label: 'Claude 3 Haiku (Anthropic)', group: '⚡ Altri' },
-    { value: 'gemini-pro', label: 'Gemini Pro (Google)', group: '⚡ Altri' }
-  ];
+  // Modelli AI disponibili (caricati dinamicamente da Puter)
+  const aiModels = [];
 
   // State per i modelli AI dinamici
   const [dynamicModels, setDynamicModels] = useState([]);
@@ -529,65 +520,83 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
     
     setModelsLoading(true);
     try {
-      console.log('🔍 Caricamento modelli AI disponibili...');
+      console.log('🔍 Caricamento modelli AI da Puter...');
       
-      let models = [];
+      // Modelli Puter nativi
+      const puterModels = [
+        { value: 'gpt-4o-mini', label: 'GPT-4o Mini', group: '🚀 Modelli Puter' },
+        { value: 'gpt-4o', label: 'GPT-4o', group: '🚀 Modelli Puter' },
+        { value: 'o1', label: 'O1', group: '🚀 Modelli Puter' },
+        { value: 'o1-mini', label: 'O1 Mini', group: '🚀 Modelli Puter' },
+        { value: 'o1-pro', label: 'O1 Pro', group: '🚀 Modelli Puter' },
+        { value: 'o3', label: 'O3', group: '🚀 Modelli Puter' },
+        { value: 'o3-mini', label: 'O3 Mini', group: '🚀 Modelli Puter' },
+        { value: 'o4-mini', label: 'O4 Mini', group: '🚀 Modelli Puter' },
+        { value: 'gpt-4.1', label: 'GPT-4.1', group: '🚀 Modelli Puter' },
+        { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', group: '🚀 Modelli Puter' },
+        { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano', group: '🚀 Modelli Puter' },
+        { value: 'gpt-4.5-preview', label: 'GPT-4.5 Preview', group: '🚀 Modelli Puter' },
+        { value: 'claude-sonnet-4', label: 'Claude Sonnet 4', group: '🚀 Modelli Puter' },
+        { value: 'claude-opus-4', label: 'Claude Opus 4', group: '🚀 Modelli Puter' },
+        { value: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet', group: '🚀 Modelli Puter' },
+        { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet', group: '🚀 Modelli Puter' },
+        { value: 'deepseek-chat', label: 'DeepSeek Chat', group: '🚀 Modelli Puter' },
+        { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner', group: '🚀 Modelli Puter' },
+        { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', group: '🚀 Modelli Puter' },
+        { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', group: '🚀 Modelli Puter' },
+        { value: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo', label: 'Meta Llama 3.1 8B', group: '🚀 Modelli Puter' },
+        { value: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo', label: 'Meta Llama 3.1 70B', group: '🚀 Modelli Puter' },
+        { value: 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo', label: 'Meta Llama 3.1 405B', group: '🚀 Modelli Puter' },
+        { value: 'mistral-large-latest', label: 'Mistral Large', group: '🚀 Modelli Puter' },
+        { value: 'pixtral-large-latest', label: 'Pixtral Large', group: '🚀 Modelli Puter' },
+        { value: 'codestral-latest', label: 'Codestral', group: '🚀 Modelli Puter' },
+        { value: 'google/gemma-2-27b-it', label: 'Google Gemma 2 27B', group: '🚀 Modelli Puter' },
+        { value: 'grok-beta', label: 'Grok Beta', group: '🚀 Modelli Puter' }
+      ];
+
+      // Modelli OpenRouter gratuiti (selezionati)
+      const openRouterFreeModels = [
+        { value: 'openrouter:meta-llama/llama-3.1-8b-instruct:free', label: 'Meta Llama 3.1 8B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:anthropic/claude-3.5-sonnet:free', label: 'Claude 3.5 Sonnet (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:google/gemini-pro-1.5:free', label: 'Gemini Pro 1.5 (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:openai/gpt-4o-mini:free', label: 'GPT-4o Mini (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:qwen/qwen-2.5-72b-instruct:free', label: 'Qwen 2.5 72B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:qwen/qwen-2.5-coder-32b-instruct:free', label: 'Qwen 2.5 Coder 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:qwen/qwen2.5-vl-32b-instruct:free', label: 'Qwen 2.5 VL 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:qwen/qwen2.5-vl-72b-instruct:free', label: 'Qwen 2.5 VL 72B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:qwen/qwen3-14b:free', label: 'Qwen 3 14B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:qwen/qwen3-235b-a22b:free', label: 'Qwen 3 235B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:qwen/qwen3-30b-a3b:free', label: 'Qwen 3 30B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:qwen/qwen3-32b:free', label: 'Qwen 3 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:qwen/qwen3-8b:free', label: 'Qwen 3 8B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:qwen/qwq-32b:free', label: 'QWQ 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:mistralai/mistral-small-3.1-24b-instruct:free', label: 'Mistral Small 3.1 24B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:mistralai/mistral-small-3.2-24b-instruct:free', label: 'Mistral Small 3.2 24B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:moonshotai/kimi-dev-72b:free', label: 'Kimi Dev 72B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:moonshotai/kimi-vl-a3b-thinking:free', label: 'Kimi VL A3B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:nousresearch/deephermes-3-llama-3-8b-preview:free', label: 'DeepHermes 3 Llama 3 8B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:nvidia/llama-3.1-nemotron-ultra-253b-v1:free', label: 'Nemotron Ultra 253B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:nvidia/llama-3.3-nemotron-super-49b-v1:free', label: 'Nemotron Super 49B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:thudm/glm-4-32b:free', label: 'GLM-4 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:thudm/glm-z1-32b:free', label: 'GLM-Z1 32B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:tngtech/deepseek-r1t-chimera:free', label: 'DeepSeek R1T Chimera (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:rekaai/reka-flash-3:free', label: 'Reka Flash 3 (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:sarvamai/sarvam-m:free', label: 'Sarvam M (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:shisa-ai/shisa-v2-llama3.3-70b:free', label: 'Shisa V2 Llama 3.3 70B (Free)', group: '🆓 OpenRouter Gratuiti' },
+        { value: 'openrouter:openrouter/cypher-alpha:free', label: 'Cypher Alpha (Free)', group: '🆓 OpenRouter Gratuiti' }
+      ];
+
+      // Combina tutti i modelli
+      const allModels = [...puterModels, ...openRouterFreeModels];
       
-      // Usa l'endpoint ufficiale di Puter per i modelli
-      try {
-        const response = await fetch('https://api.puter.com/puterai/chat/models/', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${puterRef.current.auth.getToken()}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          models = data.models || [];
-          console.log('✅ Modelli ottenuti da API ufficiale:', models.length, 'modelli totali');
-        } else {
-          console.log('⚠️ Errore API ufficiale:', response.status, response.statusText);
-        }
-      } catch (error) {
-        console.log('⚠️ Errore chiamata API ufficiale:', error);
-      }
-      
-      // Se ancora non funziona, usa la lista hardcoded di fallback
-      if (models.length === 0) {
-        console.log('📋 Usando lista modelli hardcoded di fallback');
-        models = [
-          // Modelli che potrebbero essere gratuiti (solo come fallback)
-          { id: 'gpt-3.5-turbo:free', name: 'GPT-3.5 Turbo (Gratuito)' },
-          { id: 'claude-3-haiku:free', name: 'Claude 3 Haiku (Gratuito)' },
-          { id: 'gemini-pro:free', name: 'Gemini Pro (Gratuito)' },
-          { id: 'mistral-7b:free', name: 'Mistral 7B (Gratuito)' },
-          { id: 'llama-2-7b:free', name: 'Llama 2 7B (Gratuito)' }
-        ];
-      }
-      
-      // Filtra solo i modelli gratuiti (terminano con :free)
-      const freeModels = models.filter(model => {
-        const endsWithFree = model.id && model.id.endsWith(':free');
-        console.log(`Modello ${model.id}: ${endsWithFree ? 'GRATUITO' : 'A PAGAMENTO'}`);
-        return endsWithFree;
-      });
-      
-      // Converti nel formato richiesto
-      const formattedModels = freeModels.map(model => ({
-        value: model.id,
-        label: model.name || model.id,
-        group: '🆓 Modelli Gratuiti'
-      }));
-      
-      setDynamicModels(formattedModels);
-      console.log(`✅ Caricati ${formattedModels.length} modelli gratuiti`);
+      setDynamicModels(allModels);
+      console.log('✅ Modelli caricati con successo:', allModels.length, 'modelli disponibili');
+      console.log('📊 Breakdown:', puterModels.length, 'modelli Puter +', openRouterFreeModels.length, 'modelli OpenRouter gratuiti');
       
     } catch (error) {
       console.error('❌ Errore caricamento modelli:', error);
-      // Fallback alla lista hardcoded
-      setDynamicModels(aiModels);
+      setDynamicModels([]);
     } finally {
       setModelsLoading(false);
     }
@@ -979,9 +988,8 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
     }));
   };
 
-  // Raggruppa modelli AI per select (usa modelli dinamici se disponibili, altrimenti fallback)
-  const modelsToUse = dynamicModels.length > 0 ? dynamicModels : aiModels;
-  const groupedModels = modelsToUse.reduce((groups, model) => {
+  // Raggruppa modelli AI per select (usa solo modelli dinamici)
+  const groupedModels = dynamicModels.reduce((groups, model) => {
     const group = model.group || '🆓 Modelli Gratuiti';
     if (!groups[group]) {
       groups[group] = [];
@@ -1192,16 +1200,22 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                   required
                   disabled={modelsLoading}
                 >
-                  {Object.entries(groupedModels).map(([group, models]) => [
-                    <MenuItem key={group} disabled sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                      {group}
-                    </MenuItem>,
-                    ...models.map(model => (
-                      <MenuItem key={model.value} value={model.value} sx={{ pl: 4 }}>
-                        {model.label}
-                      </MenuItem>
-                    ))
-                  ])}
+                  {Object.keys(groupedModels).length === 0 ? (
+                    <MenuItem disabled>
+                      {modelsLoading ? 'Caricamento modelli...' : 'Nessun modello disponibile'}
+                    </MenuItem>
+                  ) : (
+                    Object.entries(groupedModels).map(([group, models]) => [
+                      <MenuItem key={group} disabled sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                        {group}
+                      </MenuItem>,
+                      ...models.map(model => (
+                        <MenuItem key={model.value} value={model.value} sx={{ pl: 4 }}>
+                          {model.label}
+                        </MenuItem>
+                      ))
+                    ])
+                  )}
                 </Select>
                 {modelsLoading && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
@@ -1222,7 +1236,9 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                 sx={{ mb: 3 }}
                 fullWidth
               >
-                Aggiorna Modelli AI
+                {modelsLoading ? 'Caricamento...' : 
+                 dynamicModels.length > 0 ? `Aggiorna Modelli AI (${dynamicModels.length})` : 
+                 'Carica Modelli AI'}
               </Button>
               
               <Button
