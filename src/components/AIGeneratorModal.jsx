@@ -600,6 +600,8 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     if (!currentApp) return;
     
     try {
+      console.log('📤 Avvio importazione app:', currentApp);
+      
       // Aggiungi l'app alla lista generate
       const updatedApps = [currentApp, ...generatedApps];
       setGeneratedApps(updatedApps);
@@ -607,20 +609,30 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       
       // Chiama la callback per importare in AIdeas
       if (onAppGenerated) {
-        await onAppGenerated({
+        const appData = {
           name: currentApp.name,
           description: currentApp.description,
           icon: currentApp.icon,
-          htmlContent: currentApp.code,
-          type: currentApp.type || 'utility', // Assicura che il tipo sia sempre definito
-          category: 'ai-generated'
+          htmlContent: currentApp.code, // Il contenuto HTML pulito
+          type: currentApp.type || 'utility',
+          category: 'AI Generated',
+          model: currentApp.model,
+          originalPrompt: `Crea una app web HTML completa chiamata "${currentApp.name}". DESCRIZIONE: ${currentApp.description} TIPO: ${currentApp.type}`
+        };
+        
+        console.log('📦 Dati app da passare:', {
+          name: appData.name,
+          contentLength: appData.htmlContent?.length || 0,
+          hasContent: !!appData.htmlContent
         });
+        
+        await onAppGenerated(appData);
       }
       
       showToast('✅ App importata con successo!', 'success');
       onClose();
     } catch (error) {
-      console.error('Errore importazione app:', error);
+      console.error('❌ Errore importazione app:', error);
       showToast('Errore durante l\'importazione: ' + error.message, 'error');
     }
   };

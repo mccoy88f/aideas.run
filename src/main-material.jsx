@@ -923,27 +923,42 @@ function AIdeasApp() {
   // Handler per app generate con AI
   const handleAIGeneratedApp = async (appData) => {
     try {
+      console.log('🚀 Importazione app AI:', appData);
+      
       // Estrai metadati dall'app
-      const { name, description, icon, htmlContent, metadata } = appData;
+      const { name, description, icon, htmlContent, type, category } = appData;
       
       // Prepara i dati dell'app nel formato corretto per StorageService.installApp
       const appToInstall = {
         name: name || 'App AI senza nome',
         description: description || 'App generata con AI',
         icon: icon || '🤖',
-        htmlContent: htmlContent,
+        content: htmlContent, // Usa 'content' invece di 'htmlContent'
+        type: 'html', // Tipo specifico per app HTML
         source: 'ai-generated',
+        category: category || 'AI Generated',
         metadata: {
-          ...metadata,
-          aiModel: metadata?.aiModel || 'unknown',
-          generatedAt: metadata?.generatedAt || new Date().toISOString(),
-          type: metadata?.type || 'other'
+          aiModel: appData.model || 'unknown',
+          generatedAt: new Date().toISOString(),
+          type: type || 'utility',
+          originalPrompt: appData.originalPrompt || ''
         },
-        category: 'AI Generated'
+        tags: ['AI Generated', type || 'utility'],
+        permissions: [],
+        version: '1.0.0'
       };
+      
+      console.log('📦 Dati app da installare:', {
+        name: appToInstall.name,
+        type: appToInstall.type,
+        contentLength: appToInstall.content?.length || 0,
+        hasContent: !!appToInstall.content
+      });
       
       // Usa StorageService.installApp come nel resto dell'app
       const appId = await StorageService.installApp(appToInstall);
+      
+      console.log('✅ App installata con ID:', appId);
       
       // Ricarica tutte le app
       await loadApps();
@@ -955,8 +970,8 @@ function AIdeasApp() {
       setAiGeneratorOpen(false);
       
     } catch (error) {
-      console.error('Errore importazione app AI:', error);
-      showToast('Errore durante l\'importazione dell\'app AI', 'error');
+      console.error('❌ Errore importazione app AI:', error);
+      showToast('Errore durante l\'importazione dell\'app AI: ' + error.message, 'error');
     }
   };
 
