@@ -62,7 +62,7 @@ import {
 /**
  * Pagina per la generazione di app tramite AI usando Puter.js
  */
-const AIGeneratorPage = ({ onNavigateBack, onAppGenerated }) => {
+const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
@@ -633,7 +633,11 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
           type: currentApp.type || 'utility',
           category: 'AI Generated',
           model: currentApp.model,
-          originalPrompt: `Crea una app web HTML completa chiamata "${currentApp.name}". DESCRIZIONE: ${currentApp.description} TIPO: ${currentApp.type}`
+          originalPrompt: `Crea una app web HTML completa chiamata "${currentApp.name}". DESCRIZIONE: ${currentApp.description} TIPO: ${currentApp.type}`,
+          // Aggiungi informazioni per il controllo duplicati
+          isModification: currentApp.isModification || false,
+          originalAppId: currentApp.originalAppId || null,
+          originalUniqueId: currentApp.originalUniqueId || null
         };
         
         console.log('📦 Dati app da passare:', appData);
@@ -684,6 +688,53 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     ]);
   };
 
+  // Modifica app installata in AIdeas (chiamata dal main)
+  const handleEditInstalledApp = async (appId) => {
+    try {
+      // Ottieni i dati dell'app da StorageService
+      const appData = await StorageService.getApp(appId);
+      if (!appData) {
+        showToast('App non trovata', 'error');
+        return;
+      }
+
+      // Crea un oggetto app compatibile con il formato delle app generate
+      const app = {
+        id: appData.id,
+        name: appData.name,
+        description: appData.description,
+        icon: appData.icon,
+        code: appData.content, // Il contenuto HTML
+        type: appData.metadata?.type || 'utility',
+        model: appData.metadata?.aiModel || 'unknown',
+        createdAt: appData.timestamp || new Date().toISOString(),
+        uniqueId: appData.uniqueId,
+        isInstalled: true,
+        originalAppId: appData.id
+      };
+
+      setCurrentApp(app);
+      setPreviewOpen(true);
+      setChatOpen(true);
+      setChatMessages([
+        { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' }
+      ]);
+
+    } catch (error) {
+      console.error('Errore caricamento app per modifica:', error);
+      showToast('Errore nel caricamento dell\'app', 'error');
+    }
+  };
+
+  // Esponi la funzione globalmente quando il componente è montato
+  useEffect(() => {
+    window.handleEditInstalledApp = handleEditInstalledApp;
+    
+    return () => {
+      delete window.handleEditInstalledApp;
+    };
+  }, []);
+
   // Invia messaggio chat
   const handleSendChatMessage = async () => {
     if (!chatInput.trim() || !currentApp || !puterRef.current) return;
@@ -714,8 +765,14 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
       const htmlMatch = fullResponse.match(/```html\n?([\s\S]*?)\n?```/);
       const newCode = htmlMatch ? htmlMatch[1] : fullResponse.replace(/```html\n?/g, '').replace(/```\n?/g, '');
       
-      // Aggiorna app con nuovo codice
-      const updatedApp = { ...currentApp, code: newCode };
+      // Aggiorna app con nuovo codice e marca come modifica
+      const updatedApp = { 
+        ...currentApp, 
+        code: newCode,
+        isModification: true,
+        originalAppId: currentApp.originalAppId || currentApp.id,
+        originalUniqueId: currentApp.originalUniqueId || currentApp.uniqueId
+      };
       setCurrentApp(updatedApp);
       
       // Mostra la risposta completa dell'AI (senza il codice HTML)

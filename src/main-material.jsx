@@ -937,45 +937,71 @@ function AIdeasApp() {
       console.log('🚀 Importazione app AI:', appData);
       
       // Estrai metadati dall'app
-      const { name, description, icon, htmlContent, type, category } = appData;
+      const { name, description, icon, htmlContent, type, category, isModification, originalAppId, originalUniqueId } = appData;
       
-      // Prepara i dati dell'app nel formato corretto per StorageService.installApp
-      const appToInstall = {
-        name: name || 'App AI senza nome',
-        description: description || 'App generata con AI',
-        icon: icon || '🤖',
-        content: htmlContent, // Usa 'content' invece di 'htmlContent'
-        type: 'html', // Tipo specifico per app HTML
-        source: 'ai-generated',
-        category: category || 'AI Generated',
-        metadata: {
-          aiModel: appData.model || 'unknown',
-          generatedAt: new Date().toISOString(),
-          type: type || 'utility',
-          originalPrompt: appData.originalPrompt || ''
-        },
-        tags: ['AI Generated', type || 'utility'],
-        permissions: [],
-        version: '1.0.0'
-      };
+      // Se è una modifica di un'app esistente, aggiorna direttamente
+      if (isModification && originalAppId) {
+        console.log('🔄 Aggiornamento app esistente:', originalAppId);
+        await updateExistingApp(originalAppId, appData);
+        showToast('App aggiornata con successo!', 'success');
+        await loadApps();
+        setCurrentView('apps');
+        return;
+      }
       
-      console.log('📦 Dati app da installare:', {
-        name: appToInstall.name,
-        type: appToInstall.type,
-        contentLength: appToInstall.content?.length || 0,
-        hasContent: !!appToInstall.content
-      });
+      // Genera uniqueId per controllare duplicati
+      const uniqueId = StorageService.generateUniqueId(name, 'AI Generated');
       
-      // Usa StorageService.installApp come nel resto dell'app
-      const appId = await StorageService.installApp(appToInstall);
+      // Controlla se esiste già un'app con lo stesso uniqueId
+      const existingApps = await StorageService.getAllApps();
+      const existingApp = existingApps.find(app => app.uniqueId === uniqueId);
       
-      console.log('✅ App installata con ID:', appId);
+      if (existingApp) {
+        // App duplicata trovata - chiedi all'utente cosa fare
+        const choice = await showDuplicateAppDialog(existingApp, appData);
+        
+        if (choice === 'update') {
+          // Aggiorna l'app esistente
+          await updateExistingApp(existingApp.id, appData);
+          showToast('App aggiornata con successo!', 'success');
+        } else if (choice === 'new-version') {
+          // Crea una nuova versione
+          const newVersionApp = await createNewVersionApp(existingApp, appData);
+          showToast(`Nuova versione creata: ${newVersionApp.name}`, 'success');
+        } else {
+          // Annulla
+          console.log('Importazione annullata dall\'utente');
+          return;
+        }
+      } else {
+        // Nessuna app duplicata - installa normalmente
+        const appToInstall = {
+          name: name || 'App AI senza nome',
+          description: description || 'App generata con AI',
+          icon: icon || '🤖',
+          content: htmlContent,
+          type: 'html',
+          source: 'ai-generated',
+          category: category || 'AI Generated',
+          metadata: {
+            aiModel: appData.model || 'unknown',
+            generatedAt: new Date().toISOString(),
+            type: type || 'utility',
+            originalPrompt: appData.originalPrompt || ''
+          },
+          tags: ['AI Generated', type || 'utility'],
+          permissions: [],
+          version: '1.0.0',
+          uniqueId: uniqueId
+        };
+        
+        const appId = await StorageService.installApp(appToInstall);
+        console.log('✅ App installata con ID:', appId);
+        showToast('App AI importata con successo!', 'success');
+      }
       
       // Ricarica tutte le app
       await loadApps();
-      
-      // Mostra messaggio di successo
-      showToast('App AI importata con successo!', 'success');
       
       // Torna alla pagina principale
       setCurrentView('apps');
@@ -983,6 +1009,184 @@ function AIdeasApp() {
     } catch (error) {
       console.error('❌ Errore importazione app AI:', error);
       showToast('Errore durante l\'importazione dell\'app AI: ' + error.message, 'error');
+    }
+  };
+
+  // Funzione per mostrare dialog di scelta per app duplicate
+  const showDuplicateAppDialog = (existingApp, newAppData) => {
+    return new Promise((resolve) => {
+      const dialogContent = `
+        <div style="padding: 20px; max-width: 500px;">
+          <h3 style="margin-top: 0; color: #1976d2;">App Duplicata Rilevata</h3>
+          <p>Esiste già un'app chiamata <strong>"${existingApp.name}"</strong>.</p>
+          
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h4 style="margin-top: 0;">App Esistente:</h4>
+            <p><strong>Nome:</strong> ${existingApp.name}</p>
+            <p><strong>Versione:</strong> ${existingApp.version}</p>
+            <p><strong>Ultima modifica:</strong> ${new Date(existingApp.timestamp || existingApp.lastUsed).toLocaleDateString()}</p>
+          </div>
+          
+          <p>Cosa vuoi fare?</p>
+          
+          <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button id="update-btn" style="flex: 1; padding: 10px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              🔄 Aggiorna App Esistente
+            </button>
+            <button id="new-version-btn" style="flex: 1; padding: 10px; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              ➕ Crea Nuova Versione
+            </button>
+            <button id="cancel-btn" style="flex: 1; padding: 10px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              ❌ Annulla
+            </button>
+          </div>
+        </div>
+      `;
+
+      const dialog = document.createElement('div');
+      dialog.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+      `;
+      
+      const dialogBox = document.createElement('div');
+      dialogBox.style.cssText = `
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        max-width: 90vw;
+        max-height: 90vh;
+        overflow-y: auto;
+      `;
+      dialogBox.innerHTML = dialogContent;
+      
+      dialog.appendChild(dialogBox);
+      document.body.appendChild(dialog);
+
+      // Event listeners
+      dialog.querySelector('#update-btn').onclick = () => {
+        document.body.removeChild(dialog);
+        resolve('update');
+      };
+      
+      dialog.querySelector('#new-version-btn').onclick = () => {
+        document.body.removeChild(dialog);
+        resolve('new-version');
+      };
+      
+      dialog.querySelector('#cancel-btn').onclick = () => {
+        document.body.removeChild(dialog);
+        resolve('cancel');
+      };
+      
+      // Chiudi con ESC
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          document.body.removeChild(dialog);
+          document.removeEventListener('keydown', handleKeyDown);
+          resolve('cancel');
+        }
+      };
+      document.addEventListener('keydown', handleKeyDown);
+    });
+  };
+
+  // Funzione per aggiornare app esistente
+  const updateExistingApp = async (appId, newAppData) => {
+    const { name, description, icon, htmlContent, type, category } = newAppData;
+    
+    const updates = {
+      description: description || 'App generata con AI',
+      icon: icon || '🤖',
+      content: htmlContent,
+      metadata: {
+        aiModel: newAppData.model || 'unknown',
+        lastModified: new Date().toISOString(),
+        type: type || 'utility',
+        originalPrompt: newAppData.originalPrompt || ''
+      },
+      tags: ['AI Generated', type || 'utility'],
+      version: '1.0.0' // Mantieni la versione originale
+    };
+    
+    await StorageService.updateApp(appId, updates);
+    console.log('✅ App esistente aggiornata:', appId);
+  };
+
+  // Funzione per creare nuova versione
+  const createNewVersionApp = async (existingApp, newAppData) => {
+    const { name, description, icon, htmlContent, type, category } = newAppData;
+    
+    // Trova la prossima versione disponibile
+    const versionNumber = getNextVersionNumber(existingApp.name);
+    const newName = `${existingApp.name} v.${versionNumber}`;
+    
+    const appToInstall = {
+      name: newName,
+      description: description || 'App generata con AI',
+      icon: icon || '🤖',
+      content: htmlContent,
+      type: 'html',
+      source: 'ai-generated',
+      category: category || 'AI Generated',
+      metadata: {
+        aiModel: newAppData.model || 'unknown',
+        generatedAt: new Date().toISOString(),
+        type: type || 'utility',
+        originalPrompt: newAppData.originalPrompt || '',
+        originalAppId: existingApp.id,
+        versionNumber: versionNumber
+      },
+      tags: ['AI Generated', type || 'utility', 'Version'],
+      permissions: [],
+      version: `${versionNumber}.0.0`,
+      uniqueId: StorageService.generateUniqueId(newName, 'AI Generated')
+    };
+    
+    const appId = await StorageService.installApp(appToInstall);
+    console.log('✅ Nuova versione creata:', appId);
+    
+    return appToInstall;
+  };
+
+  // Funzione per ottenere il prossimo numero di versione
+  const getNextVersionNumber = (baseName) => {
+    const existingApps = apps.filter(app => 
+      app.name.startsWith(baseName + ' v.') && 
+      app.source === 'ai-generated'
+    );
+    
+    if (existingApps.length === 0) {
+      return 2; // Prima versione sarà v.2
+    }
+    
+    // Estrai i numeri di versione esistenti
+    const versionNumbers = existingApps
+      .map(app => {
+        const match = app.name.match(/v\.(\d+)/);
+        return match ? parseInt(match[1]) : 0;
+      })
+      .filter(num => num > 0);
+    
+    return Math.max(...versionNumbers) + 1;
+  };
+
+  // Handler per modificare app generate con AI
+  const handleEditAIApp = (app) => {
+    console.log('🤖 Modifica app AI:', app);
+    // Naviga alla pagina AI Generator e passa l'ID dell'app da modificare
+    setCurrentView('ai-generator');
+    // Passa l'ID dell'app al componente AI Generator
+    if (window.handleEditInstalledApp) {
+      window.handleEditInstalledApp(app.id);
     }
   };
 
@@ -2054,7 +2258,7 @@ function AIdeasApp() {
                   app={app}
                   onLaunch={handleLaunchApp}
                   onToggleFavorite={handleToggleFavorite}
-                  onEdit={setSelectedApp}
+                  onEdit={app.source === 'ai-generated' ? handleEditAIApp : setSelectedApp}
                   onDelete={handleDeleteApp}
                   onShowMenu={() => {}}
                   onShowInfo={handleShowAppInfo}
