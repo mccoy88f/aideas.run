@@ -399,6 +399,19 @@ function AIdeasApp() {
         setSettings(settingsData);
       }
       
+      // Inizializza AIServiceManager con le configurazioni AI
+      if (settingsData.ai) {
+        try {
+          console.log('🤖 Inizializzazione AIServiceManager con configurazioni AI...');
+          await aiServiceManager.initialize(settingsData.ai);
+          console.log('✅ AIServiceManager inizializzato con successo');
+        } catch (error) {
+          console.error('❌ Errore inizializzazione AIServiceManager:', error);
+        }
+      } else {
+        console.log('ℹ️ Nessuna configurazione AI trovata nelle impostazioni');
+      }
+      
       console.log('⚙️ Impostazioni caricate:', settingsData);
     } catch (error) {
       console.error('Errore caricamento impostazioni:', error);
@@ -1670,6 +1683,17 @@ function AIdeasApp() {
     if (newSettings.theme && newSettings.theme !== 'system') {
       // Il ThemeProvider gestirà automaticamente il cambio
       console.log('🎨 Tema aggiornato dalle impostazioni:', newSettings.theme);
+    }
+    
+    // Se sono cambiate le impostazioni AI, reinizializza AIServiceManager
+    if (newSettings.ai) {
+      try {
+        console.log('🤖 Reinizializzazione AIServiceManager con nuove configurazioni AI...');
+        aiServiceManager.initialize(newSettings.ai);
+        console.log('✅ AIServiceManager reinizializzato con successo');
+      } catch (error) {
+        console.error('❌ Errore reinizializzazione AIServiceManager:', error);
+      }
     }
   };
 
