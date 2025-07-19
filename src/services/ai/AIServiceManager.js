@@ -100,6 +100,17 @@ export class AIServiceManager {
   }
 
   /**
+   * Genera una risposta AI con system prompt usando il provider corrente
+   */
+  async generateResponseWithSystem(systemPrompt, userPrompt, options = {}) {
+    const service = this.getCurrentService();
+    if (!service.isConfigured()) {
+      throw new Error(`${this.getProviderLabel(this.currentProvider)} non configurato. Configura l'API key nelle impostazioni.`);
+    }
+    return await service.generateResponseWithSystem(systemPrompt, userPrompt, options);
+  }
+
+  /**
    * Testa la connessione del provider corrente
    */
   async testConnection() {

@@ -202,6 +202,9 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
     }
   };
 
+  // System prompt per la generazione di app
+  const SYSTEM_PROMPT = "Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript. Se richiesto usa liberire esterne raggiungibili con cdn. Inserisci tutti i metadati html come nome, descrizione, keywords e favicon scelta tra emoji inerenti al progetto. come author inserisci AIDeas.run";
+
   // Genera app con AI
   const handleGenerateApp = async (e) => {
     e.preventDefault();
@@ -224,7 +227,7 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
       console.log('🚀 Avvio generazione app con AI...');
       console.log('📋 Parametri:', { appName, appDescription, appType, aiModel });
       
-      const prompt = `Crea una app web HTML completa chiamata "${appName}".
+      const userPrompt = `Crea una app web HTML completa chiamata "${appName}".
 
 DESCRIZIONE: ${appDescription}
 TIPO: ${appType}
@@ -241,7 +244,7 @@ REQUISITI:
 
 Implementa tutte le funzionalità richieste senza usare placeholder.`;
 
-      const response = await aiServiceManager.generateResponse(prompt, {
+      const response = await aiServiceManager.generateResponseWithSystem(SYSTEM_PROMPT, userPrompt, {
         model: aiModel,
         temperature: 0.7,
         maxTokens: 4000
@@ -282,7 +285,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       // Inizializza la chat con il prompt e la risposta
       setChatMessages([
         { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' },
-        { role: 'user', content: prompt },
+        { role: 'user', content: userPrompt },
         { role: 'assistant', content: response }
       ]);
       

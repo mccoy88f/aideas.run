@@ -194,6 +194,79 @@ export class OpenRouterService extends BaseAIService {
   }
 
   /**
+   * Genera una risposta AI con system prompt
+   */
+  async generateResponseWithSystem(systemPrompt, userPrompt, options = {}) {
+    if (!this.isConfigured()) {
+      throw new Error('OpenRouter non configurato. Inserisci la tua API key nelle impostazioni.');
+    }
+
+    const {
+      model = 'openai/gpt-4o-mini',
+      temperature = 0.7,
+      maxTokens = 4000,
+      stream = false
+    } = options;
+
+    console.log('🤖 Generazione risposta OpenRouter con system prompt:', {
+      model,
+      systemPromptLength: systemPrompt.length,
+      userPromptLength: userPrompt.length,
+      hasClient: !!this.client,
+      hasApiKey: !!this.config.apiKey
+    });
+
+    // Se il client OpenAI non funziona, usa fetch diretto
+    if (!this.client) {
+      console.log('🔄 Fallback a fetch diretto');
+      return this.generateResponseWithSystemFetch(systemPrompt, userPrompt, options);
+    }
+
+    try {
+      const completion = await this.client.chat.completions.create({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: userPrompt
+          }
+        ],
+        temperature,
+        max_tokens: maxTokens,
+        stream,
+        extra_headers: {
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'AIdeas'
+        }
+      });
+
+      console.log('✅ Risposta OpenRouter con system prompt generata con successo');
+
+      if (stream) {
+        return completion; // Restituisce lo stream
+      } else {
+        return completion.choices[0]?.message?.content || '';
+      }
+    } catch (error) {
+      console.error('❌ Errore nella generazione risposta OpenRouter con system prompt:', error);
+      console.error('🔍 Dettagli errore:', {
+        message: error.message,
+        status: error.status,
+        type: error.type,
+        code: error.code
+      });
+      
+      // Se l'SDK fallisce, prova con fetch diretto
+      console.log('🔄 Fallback a fetch diretto dopo errore SDK');
+      return this.generateResponseWithSystemFetch(systemPrompt, userPrompt, options);
+    }
+  }
+
+  /**
    * Genera una risposta AI usando fetch diretto (fallback)
    */
   async generateResponseWithFetch(prompt, options = {}) {
@@ -243,6 +316,64 @@ export class OpenRouterService extends BaseAIService {
       return data.choices[0]?.message?.content || '';
     } catch (error) {
       console.error('❌ Errore fetch diretto OpenRouter:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Genera una risposta AI con system prompt usando fetch diretto (fallback)
+   */
+  async generateResponseWithSystemFetch(systemPrompt, userPrompt, options = {}) {
+    const {
+      model = 'openai/gpt-4o-mini',
+      temperature = 0.7,
+      maxTokens = 4000
+    } = options;
+
+    console.log('🌐 Usando fetch diretto per OpenRouter con system prompt');
+
+    try {
+      const response = await fetch(`${this.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'AIdeas'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: userPrompt
+            }
+          ],
+          temperature,
+          max_tokens: maxTokens
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Errore fetch OpenRouter con system prompt:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText
+        });
+        throw new Error(`Errore API OpenRouter: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Risposta fetch OpenRouter con system prompt generata con successo');
+      
+      return data.choices[0]?.message?.content || '';
+    } catch (error) {
+      console.error('❌ Errore fetch diretto OpenRouter con system prompt:', error);
       throw error;
     }
   }

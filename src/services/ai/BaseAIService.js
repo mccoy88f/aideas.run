@@ -38,6 +38,13 @@ export class BaseAIService {
   }
 
   /**
+   * Genera una risposta AI con system prompt
+   */
+  async generateResponseWithSystem(systemPrompt, userPrompt, options = {}) {
+    throw new Error('generateResponseWithSystem deve essere implementato nelle classi figlie');
+  }
+
+  /**
    * Testa la connessione al servizio
    */
   async testConnection() {
