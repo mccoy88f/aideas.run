@@ -73,6 +73,84 @@ export class OpenRouterService extends BaseAIService {
   }
 
   /**
+   * Verifica se un modello supporta system prompt
+   */
+  modelSupportsSystemPrompt(modelId) {
+    // Modelli che supportano system prompt (basati su GPT, Claude, etc.)
+    const systemPromptModels = [
+      // OpenAI GPT models
+      'openai/gpt-4o',
+      'openai/gpt-4o-mini',
+      'openai/gpt-4-turbo',
+      'openai/gpt-4',
+      'openai/gpt-3.5-turbo',
+      'openai/gpt-3.5-turbo-16k',
+      
+      // Anthropic Claude models
+      'anthropic/claude-3-5-sonnet',
+      'anthropic/claude-3-5-haiku',
+      'anthropic/claude-3-opus',
+      'anthropic/claude-3-sonnet',
+      'anthropic/claude-3-haiku',
+      'anthropic/claude-2.1',
+      'anthropic/claude-2.0',
+      'anthropic/claude-instant',
+      
+      // Google models
+      'google/gemini-pro',
+      'google/gemini-flash',
+      
+      // Meta models
+      'meta-llama/llama-3.1-8b-instruct',
+      'meta-llama/llama-3.1-70b-instruct',
+      'meta-llama/llama-3.1-405b-instruct',
+      'meta-llama/llama-3.1-8b-instruct:free',
+      'meta-llama/llama-3.1-70b-instruct:free',
+      
+      // Mistral models
+      'mistralai/mistral-7b-instruct',
+      'mistralai/mixtral-8x7b-instruct',
+      'mistralai/mistral-large',
+      'mistralai/mistral-medium',
+      'mistralai/mistral-small',
+      
+      // Cohere models
+      'cohere/command-r',
+      'cohere/command-r-plus',
+      'cohere/command-light',
+      
+      // Perplexity models
+      'perplexity/llama-3.1-8b-instruct',
+      'perplexity/llama-3.1-70b-instruct',
+      'perplexity/llama-3.1-405b-instruct',
+      'perplexity/llama-3.1-8b-instruct:free',
+      'perplexity/llama-3.1-70b-instruct:free',
+      
+      // Altri modelli moderni
+      'nousresearch/nous-hermes-2-mixtral-8x7b-dpo',
+      'nousresearch/nous-hermes-2-yi-34b',
+      'nousresearch/nous-hermes-2-mixtral-8x7b-dpo:free',
+      'nousresearch/nous-hermes-2-yi-34b:free',
+      
+      // Modelli che iniziano con questi pattern
+      'openai/',
+      'anthropic/',
+      'google/',
+      'meta-llama/',
+      'mistralai/',
+      'cohere/',
+      'perplexity/',
+      'nousresearch/'
+    ];
+    
+    // Verifica se il modello è nella lista o inizia con un pattern supportato
+    return systemPromptModels.some(pattern => 
+      modelId === pattern || 
+      (pattern.endsWith('/') && modelId.startsWith(pattern))
+    );
+  }
+
+  /**
    * Ottiene i modelli disponibili da OpenRouter
    */
   async getAvailableModels() {
@@ -103,12 +181,16 @@ export class OpenRouterService extends BaseAIService {
       };
 
       models.forEach(model => {
+        // Determina se il modello supporta system prompt
+        const supportsSystemPrompt = this.modelSupportsSystemPrompt(model.id);
+        
         const modelInfo = {
           value: model.id,
           label: model.name || model.id,
           description: model.description || '',
           context_length: model.context_length,
-          pricing: model.pricing
+          pricing: model.pricing,
+          supportsSystemPrompt: supportsSystemPrompt
         };
 
         if (model.id.endsWith(':free')) {

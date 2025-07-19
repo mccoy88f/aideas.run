@@ -95,6 +95,12 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
   const [dynamicModels, setDynamicModels] = useState([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   
+  // Verifica se il modello corrente supporta system prompt
+  const currentModelSupportsSystemPrompt = () => {
+    const currentModel = dynamicModels.find(model => model.value === formData.aiModel);
+    return currentModel?.supportsSystemPrompt || false;
+  };
+  
   // Tipi di app
   const appTypes = [
     { value: 'utility', label: 'Utility / Strumento', icon: '🔧' },
@@ -186,7 +192,8 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
           formattedModels.push({
             value: model.value,
             label: model.label,
-            group: group
+            group: group,
+            supportsSystemPrompt: model.supportsSystemPrompt || false
           });
         });
       });
@@ -834,7 +841,18 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                       </MenuItem>,
                       ...models.map(model => (
                         <MenuItem key={model.value} value={model.value} sx={{ pl: 4 }}>
-                          {model.label}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                            <span>{model.label}</span>
+                            {model.supportsSystemPrompt && (
+                              <Chip 
+                                size="small" 
+                                label="System" 
+                                color="success" 
+                                variant="outlined"
+                                sx={{ ml: 'auto', fontSize: '0.7rem', height: 20 }}
+                              />
+                            )}
+                          </Box>
                         </MenuItem>
                       ))
                     ])
@@ -849,6 +867,15 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                   </Box>
                 )}
               </FormControl>
+              
+              {!modelsLoading && formData.aiModel && !currentModelSupportsSystemPrompt() && (
+                <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>Nota:</strong> Questo modello potrebbe non supportare completamente il system prompt. 
+                    Le app generate potrebbero non includere tutti i metadati richiesti.
+                  </Typography>
+                </Alert>
+              )}
               
               <Button
                 variant="outlined"
