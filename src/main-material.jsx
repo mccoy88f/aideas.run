@@ -2042,6 +2042,16 @@ function AIdeasApp() {
           <AIGeneratorPage 
             onNavigateBack={navigateToApps}
             onAppGenerated={handleAIGeneratedApp}
+            onOpenSettings={() => {
+              setSettingsDialogOpen(true);
+              // Imposta la sezione AI come attiva
+              setTimeout(() => {
+                const aiSection = document.querySelector('[data-section="ai"]');
+                if (aiSection) {
+                  aiSection.click();
+                }
+              }, 100);
+            }}
           />
         ) : (
           <Box sx={{ 

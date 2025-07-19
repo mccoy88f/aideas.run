@@ -17,14 +17,28 @@ export class OpenRouterService extends BaseAIService {
   async initialize(config) {
     await super.initialize(config);
     
-    if (typeof window !== 'undefined' && window.openai) {
-      this.client = new window.openai({
-        baseURL: this.baseURL,
-        apiKey: this.config.apiKey,
-        dangerouslyAllowBrowser: true
-      });
-    } else {
-      console.warn('OpenAI SDK non disponibile nel browser');
+    try {
+      // Prova a caricare l'OpenAI SDK dinamicamente se non è disponibile
+      if (typeof window !== 'undefined') {
+        if (window.openai) {
+          this.client = new window.openai({
+            baseURL: this.baseURL,
+            apiKey: this.config.apiKey,
+            dangerouslyAllowBrowser: true
+          });
+        } else {
+          // Carica dinamicamente l'SDK se non è disponibile
+          const { default: OpenAI } = await import('https://cdn.jsdelivr.net/npm/openai@4.28.0/+esm');
+          this.client = new OpenAI({
+            baseURL: this.baseURL,
+            apiKey: this.config.apiKey,
+            dangerouslyAllowBrowser: true
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Errore caricamento OpenAI SDK:', error);
+      throw new Error('Impossibile caricare OpenAI SDK');
     }
   }
 

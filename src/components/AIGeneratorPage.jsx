@@ -55,15 +55,14 @@ import {
   Check as CheckIcon,
   Error as ErrorIcon,
   Info as InfoIcon,
-  Person as PersonIcon,
-  Logout as LogoutIcon,
+  Settings as SettingsIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
 
 /**
  * Pagina per la generazione di app tramite AI usando OpenRouter
  */
-const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp }) => {
+const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, onOpenSettings }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
@@ -77,8 +76,6 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
   
   // State per l'autenticazione AI
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userInfo, setUserInfo] = useState(null);
-  const [authLoading, setAuthLoading] = useState(false);
   
   // State per la generazione
   const [isGenerating, setIsGenerating] = useState(false);
@@ -134,40 +131,20 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp })
       
       if (isConfigured) {
         setIsAuthenticated(true);
-        setUserInfo({ name: 'OpenRouter User', email: 'openrouter@aideas.run' });
         
         // Carica le app generate
         await loadGeneratedApps();
       } else {
         console.log('❌ Servizio AI non configurato');
         setIsAuthenticated(false);
-        setUserInfo(null);
       }
     } catch (error) {
       console.error('❌ Errore controllo autenticazione AI:', error);
       setIsAuthenticated(false);
-      setUserInfo(null);
     }
   };
 
-  // Gestione login (reindirizza alle impostazioni)
-  const handleSignIn = async () => {
-    showToast('Configura la tua API key OpenRouter nelle impostazioni', 'info');
-    // Qui potresti aprire le impostazioni automaticamente
-  };
 
-  // Gestione logout
-  const handleSignOut = async () => {
-    try {
-      setIsAuthenticated(false);
-      setUserInfo(null);
-      setGeneratedApps([]);
-      showToast('Disconnesso da OpenRouter', 'success');
-    } catch (error) {
-      console.error('❌ Errore logout:', error);
-      showToast('Errore durante il logout', 'error');
-    }
-  };
 
   // Carica app generate
   const loadGeneratedApps = async () => {
@@ -705,21 +682,26 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
           flex: { lg: 1 }, 
           minWidth: { lg: '50%' }
         }}>
-          {/* Sezione autenticazione */}
+          {/* Sezione configurazione API */}
           <Paper sx={{ p: 3, mb: 3 }}>
             {!isAuthenticated ? (
               <Stack spacing={2}>
                 <Typography variant="h6" color="primary">
-                  🔐 Autenticazione Puter
+                  🔑 Configurazione API Key
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Accedi con il tuo account Puter per generare app AI
+                  Configura la tua API key OpenRouter nelle impostazioni per generare app AI
                 </Typography>
                 <Button
                   variant="contained"
-                  onClick={handleSignIn}
-                  disabled={authLoading}
-                  startIcon={authLoading ? <CircularProgress size={20} /> : <PersonIcon />}
+                  onClick={() => {
+                    if (onOpenSettings) {
+                      onOpenSettings();
+                    } else {
+                      showToast('Apri le impostazioni e vai alla sezione AI', 'info');
+                    }
+                  }}
+                  startIcon={<SettingsIcon />}
                   sx={{ 
                     width: '100%',
                     height: 48,
@@ -727,42 +709,32 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                     fontWeight: 600
                   }}
                 >
-                  {authLoading ? 'Accesso in corso...' : 'Accedi con Puter'}
+                  Configura API Key
                 </Button>
-                {authLoading && (
-                  <Box sx={{ width: '100%', mt: 1 }}>
-                    <LinearProgress 
-                      sx={{ 
-                        height: 4, 
-                        borderRadius: 2,
-                        backgroundColor: 'rgba(25, 118, 210, 0.1)',
-                        '& .MuiLinearProgress-bar': {
-                          backgroundColor: 'primary.main'
-                        }
-                      }} 
-                    />
-                  </Box>
-                )}
               </Stack>
             ) : (
               <Stack spacing={2}>
                 <Typography variant="h6" color="success.main">
-                  ✅ Autenticato come {userInfo?.username || 'Utente'}
+                  ✅ API Key Configurata
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Pronto per generare app AI
+                  Pronto per generare app AI con OpenRouter
                 </Typography>
                 <Button
                   variant="outlined"
-                  onClick={handleSignOut}
-                  startIcon={<LogoutIcon />}
+                  onClick={() => {
+                    if (onOpenSettings) {
+                      onOpenSettings();
+                    }
+                  }}
+                  startIcon={<SettingsIcon />}
                   sx={{ 
                     width: '100%',
                     height: 48,
                     fontSize: '1rem'
                   }}
                 >
-                  Disconnetti
+                  Modifica Configurazione
                 </Button>
               </Stack>
             )}

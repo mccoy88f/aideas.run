@@ -502,7 +502,7 @@ const SettingsMaterial = ({
   // === FUNZIONI CONFIGURAZIONE AI ===
   const loadAIConfig = async () => {
     try {
-      const settings = await StorageService.getSettings();
+      const settings = await StorageService.getAllSettings();
       const aiSettings = settings.ai || {};
       
       setAiConfig(prev => ({
@@ -600,7 +600,7 @@ const SettingsMaterial = ({
         }
       };
 
-      await StorageService.updateSettings(updatedSettings);
+      await StorageService.setAllSettings(updatedSettings);
       
       // Inizializza il gestore AI
       if (aiConfig.openrouterApiKey) {
@@ -1442,6 +1442,7 @@ const SettingsMaterial = ({
                     button
                     selected={activeSection === section.id}
                     onClick={() => setActiveSection(section.id)}
+                    data-section={section.id}
                     sx={{
                       borderRadius: 1,
                       mb: 0.5,
