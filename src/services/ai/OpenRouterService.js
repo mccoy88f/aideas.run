@@ -19,6 +19,7 @@ export class OpenRouterService extends BaseAIService {
     
     try {
       console.log('🔧 Inizializzazione OpenRouter con API key:', this.config.apiKey ? 'Presente' : 'Mancante');
+      console.log('🔑 API Key (primi 10 caratteri):', this.config.apiKey?.substring(0, 10) + '...');
       
       // Prova a caricare l'OpenAI SDK dinamicamente se non è disponibile
       if (typeof window !== 'undefined') {
@@ -39,6 +40,14 @@ export class OpenRouterService extends BaseAIService {
             dangerouslyAllowBrowser: true
           });
         }
+        
+        // Verifica che il client sia stato creato correttamente
+        console.log('🔍 Verifica client:', {
+          hasClient: !!this.client,
+          clientType: this.client?.constructor?.name,
+          hasApiKey: !!this.client?.apiKey,
+          baseURL: this.client?.baseURL
+        });
         
         console.log('✅ Client OpenAI inizializzato con successo');
       }
@@ -109,10 +118,6 @@ export class OpenRouterService extends BaseAIService {
       throw new Error('OpenRouter non configurato. Inserisci la tua API key nelle impostazioni.');
     }
 
-    if (!this.client) {
-      throw new Error('Client OpenAI non inizializzato');
-    }
-
     const {
       model = 'openai/gpt-4o-mini',
       temperature = 0.7,
@@ -126,6 +131,12 @@ export class OpenRouterService extends BaseAIService {
       hasClient: !!this.client,
       hasApiKey: !!this.config.apiKey
     });
+
+    // Se il client OpenAI non funziona, usa fetch direttamente
+    if (!this.client) {
+      console.log('🔄 Fallback a fetch diretto');
+      return this.generateResponseWithFetch(prompt, options);
+    }
 
     try {
       const completion = await this.client.chat.completions.create({
@@ -160,6 +171,63 @@ export class OpenRouterService extends BaseAIService {
         type: error.type,
         code: error.code
       });
+      
+      // Se l'SDK fallisce, prova con fetch diretto
+      console.log('🔄 Fallback a fetch diretto dopo errore SDK');
+      return this.generateResponseWithFetch(prompt, options);
+    }
+  }
+
+  /**
+   * Genera una risposta AI usando fetch diretto (fallback)
+   */
+  async generateResponseWithFetch(prompt, options = {}) {
+    const {
+      model = 'openai/gpt-4o-mini',
+      temperature = 0.7,
+      maxTokens = 4000
+    } = options;
+
+    console.log('🌐 Usando fetch diretto per OpenRouter');
+
+    try {
+      const response = await fetch(`${this.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'AIdeas'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature,
+          max_tokens: maxTokens
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Errore fetch OpenRouter:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText
+        });
+        throw new Error(`Errore API OpenRouter: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Risposta fetch OpenRouter generata con successo');
+      
+      return data.choices[0]?.message?.content || '';
+    } catch (error) {
+      console.error('❌ Errore fetch diretto OpenRouter:', error);
       throw error;
     }
   }
