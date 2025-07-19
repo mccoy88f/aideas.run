@@ -182,10 +182,71 @@ export function useSyncStatus() {
     }
   }, [isEnabled, isInProgress, provider, intervalMinutes, syncHistory]);
 
-  const manualSync = async () => {
-    clearTimer();
-    await triggerSync();
-  };
+  // Funzione per sincronizzazione manuale
+  const manualSync = useCallback(async () => {
+    if (isInProgress || !isEnabled) return;
+    
+    setIsInProgress(true);
+    setError(null);
+    
+    try {
+      let result;
+      
+      if (provider === 'github') {
+        const gistId = await StorageService.getSetting('githubGistId');
+        if (!gistId) {
+          throw new Error('Gist ID non configurato');
+        }
+        result = await githubServiceRef.current.syncBidirectional({ gistId });
+      } else if (provider === 'googledrive' && googleServiceRef.current) {
+        result = await googleServiceRef.current.syncBidirectional();
+      } else {
+        throw new Error('Provider non supportato o non configurato');
+      }
+      
+      if (result.success) {
+        setLastSync(new Date().toISOString());
+        await StorageService.setSetting('lastSyncTime', new Date().toISOString());
+        
+        // Aggiungi alla cronologia
+        const history = await StorageService.getSetting('syncHistory', []);
+        const newEntry = {
+          id: Date.now(),
+          type: 'sync',
+          message: `Sincronizzazione completata: ${result.appsCount || 0} app`,
+          timestamp: new Date().toISOString(),
+          provider
+        };
+        history.unshift(newEntry);
+        const trimmedHistory = history.slice(0, 20);
+        await StorageService.setSetting('syncHistory', trimmedHistory);
+        setSyncHistory(trimmedHistory);
+        
+        console.log('✅ Sincronizzazione completata:', result);
+      }
+      
+    } catch (error) {
+      console.error('❌ Errore sincronizzazione:', error);
+      setError(error.message);
+      
+      // Aggiungi errore alla cronologia
+      const history = await StorageService.getSetting('syncHistory', []);
+      const newEntry = {
+        id: Date.now(),
+        type: 'error',
+        message: `Errore sincronizzazione: ${error.message}`,
+        timestamp: new Date().toISOString(),
+        provider
+      };
+      history.unshift(newEntry);
+      const trimmedHistory = history.slice(0, 20);
+      await StorageService.setSetting('syncHistory', trimmedHistory);
+      setSyncHistory(trimmedHistory);
+      
+    } finally {
+      setIsInProgress(false);
+    }
+  }, [isEnabled, isInProgress, provider]);
 
   const updateSettings = async (newSettings) => {
     if ('isEnabled' in newSettings) {

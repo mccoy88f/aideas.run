@@ -157,17 +157,7 @@ export default defineConfig({
               }
             }
           },
-          {
-            urlPattern: /^https:\/\/js\.puter\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'puter-js-cache',
-              expiration: {
-                maxEntries: 5,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 giorni
-              }
-            }
-          }
+
         ]
       },
       manifest: {

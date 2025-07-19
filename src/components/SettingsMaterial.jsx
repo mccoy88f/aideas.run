@@ -60,7 +60,8 @@ import {
   CheckCircle as CheckCircleIcon,
   CloudOff as CloudOffIcon,
   GitHub as GitHubIcon,
-  CloudSync as CloudSyncIcon
+  CloudSync as CloudSyncIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { useSyncStatus } from '../utils/useSyncStatus.js';
 import GitHubService from '../services/GitHubService.js';
@@ -502,22 +503,32 @@ const SettingsMaterial = ({
   // === FUNZIONI CONFIGURAZIONE AI ===
   const loadAIConfig = async () => {
     try {
-      const settings = await StorageService.getAllSettings();
-      const aiSettings = settings.ai || {};
+      console.log('🤖 Caricamento configurazione AI...');
       
-      setAiConfig(prev => ({
-        ...prev,
+      const aiSettings = localSettings.ai || {};
+      const openrouterSettings = aiSettings.openrouter || {};
+      
+      setAiConfig({
         selectedProvider: aiSettings.provider || 'openrouter',
-        openrouterApiKey: aiSettings.openrouter?.apiKey || '',
-        isConfigured: aiSettings.openrouter?.apiKey ? true : false
-      }));
+        openrouterApiKey: openrouterSettings.apiKey || '',
+        isConfigured: !!openrouterSettings.apiKey,
+        testResult: null,
+        testError: null,
+        isTestingConnection: false,
+        credits: null
+      });
 
-      // Inizializza il gestore AI se c'è una configurazione
-      if (aiSettings.openrouter?.apiKey) {
+      // Se c'è un'API key configurata, inizializza il servizio e carica i crediti
+      if (openrouterSettings.apiKey) {
+        console.log('🤖 Inizializzazione AIServiceManager...');
         await aiServiceManager.initialize({
-          openrouter: { apiKey: aiSettings.openrouter.apiKey }
+          openrouter: { apiKey: openrouterSettings.apiKey }
         });
+        
+        console.log('💰 API key trovata, caricamento crediti...');
+        await loadAICredits();
       }
+      
     } catch (error) {
       console.error('Errore caricamento configurazione AI:', error);
     }
@@ -541,25 +552,17 @@ const SettingsMaterial = ({
       return;
     }
 
-    console.log('🧪 Test connessione AI con API key:', {
-      hasApiKey: !!aiConfig.openrouterApiKey,
-      apiKeyLength: aiConfig.openrouterApiKey?.length,
-      apiKeyStart: aiConfig.openrouterApiKey?.substring(0, 10) + '...'
-    });
-
-    setAiConfig(prev => ({ ...prev, isTestingConnection: true, testResult: null, testError: null }));
-
     try {
+      setAiConfig(prev => ({ ...prev, isTestingConnection: true, testResult: null, testError: null }));
+      
+      console.log('🧪 Test connessione AI...');
+      
       // Inizializza il servizio con la nuova API key
-      console.log('🤖 Inizializzazione AIServiceManager per test');
       await aiServiceManager.initialize({
         openrouter: { apiKey: aiConfig.openrouterApiKey }
       });
-
-      // Testa la connessione
-      console.log('🧪 Esecuzione test connessione');
+      
       const result = await aiServiceManager.testConnection();
-      console.log('📊 Risultato test:', result);
       
       if (result.success) {
         setAiConfig(prev => ({ 
@@ -571,12 +574,7 @@ const SettingsMaterial = ({
         showToast('Connessione AI testata con successo!', 'success');
 
         // Carica i crediti
-        try {
-          const credits = await aiServiceManager.getCredits();
-          setAiConfig(prev => ({ ...prev, credits }));
-        } catch (error) {
-          console.warn('Impossibile caricare i crediti:', error);
-        }
+        await loadAICredits();
       } else {
         setAiConfig(prev => ({ 
           ...prev, 
@@ -595,6 +593,26 @@ const SettingsMaterial = ({
       showToast(`Errore test connessione: ${error.message}`, 'error');
     } finally {
       setAiConfig(prev => ({ ...prev, isTestingConnection: false }));
+    }
+  };
+
+  const loadAICredits = async () => {
+    try {
+      console.log('💰 Caricamento crediti AI...');
+      const credits = await aiServiceManager.getCredits();
+      setAiConfig(prev => ({ ...prev, credits }));
+      console.log('✅ Crediti caricati:', credits);
+    } catch (error) {
+      console.warn('⚠️ Impossibile caricare i crediti:', error);
+      setAiConfig(prev => ({ 
+        ...prev, 
+        credits: {
+          credits: 'N/A',
+          usage: {},
+          limits: {},
+          error: error.message
+        }
+      }));
     }
   };
 
@@ -1355,14 +1373,102 @@ const SettingsMaterial = ({
               <Typography variant="subtitle2" gutterBottom>
                 💰 Informazioni Crediti
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Crediti disponibili: {aiConfig.credits.credits || 'N/A'}
-              </Typography>
-              {aiConfig.credits.usage && (
+              
+              {/* Crediti disponibili */}
+              <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" color="text.secondary">
-                  Utilizzo: {JSON.stringify(aiConfig.credits.usage)}
+                  <strong>Crediti disponibili:</strong> {
+                    aiConfig.credits.credits === 'N/A' ? 
+                    'Non disponibile' : 
+                    typeof aiConfig.credits.credits === 'number' ? 
+                    `${aiConfig.credits.credits.toFixed(2)} crediti` : 
+                    aiConfig.credits.credits
+                  }
                 </Typography>
+              </Box>
+
+              {/* Utilizzo */}
+              {aiConfig.credits.usage && Object.keys(aiConfig.credits.usage).length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <strong>Utilizzo:</strong>
+                  </Typography>
+                  <Box sx={{ pl: 2 }}>
+                    {aiConfig.credits.usage.total_requests !== undefined && (
+                      <Typography variant="body2" color="text.secondary">
+                        • Richieste totali: {aiConfig.credits.usage.total_requests}
+                      </Typography>
+                    )}
+                    {aiConfig.credits.usage.total_tokens !== undefined && (
+                      <Typography variant="body2" color="text.secondary">
+                        • Token totali: {aiConfig.credits.usage.total_tokens.toLocaleString()}
+                      </Typography>
+                    )}
+                    {aiConfig.credits.usage.total_cost !== undefined && (
+                      <Typography variant="body2" color="text.secondary">
+                        • Costo totale: ${aiConfig.credits.usage.total_cost.toFixed(4)}
+                      </Typography>
+                    )}
+                    {aiConfig.credits.usage.requests_today !== undefined && (
+                      <Typography variant="body2" color="text.secondary">
+                        • Richieste oggi: {aiConfig.credits.usage.requests_today}
+                      </Typography>
+                    )}
+                    {aiConfig.credits.usage.tokens_today !== undefined && (
+                      <Typography variant="body2" color="text.secondary">
+                        • Token oggi: {aiConfig.credits.usage.tokens_today.toLocaleString()}
+                      </Typography>
+                    )}
+                    {aiConfig.credits.usage.cost_today !== undefined && (
+                      <Typography variant="body2" color="text.secondary">
+                        • Costo oggi: ${aiConfig.credits.usage.cost_today.toFixed(4)}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
               )}
+
+              {/* Limiti */}
+              {aiConfig.credits.limits && Object.keys(aiConfig.credits.limits).length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <strong>Limiti:</strong>
+                  </Typography>
+                  <Box sx={{ pl: 2 }}>
+                    {aiConfig.credits.limits.requests_per_day !== undefined && (
+                      <Typography variant="body2" color="text.secondary">
+                        • Richieste/giorno: {aiConfig.credits.limits.requests_per_day}
+                      </Typography>
+                    )}
+                    {aiConfig.credits.limits.tokens_per_day !== undefined && (
+                      <Typography variant="body2" color="text.secondary">
+                        • Token/giorno: {aiConfig.credits.limits.tokens_per_day.toLocaleString()}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Errore se presente */}
+              {aiConfig.credits.error && (
+                <Alert severity="warning" sx={{ mt: 1 }}>
+                  <Typography variant="body2">
+                    Impossibile caricare i crediti: {aiConfig.credits.error}
+                  </Typography>
+                </Alert>
+              )}
+
+              {/* Pulsante per ricaricare i crediti */}
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={loadAICredits}
+                disabled={!aiConfig.openrouterApiKey}
+                startIcon={<RefreshIcon />}
+                sx={{ mt: 1 }}
+              >
+                Aggiorna Crediti
+              </Button>
             </Paper>
           </Grid>
         )}

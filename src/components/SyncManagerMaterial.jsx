@@ -74,6 +74,10 @@ export default function SyncManagerMaterial({ open, onClose, onSyncComplete }) {
     googledrive: false
   });
 
+  // State per il setup iniziale
+  const [firstTimeSetup, setFirstTimeSetup] = useState(null);
+  const [setupModalOpen, setSetupModalOpen] = useState(false);
+
   const [githubService] = useState(new GitHubService());
   const [googleService] = useState(() => {
     try {
@@ -96,6 +100,7 @@ export default function SyncManagerMaterial({ open, onClose, onSyncComplete }) {
       loadSyncStatus();
       loadSyncHistory();
       checkAuthenticationStatus();
+      checkFirstTimeSetup();
     }
   }, [open]);
 
@@ -591,36 +596,72 @@ export default function SyncManagerMaterial({ open, onClose, onSyncComplete }) {
   };
 
   const performGoogleDriveSync = async (direction) => {
-    const clientId = credentials.googledrive.clientId;
-    if (!clientId) throw new Error('Client ID Google richiesto');
-    
-    googleService.configure(clientId);
-    
-    // Verifica autenticazione
-    const isAuthenticated = await googleService.checkAuthentication();
-    if (!isAuthenticated) {
-      throw new Error('Autenticazione Google Drive richiesta');
-    }
-    
-    if (direction === 'upload' || direction === 'bidirectional') {
-      setProgress({ show: true, value: 30, text: 'Caricamento dati su Google Drive...' });
-      const data = await StorageService.exportBackupData();
-      await googleService.uploadSyncData(data);
-    }
-    
-    if (direction === 'download' || direction === 'bidirectional') {
-      setProgress({ show: true, value: 70, text: 'Scaricamento dati da Google Drive...' });
-      const result = await googleService.downloadSyncData();
-      if (result.data) {
-        await StorageService.importBackupData(result.data);
+    try {
+      const clientId = credentials.googledrive.clientId;
+      if (!clientId) throw new Error('Client ID Google richiesto');
+      
+      googleService.configure(clientId);
+      
+      // Verifica autenticazione
+      const isAuthenticated = await googleService.checkAuthentication();
+      if (!isAuthenticated) {
+        throw new Error('Autenticazione Google Drive richiesta');
+      }
+      
+      if (direction === 'upload') {
+        setProgress({ show: true, value: 30, text: 'Caricamento dati su Google Drive...' });
+        const data = await StorageService.exportBackupData();
+        await googleService.uploadSyncData(data);
+        setProgress({ show: false, value: 100, text: '' });
+        setSuccess('Dati caricati su Google Drive con successo!');
+      } else if (direction === 'download') {
+        setProgress({ show: true, value: 70, text: 'Scaricamento dati da Google Drive...' });
+        const result = await googleService.downloadSyncData();
+        if (result && result.data) {
+          await StorageService.importBackupData(result.data);
+        }
+        setProgress({ show: false, value: 100, text: '' });
+        setSuccess('Dati scaricati da Google Drive con successo!');
+      } else if (direction === 'bidirectional') {
+        setProgress({ show: true, value: 0, text: 'Sincronizzazione bidirezionale...' });
         
-        // Notifica il componente principale del download completato
-        if (onSyncComplete) {
-          await onSyncComplete({ 
-            message: `Dati scaricati da Google Drive (${result.data.apps?.length || 0} app)` 
-          });
+        try {
+          const result = await googleService.syncBidirectional();
+          setProgress({ show: false, value: 100, text: '' });
+          setSuccess(`Sincronizzazione completata! ${result.appsCount} app sincronizzate.`);
+          
+          // Notifica il completamento
+          if (onSyncComplete) {
+            onSyncComplete(result);
+          }
+        } catch (error) {
+          if (error.message === 'FIRST_TIME_SETUP_REQUIRED') {
+            // Gestisci il primo avvio
+            setProgress({ show: false, value: 0, text: '' });
+            
+            // Controlla il setup iniziale
+            const setup = await googleService.checkFirstTimeSetup();
+            if (setup.isFirstTime && setup.hasBackup) {
+              setFirstTimeSetup(setup);
+              setSetupModalOpen(true);
+              return;
+            }
+          } else {
+            throw error;
+          }
         }
       }
+      
+      // Ricarica lo stato della sincronizzazione
+      await loadSyncStatus();
+      
+    } catch (error) {
+      DEBUG.error('❌ Errore sincronizzazione Google Drive:', error);
+      setError(`Errore sincronizzazione Google Drive: ${error.message}`);
+      setProgress({ show: false, value: 0, text: '' });
+      
+      // Aggiungi alla cronologia
+      await addToSyncHistory('error', `Errore sincronizzazione Google Drive: ${error.message}`);
     }
   };
 
@@ -898,6 +939,80 @@ export default function SyncManagerMaterial({ open, onClose, onSyncComplete }) {
     });
     
     return mergedData;
+  };
+
+  const checkFirstTimeSetup = async () => {
+    try {
+      if (provider === 'googledrive' && googleService) {
+        const setup = await googleService.checkFirstTimeSetup();
+        if (setup.isFirstTime && setup.hasBackup) {
+          setFirstTimeSetup(setup);
+          setSetupModalOpen(true);
+        }
+      }
+    } catch (error) {
+      DEBUG.error('Errore controllo setup iniziale:', error);
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    try {
+      setProgress({ show: true, value: 0, text: 'Ripristino backup da Google Drive...' });
+      
+      const result = await googleService.restoreBackup();
+      
+      setProgress({ show: false, value: 100, text: '' });
+      setSuccess(`Backup ripristinato con successo! ${result.data.apps.length} app caricate.`);
+      
+      setSetupModalOpen(false);
+      setFirstTimeSetup(null);
+      
+      // Ricarica lo stato della sincronizzazione
+      await loadSyncStatus();
+      
+      // Notifica il completamento
+      if (onSyncComplete) {
+        onSyncComplete({ success: true, action: 'restore', appsCount: result.data.apps.length });
+      }
+      
+    } catch (error) {
+      DEBUG.error('Errore ripristino backup:', error);
+      setError(`Errore ripristino backup: ${error.message}`);
+      setProgress({ show: false, value: 0, text: '' });
+    }
+  };
+
+  const handleReplaceBackup = async () => {
+    try {
+      setProgress({ show: true, value: 0, text: 'Sostituzione backup su Google Drive...' });
+      
+      const result = await googleService.replaceBackup();
+      
+      setProgress({ show: false, value: 100, text: '' });
+      setSuccess('Backup sostituito con successo! I dati locali sono ora su Google Drive.');
+      
+      setSetupModalOpen(false);
+      setFirstTimeSetup(null);
+      
+      // Ricarica lo stato della sincronizzazione
+      await loadSyncStatus();
+      
+      // Notifica il completamento
+      if (onSyncComplete) {
+        onSyncComplete({ success: true, action: 'replace' });
+      }
+      
+    } catch (error) {
+      DEBUG.error('Errore sostituzione backup:', error);
+      setError(`Errore sostituzione backup: ${error.message}`);
+      setProgress({ show: false, value: 0, text: '' });
+    }
+  };
+
+  const handleSkipSetup = () => {
+    setSetupModalOpen(false);
+    setFirstTimeSetup(null);
+    setSuccess('Setup iniziale saltato. Puoi configurare la sincronizzazione in seguito.');
   };
 
   return (
@@ -1368,6 +1483,85 @@ export default function SyncManagerMaterial({ open, onClose, onSyncComplete }) {
         onResolve={handleConflictResolution}
         loading={progress.show}
       />
+
+      {/* Dialog di setup iniziale */}
+      <Dialog
+        open={setupModalOpen}
+        onClose={handleSkipSetup}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <BackupIcon color="primary" />
+          Backup Trovato su Google Drive
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>Primo avvio rilevato!</strong> Non ci sono app installate localmente, ma è stato trovato un backup su Google Drive.
+            </Typography>
+          </Alert>
+          
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            È stato trovato un backup su Google Drive con <strong>{firstTimeSetup?.backupData?.apps?.length || 0} app</strong>.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Cosa vuoi fare?
+          </Typography>
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Button
+              variant="contained"
+              startIcon={<RestoreIcon />}
+              onClick={handleRestoreBackup}
+              fullWidth
+              sx={{ justifyContent: 'flex-start', textAlign: 'left' }}
+            >
+              <Box>
+                <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                  Ripristina Backup
+                </Typography>
+                <Typography variant="caption" color="inherit">
+                  Carica le {firstTimeSetup?.backupData?.apps?.length || 0} app dal backup di Google Drive
+                </Typography>
+              </Box>
+            </Button>
+            
+            <Button
+              variant="outlined"
+              startIcon={<UploadIcon />}
+              onClick={handleReplaceBackup}
+              fullWidth
+              sx={{ justifyContent: 'flex-start', textAlign: 'left' }}
+            >
+              <Box>
+                <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                  Sostituisci Backup
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Sostituisci il backup con i dati locali attuali (nessuna app)
+                </Typography>
+              </Box>
+            </Button>
+            
+            <Button
+              variant="text"
+              onClick={handleSkipSetup}
+              fullWidth
+              sx={{ justifyContent: 'flex-start', textAlign: 'left' }}
+            >
+              <Box>
+                <Typography variant="body1">
+                  Salta per ora
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Configura la sincronizzazione in seguito
+                </Typography>
+              </Box>
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 } 

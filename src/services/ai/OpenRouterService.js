@@ -276,25 +276,85 @@ export class OpenRouterService extends BaseAIService {
     }
 
     try {
+      console.log('💰 Richiesta crediti OpenRouter...');
+      
       const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'AIdeas',
+          'Content-Type': 'application/json'
         }
       });
 
+      console.log('📊 Risposta API crediti:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       if (!response.ok) {
-        throw new Error(`Errore API OpenRouter: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Errore API crediti:', errorText);
+        throw new Error(`Errore API OpenRouter: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      return {
-        credits: data.credits || 0,
-        usage: data.usage || {},
-        limits: data.limits || {}
+      console.log('📊 Dati crediti ricevuti:', data);
+
+      // Gestisci diversi formati di risposta
+      let credits = 'N/A';
+      let usage = {};
+      let limits = {};
+
+      if (data.credits !== undefined) {
+        credits = data.credits;
+      } else if (data.balance !== undefined) {
+        credits = data.balance;
+      } else if (data.credit_balance !== undefined) {
+        credits = data.credit_balance;
+      }
+
+      if (data.usage && typeof data.usage === 'object') {
+        usage = data.usage;
+      }
+
+      if (data.limits && typeof data.limits === 'object') {
+        limits = data.limits;
+      }
+
+      // Se non ci sono crediti specifici, prova a calcolare dall'usage
+      if (credits === 'N/A' && data.usage) {
+        if (data.usage.total_requests !== undefined) {
+          usage = {
+            total_requests: data.usage.total_requests,
+            total_tokens: data.usage.total_tokens,
+            total_cost: data.usage.total_cost
+          };
+        }
+      }
+
+      const result = {
+        credits,
+        usage,
+        limits,
+        rawData: data // Per debug
       };
+
+      console.log('💰 Crediti elaborati:', result);
+      return result;
+
     } catch (error) {
-      console.error('Errore nel recupero crediti OpenRouter:', error);
-      throw error;
+      console.error('❌ Errore nel recupero crediti OpenRouter:', error);
+      
+      // Restituisci dati di fallback invece di lanciare errore
+      return {
+        credits: 'N/A',
+        usage: {},
+        limits: {},
+        error: error.message
+      };
     }
   }
 } 

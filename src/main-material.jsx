@@ -30,11 +30,11 @@ import {
   Fab,
   Chip,
   Avatar,
-  LinearProgress,
   Box,
   useMediaQuery,
   Divider,
-  Checkbox
+  Checkbox,
+  CircularProgress
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -122,8 +122,8 @@ function AIdeasApp() {
   const [faviconUrl, setFaviconUrl] = useState('');
   const [appInfoModalOpen, setAppInfoModalOpen] = useState(false);
   const [appInfoData, setAppInfoData] = useState(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [appToDelete, setAppToDelete] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // State per selezione multipla
   const [selectionMode, setSelectionMode] = useState(false);
@@ -141,6 +141,10 @@ function AIdeasApp() {
     if (isAIGeneratorPage) return 'ai-generator';
     return 'apps';
   });
+
+  // Servizi di sincronizzazione
+  const [googleService, setGoogleService] = useState(null);
+  const [githubService, setGithubService] = useState(null);
 
   // Gestione routing URL
   React.useEffect(() => {
@@ -325,70 +329,41 @@ function AIdeasApp() {
 
   const initializeApp = async () => {
     try {
-      console.log('🚀 Inizializzazione AIdeas con Material UI...');
+      DEBUG.log('🚀 Inizializzazione AIdeas...');
       
-      // Inizializza debug
-      console.log('🔧 Inizializzazione ErrorTracker...');
-      ErrorTracker.init();
-      
-      // Controlla se c'è un fallback di autenticazione Google
-      console.log('🔐 Controllo fallback autenticazione Google...');
-      await checkGoogleAuthFallback();
-      
-      // Inizializza servizio routing app
-      console.log('🛣️ Inizializzazione AppRouteService...');
+      // Inizializza servizi di sincronizzazione
       try {
-        // AppRouteService è esportato come singleton, non come classe
-        // Inizializza in modo asincrono per evitare errori
-        setTimeout(() => {
-          AppRouteService.initialize().catch(error => {
-            console.error('Errore inizializzazione AppRouteService:', error);
-          });
-        }, 100);
+        const googleInstance = GoogleDriveService.createConfiguredInstance();
+        setGoogleService(googleInstance);
+        DEBUG.log('✅ Google Drive Service inizializzato');
       } catch (error) {
-        console.error('Errore inizializzazione AppRouteService:', error);
-      }
-
-      // Removed PWA auto-generation - not needed
-      
-      // Carica apps
-      console.log('📱 Caricamento apps...');
-      await loadApps();
-      
-      // Carica impostazioni
-      console.log('⚙️ Caricamento impostazioni...');
-      await loadUserSettings();
-      await loadUserInfo();
-      
-      // Inizializza AI Service Manager
-      console.log('🤖 Inizializzazione AI Service Manager...');
-      try {
-        const aiSettings = await StorageService.getSetting('ai', {});
-        if (aiSettings.openrouter?.apiKey) {
-          await aiServiceManager.initialize({
-            openrouter: { apiKey: aiSettings.openrouter.apiKey }
-          });
-          console.log('✅ AI Service Manager inizializzato con successo');
-        } else {
-          console.log('ℹ️ AI Service Manager non configurato - nessuna API key trovata');
-        }
-      } catch (error) {
-        console.error('❌ Errore inizializzazione AI Service Manager:', error);
+        DEBUG.warn('⚠️ Google Drive Service non configurato:', error.message);
+        setGoogleService(null);
       }
       
-      console.log('🎯 Impostazione loading a false...');
+      try {
+        const githubInstance = new GitHubService();
+        setGithubService(githubInstance);
+        DEBUG.log('✅ GitHub Service inizializzato');
+      } catch (error) {
+        DEBUG.warn('⚠️ GitHub Service non configurato:', error.message);
+        setGithubService(null);
+      }
+      
+      // Carica impostazioni e app
+      await Promise.all([
+        loadUserSettings(),
+        loadApps(),
+        loadUserInfo()
+      ]);
+      
       setLoading(false);
-      console.log('✅ AIdeas inizializzato con successo');
-      
-      // Forza un re-render dopo un breve delay
-      setTimeout(() => {
-        console.log('🔄 Forzatura re-render finale...');
-        setLoading(false);
-      }, 100);
+      DEBUG.success('✅ AIdeas inizializzato con successo');
       
     } catch (error) {
-      console.error('❌ Errore inizializzazione AIdeas:', error);
-      showToast('Errore durante l\'inizializzazione dell\'applicazione', 'error');
+      DEBUG.error('❌ Errore inizializzazione:', error);
+      setLoading(false);
+      showToast('Errore durante l\'inizializzazione', 'error');
     }
   };
 
@@ -838,33 +813,56 @@ function AIdeasApp() {
 
   const handleDeleteApp = async (appId) => {
     try {
-      await StorageService.deleteApp(appId);
-      setApps(prev => prev.filter(a => a.id !== appId));
-      showToast('Applicazione eliminata', 'success');
+      const app = apps.find(a => a.id === appId);
+      if (!app) return;
+
+      setAppToDelete(app);
+      setDeleteDialogOpen(true);
     } catch (error) {
-      console.error('Errore eliminazione app:', error);
-      showToast('Errore nell\'eliminazione dell\'applicazione', 'error');
+      console.error('Errore preparazione eliminazione app:', error);
+      showToast('Errore durante l\'eliminazione', 'error');
     }
   };
 
   const handleConfirmDelete = async () => {
     if (!appToDelete) return;
-    
+
     try {
-      await StorageService.deleteApp(appToDelete.id);
-      await loadApps(); // Ricarica le app
-      setSelectedApp(null);
-      setDeleteConfirmOpen(false);
+      const appId = appToDelete.id;
+      
+      // Elimina l'app dal database locale
+      await StorageService.deleteApp(appId);
+      
+      // Marca l'app come cancellata per la sincronizzazione
+      if (googleService) {
+        try {
+          await googleService.markAppAsDeleted(appId);
+          console.log(`🗑️ App ${appId} marcata come cancellata per la sincronizzazione`);
+        } catch (syncError) {
+          console.warn('⚠️ Errore marcatura app cancellata:', syncError);
+          // Non bloccare l'eliminazione se fallisce la marcatura
+        }
+      }
+      
+      // Aggiorna la lista delle app
+      setApps(prev => prev.filter(app => app.id !== appId));
+      
+      // Pulisci i blob URLs se presenti
+      cleanupBlobUrls(appId);
+      
+      setDeleteDialogOpen(false);
       setAppToDelete(null);
+      
       showToast('App eliminata con successo', 'success');
+      
     } catch (error) {
       console.error('Errore eliminazione app:', error);
-      showToast('Errore durante l\'eliminazione', 'error');
+      showToast('Errore durante l\'eliminazione: ' + error.message, 'error');
     }
   };
 
   const handleCancelDelete = () => {
-    setDeleteConfirmOpen(false);
+    setDeleteDialogOpen(false);
     setAppToDelete(null);
   };
 
@@ -1846,23 +1844,27 @@ function AIdeasApp() {
    */
   const handleSyncComplete = async (syncResult) => {
     try {
-      DEBUG.log('🔄 Ricaricamento app dopo sincronizzazione:', syncResult);
+      console.log('🔄 Sincronizzazione completata:', syncResult);
       
-      // Ricarica le app dal database
-      await loadApps();
-      
-      // Ricarica anche le impostazioni in caso siano cambiate
-      await loadUserSettings();
-      
-      // Mostra messaggio di successo se non già mostrato
-      if (syncResult?.message) {
-        showToast(syncResult.message, 'success');
+      // Ricarica le app se la sincronizzazione ha avuto successo
+      if (syncResult.success) {
+        await loadApps();
+        
+        // Mostra messaggio di successo
+        if (syncResult.action === 'restore') {
+          showToast(`Backup ripristinato! ${syncResult.appsCount} app caricate.`, 'success');
+        } else if (syncResult.action === 'replace') {
+          showToast('Backup sostituito con successo!', 'success');
+        } else if (syncResult.deletedCount > 0) {
+          showToast(`Sincronizzazione completata! ${syncResult.appsCount} app, ${syncResult.deletedCount} app cancellate gestite.`, 'success');
+        } else {
+          showToast(`Sincronizzazione completata! ${syncResult.appsCount} app.`, 'success');
+        }
       }
       
-      DEBUG.log('✅ Ricaricamento completato dopo sincronizzazione');
     } catch (error) {
-      DEBUG.error('❌ Errore ricaricamento dopo sincronizzazione:', error);
-      showToast('Errore nel ricaricamento dopo sincronizzazione', 'error');
+      console.error('Errore gestione completamento sincronizzazione:', error);
+      showToast('Errore durante l\'aggiornamento delle app', 'error');
     }
   };
 
@@ -1908,6 +1910,18 @@ function AIdeasApp() {
           // Elimina le app selezionate
           for (const appId of selectedAppIds) {
             await StorageService.deleteApp(appId);
+            cleanupBlobUrls(appId);
+            
+            // Marca l'app come cancellata per la sincronizzazione
+            if (googleService) {
+              try {
+                await googleService.markAppAsDeleted(appId);
+                console.log(`🗑️ App ${appId} marcata come cancellata per la sincronizzazione`);
+              } catch (syncError) {
+                console.warn('⚠️ Errore marcatura app cancellata:', syncError);
+                // Non bloccare l'eliminazione se fallisce la marcatura
+              }
+            }
           }
           showToast(`${selectedAppIds.length} app eliminate con successo`, 'success');
           break;
@@ -1974,13 +1988,74 @@ function AIdeasApp() {
     return (
       <Box sx={{ 
         display: 'flex', 
+        flexDirection: 'column',
         justifyContent: 'center', 
         alignItems: 'center', 
-        minHeight: '100vh' 
+        minHeight: '100vh',
+        gap: 3,
+        background: theme.palette.background.default
       }}>
-        <LinearProgress sx={{ width: '50%' }} />
-        <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
-          Caricamento...
+        {/* Logo AIdeas */}
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center',
+          mb: 2
+        }}>
+          <Box sx={{
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 2,
+            boxShadow: theme.shadows[8]
+          }}>
+            <Typography variant="h4" sx={{ 
+              color: 'white', 
+              fontWeight: 'bold',
+              textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+            }}>
+              AI
+            </Typography>
+          </Box>
+          <Typography variant="h4" sx={{ 
+            fontWeight: 'bold',
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            mb: 0.5
+          }}>
+            AIdeas
+          </Typography>
+          <Typography variant="body2" sx={{ 
+            color: 'text.secondary',
+            fontStyle: 'italic'
+          }}>
+            Run your AI-Ideas!
+          </Typography>
+        </Box>
+        
+        {/* Spinner */}
+        <CircularProgress 
+          size={40} 
+          thickness={4}
+          sx={{
+            color: theme.palette.primary.main,
+            '& .MuiCircularProgress-circle': {
+              strokeLinecap: 'round'
+            }
+          }}
+        />
+        
+        <Typography variant="body2" sx={{ 
+          color: 'text.secondary',
+          fontWeight: 500
+        }}>
+          Inizializzazione...
         </Typography>
       </Box>
     );
@@ -3116,7 +3191,7 @@ function AIdeasApp() {
 
       {/* Dialog conferma cancellazione */}
       <Dialog
-        open={deleteConfirmOpen}
+        open={deleteDialogOpen}
         onClose={handleCancelDelete}
         maxWidth="xs"
         fullWidth

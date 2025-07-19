@@ -824,6 +824,16 @@ class StorageService {
         throw new Error('Formato backup non valido - apps deve essere un array');
       }
 
+      // Controlla la dimensione del backup per evitare errori di quota
+      const backupSize = JSON.stringify(backupData).length;
+      const maxSize = 50 * 1024 * 1024; // 50MB limite
+      
+      if (backupSize > maxSize) {
+        throw new Error(`Backup troppo grande (${Math.round(backupSize / 1024 / 1024)}MB). Dimensione massima: 50MB`);
+      }
+      
+      DEBUG.log(`📦 Backup valido: ${backupData.apps.length} app, ${Math.round(backupSize / 1024)}KB`);
+
       // Ottieni la lista delle app eliminate localmente e dal backup
       const localDeletedApps = await this.getSetting('deletedApps', []);
       const backupDeletedApps = backupData.deletedApps || [];
@@ -917,6 +927,16 @@ class StorageService {
       return true;
     } catch (error) {
       DEBUG.error('❌ Errore import backup:', error);
+      
+      // Gestisci errori specifici
+      if (error.name === 'QuotaExceededError' || error.message.includes('QuotaExceededError')) {
+        throw new Error('Spazio di archiviazione insufficiente. Libera spazio nel browser e riprova.');
+      } else if (error.name === 'AbortError') {
+        throw new Error('Operazione annullata. Riprova.');
+      } else if (error.name === 'ConstraintError') {
+        throw new Error('Errore di vincolo del database. Il backup potrebbe contenere dati duplicati.');
+      }
+      
       throw error;
     }
   }

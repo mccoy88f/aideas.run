@@ -18,7 +18,8 @@ import {
   Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
   Edit as EditIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 
 /**
@@ -399,6 +400,21 @@ const AppCardMaterial = ({
               }}
             >
               <EditIcon />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Elimina">
+            <IconButton
+              size="small"
+              onClick={() => onDelete(app.id)}
+              sx={{
+                '&:hover': {
+                  transform: 'scale(1.1)',
+                  color: theme.palette.error.main
+                }
+              }}
+            >
+              <DeleteIcon />
             </IconButton>
           </Tooltip>
         </Box>

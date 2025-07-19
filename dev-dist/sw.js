@@ -102,13 +102,7 @@ define(['./workbox-9dc17825'], (function (workbox) { 'use strict';
       maxAgeSeconds: 604800
     })]
   }), 'GET');
-  workbox.registerRoute(/^https:\/\/js\.puter\.com\/.*/i, new workbox.CacheFirst({
-    "cacheName": "puter-js-cache",
-    plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 5,
-      maxAgeSeconds: 2592000
-    })]
-  }), 'GET');
+
 
 }));
 //# sourceMappingURL=sw.js.map

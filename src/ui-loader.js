@@ -219,22 +219,27 @@ class UILoader {
       return;
     }
     
+    // Nascondi il loading screen HTML IMMEDIATAMENTE
+    // Questo evita conflitti visivi tra il loading screen HTML e il componente React
+    this.hideLoadingScreen();
+    
+    // Mostra il container dell'app
+    const appContainer = document.getElementById('app');
+    if (appContainer) {
+      appContainer.style.display = '';
+      DEBUG.log('🎯 Container app reso visibile');
+    }
+    
     // Timeout per evitare blocchi
     this.loadingTimeout = setTimeout(() => {
       throw new Error('Timeout caricamento Material UI (10s)');
     }, 10000);
 
     try {
-      // Aggiorna testo di loading
-      this.updateLoadingText('Importazione moduli...', 'Caricamento React e Material UI');
-      
       // Importa il modulo Material UI
       const { initializeAIdeasWithMaterialUI } = await import('./main-material.jsx');
       
       DEBUG.log('🔧 Funzione di inizializzazione ottenuta:', typeof initializeAIdeasWithMaterialUI);
-      
-      // Aggiorna testo di loading
-      this.updateLoadingText('Inizializzazione interfaccia...', 'Avvio componenti Material UI');
       
       // Inizializza l'app
       DEBUG.log('🚀 Avvio inizializzazione Material UI...');
@@ -247,9 +252,6 @@ class UILoader {
       clearTimeout(this.loadingTimeout);
       
       DEBUG.success('✅ Material UI caricata con successo');
-      
-      // Nascondi il loading screen con animazione
-      this.hideLoadingScreen();
       
     } catch (error) {
       clearTimeout(this.loadingTimeout);
@@ -293,14 +295,9 @@ class UILoader {
     try {
       const loadingScreen = document.getElementById('loading-screen');
       if (loadingScreen) {
-        // Animazione di fade out
-        loadingScreen.classList.add('loading-fade-out');
-        
-        // Rimuovi dopo l'animazione
-        setTimeout(() => {
-          loadingScreen.style.display = 'none';
-          DEBUG.log('🎯 Loading screen nascosto');
-        }, 500);
+        // Nascondi immediatamente senza animazione per evitare conflitti
+        loadingScreen.style.display = 'none';
+        DEBUG.log('🎯 Loading screen nascosto immediatamente');
       }
     } catch (error) {
       DEBUG.error('❌ Errore nascondere loading screen:', error);

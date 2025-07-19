@@ -1093,237 +1093,344 @@ export default class GoogleDriveService {
   }
 
   /**
-   * Sincronizzazione bidirezionale con Google Drive e gestione conflitti
+   * Controlla se è il primo avvio e se ci sono backup disponibili
+   */
+  async checkFirstTimeSetup() {
+    try {
+      DEBUG.log('🔍 Controllo setup iniziale...');
+      
+      // Controlla se il dispositivo è già stato sincronizzato
+      const hasSynced = this.hasDeviceEverSynced();
+      
+      if (hasSynced) {
+        DEBUG.log('✅ Dispositivo già sincronizzato in precedenza');
+        return { isFirstTime: false, hasBackup: false };
+      }
+      
+      // Controlla se ci sono app locali
+      const localApps = await StorageService.getAllApps();
+      const hasLocalApps = localApps && localApps.length > 0;
+      
+      DEBUG.log(`📱 App locali trovate: ${localApps.length}`);
+      
+      // Se ci sono app locali, non è il primo avvio
+      if (hasLocalApps) {
+        DEBUG.log('✅ App locali presenti, non è il primo avvio');
+        return { isFirstTime: false, hasBackup: false };
+      }
+      
+      // Controlla se ci sono backup su Google Drive
+      let hasBackup = false;
+      let backupData = null;
+      
+      try {
+        if (await this.checkAuthentication()) {
+          const result = await this.downloadSyncData();
+          hasBackup = result && result.data && result.data.apps && result.data.apps.length > 0;
+          if (hasBackup) {
+            backupData = result.data;
+            DEBUG.log(`📦 Backup trovato con ${result.data.apps.length} app`);
+          } else {
+            DEBUG.log('📦 Nessun backup valido trovato su Google Drive');
+          }
+        }
+      } catch (error) {
+        DEBUG.warn('⚠️ Errore controllo backup:', error.message);
+        hasBackup = false;
+      }
+      
+      DEBUG.log(`🔍 Risultato controllo setup: isFirstTime=true, hasBackup=${hasBackup}`);
+      return { 
+        isFirstTime: true, 
+        hasBackup, 
+        backupData 
+      };
+      
+    } catch (error) {
+      DEBUG.error('❌ Errore controllo setup iniziale:', error);
+      return { isFirstTime: false, hasBackup: false };
+    }
+  }
+
+  /**
+   * Ripristina backup da Google Drive
+   */
+  async restoreBackup() {
+    try {
+      DEBUG.log('🔄 Ripristino backup da Google Drive...');
+      
+      if (!await this.checkAuthentication()) {
+        throw new Error('Autenticazione richiesta per ripristino backup');
+      }
+      
+      const result = await this.downloadSyncData();
+      if (!result || !result.data) {
+        throw new Error('Nessun backup trovato su Google Drive');
+      }
+      
+      // Verifica che i dati siano validi
+      if (!result.data.apps || !Array.isArray(result.data.apps)) {
+        throw new Error('Formato backup non valido');
+      }
+      
+      // Controlla la dimensione del backup per evitare errori di quota
+      const backupSize = JSON.stringify(result.data).length;
+      const maxSize = 50 * 1024 * 1024; // 50MB limite
+      
+      if (backupSize > maxSize) {
+        throw new Error(`Backup troppo grande (${Math.round(backupSize / 1024 / 1024)}MB). Dimensione massima: 50MB`);
+      }
+      
+      DEBUG.log(`📦 Backup valido: ${result.data.apps.length} app, ${Math.round(backupSize / 1024)}KB`);
+      
+      // Pulisci i dati locali esistenti prima del ripristino
+      try {
+        await StorageService.clearAllData();
+        DEBUG.log('🧹 Dati locali puliti prima del ripristino');
+      } catch (clearError) {
+        DEBUG.warn('⚠️ Errore pulizia dati locali:', clearError.message);
+      }
+      
+      // Importa i dati del backup
+      await StorageService.importBackupData(result.data);
+      
+      // Marca il dispositivo come sincronizzato
+      this.markDeviceAsSynced();
+      
+      DEBUG.log('✅ Backup ripristinato con successo');
+      return { success: true, data: result.data };
+      
+    } catch (error) {
+      DEBUG.error('❌ Errore ripristino backup:', error);
+      
+      // Gestisci errori specifici
+      if (error.name === 'QuotaExceededError' || error.message.includes('QuotaExceededError')) {
+        throw new Error('Spazio di archiviazione insufficiente. Libera spazio nel browser e riprova.');
+      } else if (error.name === 'AbortError') {
+        throw new Error('Operazione annullata. Riprova.');
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Sostituisce il backup su Google Drive con i dati locali
+   */
+  async replaceBackup(localData) {
+    try {
+      DEBUG.log('⬆️ Sostituzione backup su Google Drive...');
+      
+      if (!await this.checkAuthentication()) {
+        throw new Error('Autenticazione richiesta per sostituzione backup');
+      }
+      
+      // Carica tutti i dati locali se non forniti
+      if (!localData) {
+        const apps = await StorageService.getAllApps();
+        const settings = await StorageService.getAllSettings();
+        localData = {
+          apps,
+          settings,
+          timestamp: new Date().toISOString(),
+          deviceId: this.getDeviceId(),
+          version: '1.0'
+        };
+      }
+      
+      // Verifica che i dati siano validi
+      if (!localData.apps || !Array.isArray(localData.apps)) {
+        throw new Error('Dati locali non validi');
+      }
+      
+      // Controlla la dimensione dei dati per evitare errori di quota
+      const dataSize = JSON.stringify(localData).length;
+      const maxSize = 50 * 1024 * 1024; // 50MB limite
+      
+      if (dataSize > maxSize) {
+        throw new Error(`Dati troppo grandi (${Math.round(dataSize / 1024 / 1024)}MB). Dimensione massima: 50MB`);
+      }
+      
+      DEBUG.log(`📦 Dati locali validi: ${localData.apps.length} app, ${Math.round(dataSize / 1024)}KB`);
+      
+      // Carica i dati su Google Drive
+      await this.uploadSyncData(localData);
+      
+      // Marca il dispositivo come sincronizzato
+      this.markDeviceAsSynced();
+      
+      DEBUG.log('✅ Backup sostituito con successo');
+      return { success: true };
+      
+    } catch (error) {
+      DEBUG.error('❌ Errore sostituzione backup:', error);
+      
+      // Gestisci errori specifici
+      if (error.name === 'QuotaExceededError' || error.message.includes('QuotaExceededError')) {
+        throw new Error('Spazio di archiviazione insufficiente. Libera spazio nel browser e riprova.');
+      } else if (error.name === 'AbortError') {
+        throw new Error('Operazione annullata. Riprova.');
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Ottiene ID univoco del dispositivo
+   */
+  getDeviceId() {
+    let deviceId = localStorage.getItem('aideas_device_id');
+    if (!deviceId) {
+      deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('aideas_device_id', deviceId);
+    }
+    return deviceId;
+  }
+
+  /**
+   * Sincronizzazione bidirezionale con gestione app cancellate
    */
   async syncBidirectional(options = {}) {
     try {
-      DEBUG.log('🔄 Avvio sincronizzazione bidirezionale Google Drive...');
+      DEBUG.log('🔄 Avvio sincronizzazione bidirezionale...');
       
       if (!await this.checkAuthentication()) {
         throw new Error('Autenticazione richiesta');
       }
 
-      // Carica dati locali usando il formato di backup manuale
-      const StorageService = (await import('./StorageService.js')).default;
-      const localData = await StorageService.exportBackupData();
+      // Controlla se è il primo avvio
+      const setup = await this.checkFirstTimeSetup();
+      if (setup.isFirstTime && setup.hasBackup) {
+        DEBUG.log('🆕 Primo avvio rilevato con backup disponibile');
+        throw new Error('FIRST_TIME_SETUP_REQUIRED');
+      }
 
+      // Carica dati locali
+      const localApps = await StorageService.getAllApps();
+      const localSettings = await StorageService.getAllSettings();
+      const localData = {
+        apps: localApps,
+        settings: localSettings,
+        timestamp: new Date().toISOString(),
+        deviceId: this.getDeviceId()
+      };
+
+      // Carica dati remoti
       let remoteData = null;
-      let syncMessage = '';
-      let conflictResolution = options.conflictResolution || 'auto'; // 'auto', 'local', 'remote', 'ask'
-
       try {
-        // Prova a scaricare dati remoti
-        const downloadResult = await this.downloadSyncData();
-        remoteData = downloadResult.data;
-        
-        DEBUG.log('📥 Dati remoti scaricati:', {
-          apps: remoteData.apps?.length || 0,
-          hasSettings: !!remoteData.settings,
-          timestamp: remoteData.timestamp
-        });
-
-      } catch (downloadError) {
-        DEBUG.warn('⚠️ Errore download dati remoti:', downloadError.message);
-        
-        // Verifica che downloadError.message esista prima di usare includes()
-        // Gestisce anche errori strutturati dall'ErrorHandler
-        let errorMessage = downloadError.message || downloadError.toString() || 'Errore sconosciuto';
-        
-        // Se è un errore strutturato dall'ErrorHandler, prova a estrarre il messaggio tecnico
-        if (downloadError.technicalMessage) {
-          errorMessage = downloadError.technicalMessage;
-        } else if (downloadError.originalError && downloadError.originalError.message) {
-          errorMessage = downloadError.originalError.message;
-        }
-        
-        DEBUG.log('🔍 Messaggio errore estratto:', errorMessage);
-        
-        // Gestione errori specifici
-        if (errorMessage.includes('File di sincronizzazione non trovato')) {
-          DEBUG.log('📤 File di sincronizzazione non trovato su Google Drive');
-          
-          // Prima sincronizzazione assoluta (no file sul drive)
-          if (conflictResolution === 'ask') {
-            const localApps = localData.apps?.length || 0;
-            
-            DEBUG.log('🔄 Prima sincronizzazione assoluta - modal richiesto', { 
-              localApps, 
-              conflictResolution 
-            });
-            
-            return {
-              conflict: true,
-              isFirstSync: true,
-              isFirstDeviceSync: true,
-              localData: localData,
-              remoteData: null,
-              localTimestamp: localData.timestamp,
-              remoteTimestamp: null,
-              message: localApps > 0 
-                ? 'Prima sincronizzazione: scegli se caricare i dati locali su Google Drive o mantenere vuoto il cloud'
-                : 'Prima sincronizzazione: Google Drive è vuoto, iniziare con backup vuoto o annullare?'
-            };
-          }
-          
-          syncMessage = 'Prima sincronizzazione: dati locali caricati su Google Drive';
-          
-        } else if (errorMessage.includes('vuoto') || errorMessage.includes('corrotto')) {
-          DEBUG.warn('🔧 File corrotto rilevato - tentativo di recupero');
-          
-          // Prova a recuperare il file di sincronizzazione
-          const recoveryResult = await this.recoverSyncFile();
-          if (recoveryResult.success) {
-            DEBUG.log('✅ Recupero completato, riprovo download');
-            const retryResult = await this.downloadSyncData();
-            remoteData = retryResult.data;
-            syncMessage = 'Dati recuperati e sincronizzati';
-          } else {
-            DEBUG.log('📤 Recupero fallito - ricreazione file con dati locali');
-            syncMessage = 'File corrotto sostituito con dati locali';
-            // Non imposta remoteData, quindi userà i dati locali
-          }
-          
-        } else {
-          // Altri errori - rilancia
-          throw downloadError;
-        }
+        const result = await this.downloadSyncData();
+        remoteData = result?.data;
+      } catch (error) {
+        DEBUG.warn('⚠️ Nessun dato remoto trovato:', error.message);
+        remoteData = null;
       }
 
-      // Controllo prima sincronizzazione del dispositivo
-      const isFirstDeviceSync = this.isFirstDeviceSync(localData, remoteData);
-      
-      if (isFirstDeviceSync && conflictResolution === 'ask') {
-        DEBUG.log('🔄 Prima sincronizzazione dispositivo rilevata - modal richiesto');
-        
-        const comparison = this.compareAppsGranular(localData.apps, remoteData.apps);
-        
-        return {
-          conflict: true,
-          isFirstSync: false,
-          isFirstDeviceSync: true,
-          localData: localData,
-          remoteData: remoteData,
-          appComparison: comparison,
-          localTimestamp: localData.timestamp,
-          remoteTimestamp: remoteData.timestamp,
-          message: 'Prima sincronizzazione dispositivo: scegli come combinare i dati locali e quelli di Google Drive'
-        };
+      // Se non ci sono dati remoti, carica i dati locali
+      if (!remoteData) {
+        DEBUG.log('📤 Nessun dato remoto, caricamento dati locali...');
+        await this.uploadSyncData(localData);
+        return { success: true, action: 'upload', appsCount: localApps.length };
       }
 
-      // Gestione conflitti e decisione di sincronizzazione
-      let finalData = localData;
-      
-      if (remoteData) {
-        const localTimestamp = localData.timestamp ? new Date(localData.timestamp).getTime() : 0;
-        const remoteTimestamp = remoteData.timestamp ? new Date(remoteData.timestamp).getTime() : 0;
-        const localApps = localData.apps?.length || 0;
-        const remoteApps = remoteData.apps?.length || 0;
+      // Gestione app cancellate
+      const deletedApps = await this.getDeletedApps();
+      const mergedData = await this.mergeDataWithDeletedApps(localData, remoteData, deletedApps);
 
-        // Rileva conflitti usando la nuova logica granulare
-        const comparison = this.compareAppsGranular(localData.apps, remoteData.apps);
-        const hasConflict = comparison.conflicts.length > 0 || 
-                           comparison.onlyLocal.length > 0 || 
-                           comparison.onlyRemote.length > 0;
-        
-        if (hasConflict && conflictResolution === 'ask') {
-          DEBUG.log('🔄 Conflitto rilevato - modal richiesto');
-          
-          // Ritorna informazioni dettagliate per permettere all'utente di scegliere
-          return {
-            conflict: true,
-            isFirstSync: false,
-            isFirstDeviceSync: false,
-            localData: localData,
-            remoteData: remoteData,
-            appComparison: comparison,
-            localTimestamp: new Date(localTimestamp).toISOString(),
-            remoteTimestamp: new Date(remoteTimestamp).toISOString(),
-            message: 'Conflitto rilevato: scegli come risolvere le differenze tra i dati'
-          };
-        }
+      // Carica i dati uniti
+      await this.uploadSyncData(mergedData);
 
-        // Logica di risoluzione automatica migliorata
-        if (conflictResolution === 'auto') {
-          if (localApps === 0 && remoteApps > 0) {
-            // Database locale vuoto e remoto ha dati -> usa remoto
-            finalData = remoteData;
-            syncMessage = 'Database locale vuoto: dati ripristinati da Google Drive';
-            await StorageService.importBackupData(finalData);
-            DEBUG.log('🔄 Database locale vuoto, ripristino da remoto');
-            
-          } else if (localApps > 0 && remoteApps === 0) {
-            // Database locale ha dati e remoto è vuoto -> usa locale
-            finalData = localData;
-            syncMessage = 'Database remoto vuoto: dati locali caricati su Google Drive';
-            DEBUG.log('🔄 Database remoto vuoto, caricamento dati locali');
-            
-          } else if (hasConflict) {
-            // Conflitti rilevati -> merge intelligente
-            finalData = this.mergeAppsIntelligently(localData, remoteData, {
-              preferLocal: localTimestamp > remoteTimestamp,
-              preferRemoteSettings: remoteTimestamp > localTimestamp
-            });
-            syncMessage = 'Dati combinati intelligentemente';
-            await StorageService.importBackupData(finalData);
-            DEBUG.log('🔄 Merge intelligente completato');
-            
-          } else {
-            // Nessun conflitto significativo -> usa il più recente
-            const useRemoteData = remoteTimestamp > localTimestamp;
-            
-            if (useRemoteData) {
-              finalData = remoteData;
-              syncMessage = 'Dati remoti più recenti applicati';
-              await StorageService.importBackupData(finalData);
-              DEBUG.log('📥 Uso dati remoti (più recenti)');
-            } else {
-              finalData = localData;
-              syncMessage = 'Dati locali più recenti caricati';
-              DEBUG.log('📤 Uso dati locali (più recenti)');
-            }
-          }
-        } else if (conflictResolution === 'remote') {
-          finalData = remoteData;
-          syncMessage = 'Dati remoti applicati (scelta utente)';
-          await StorageService.importBackupData(finalData);
-          DEBUG.log('📥 Uso dati remoti (scelta utente)');
-          
-        } else if (conflictResolution === 'local') {
-          finalData = localData;
-          syncMessage = 'Dati locali caricati (scelta utente)';
-          DEBUG.log('📤 Uso dati locali (scelta utente)');
-          
-        } else if (conflictResolution === 'merge') {
-          // Merge con preferenze specifiche dall'utente
-          finalData = this.mergeAppsIntelligently(localData, remoteData, options.mergeOptions || {});
-          syncMessage = 'Dati combinati secondo le preferenze utente';
-          await StorageService.importBackupData(finalData);
-          DEBUG.log('🔄 Merge con preferenze utente completato');
-        }
+      // Aggiorna i dati locali se necessario
+      if (options.updateLocal !== false) {
+        await StorageService.importBackupData(mergedData);
       }
 
-      // Carica dati aggiornati
-      await this.uploadSyncData(finalData);
-      
-      // Marca il dispositivo come sincronizzato
-      this.markDeviceAsSynced();
-
-      DEBUG.log('✅ Sincronizzazione bidirezionale completata:', {
-        apps: finalData.apps?.length || 0,
-        hasSettings: !!finalData.settings,
-        message: syncMessage
-      });
-
-      return {
-        success: true,
-        message: syncMessage,
-        syncedAt: new Date().toISOString(),
-        apps: finalData.apps?.length || 0,
-        conflict: false
+      DEBUG.log('✅ Sincronizzazione completata');
+      return { 
+        success: true, 
+        action: 'sync', 
+        appsCount: mergedData.apps.length,
+        deletedCount: deletedApps.length
       };
 
     } catch (error) {
-      DEBUG.error('❌ Errore sincronizzazione bidirezionale Google Drive:', error);
+      DEBUG.error('❌ Errore sincronizzazione:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottiene la lista delle app cancellate
+   */
+  async getDeletedApps() {
+    try {
+      const deletedApps = localStorage.getItem('aideas_deleted_apps');
+      return deletedApps ? JSON.parse(deletedApps) : [];
+    } catch (error) {
+      DEBUG.error('❌ Errore caricamento app cancellate:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Aggiunge un'app alla lista delle cancellate
+   */
+  async markAppAsDeleted(appId) {
+    try {
+      const deletedApps = await this.getDeletedApps();
+      if (!deletedApps.includes(appId)) {
+        deletedApps.push(appId);
+        localStorage.setItem('aideas_deleted_apps', JSON.stringify(deletedApps));
+        DEBUG.log(`🗑️ App ${appId} marcata come cancellata`);
+      }
+    } catch (error) {
+      DEBUG.error('❌ Errore marcatura app cancellata:', error);
+    }
+  }
+
+  /**
+   * Rimuove un'app dalla lista delle cancellate
+   */
+  async unmarkAppAsDeleted(appId) {
+    try {
+      const deletedApps = await this.getDeletedApps();
+      const filteredApps = deletedApps.filter(id => id !== appId);
+      localStorage.setItem('aideas_deleted_apps', JSON.stringify(filteredApps));
+      DEBUG.log(`✅ App ${appId} rimossa dalla lista cancellate`);
+    } catch (error) {
+      DEBUG.error('❌ Errore rimozione app dalla lista cancellate:', error);
+    }
+  }
+
+  /**
+   * Unisce i dati considerando le app cancellate
+   */
+  async mergeDataWithDeletedApps(localData, remoteData, deletedApps) {
+    try {
+      DEBUG.log('🔄 Unione dati con gestione app cancellate...');
+      
+      // Filtra le app cancellate dai dati remoti
+      const filteredRemoteApps = remoteData.apps.filter(app => 
+        !deletedApps.includes(app.id)
+      );
+      
+      DEBUG.log(`📊 App remote filtrate: ${remoteData.apps.length} -> ${filteredRemoteApps.length} (${deletedApps.length} cancellate)`);
+      
+      // Unisce le app locali con quelle remote filtrate
+      const mergedApps = this.mergeAppsIntelligently(
+        { ...localData, apps: localData.apps },
+        { ...remoteData, apps: filteredRemoteApps }
+      );
+      
+      return {
+        ...mergedApps,
+        timestamp: new Date().toISOString(),
+        deviceId: this.getDeviceId(),
+        lastSync: new Date().toISOString()
+      };
+      
+    } catch (error) {
+      DEBUG.error('❌ Errore unione dati:', error);
       throw error;
     }
   }
