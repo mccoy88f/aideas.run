@@ -21,6 +21,21 @@ export class OpenRouterService extends BaseAIService {
       console.log('🔧 Inizializzazione OpenRouter con API key:', this.config.apiKey ? 'Presente' : 'Mancante');
       console.log('🔑 API Key (primi 10 caratteri):', this.config.apiKey?.substring(0, 10) + '...');
       
+      // Verifica formato API key
+      if (this.config.apiKey) {
+        if (this.config.apiKey.startsWith('ghp_')) {
+          console.error('❌ ERRORE: Stai usando un GitHub Personal Access Token invece di un\'API key OpenRouter!');
+          console.error('📝 Per ottenere un\'API key OpenRouter valida:');
+          console.error('   1. Vai su https://openrouter.ai/');
+          console.error('   2. Registrati/Accedi');
+          console.error('   3. Vai su "API Keys"');
+          console.error('   4. Crea una nuova API key');
+          console.error('   5. L\'API key dovrebbe iniziare con "sk-or-"');
+        } else if (!this.config.apiKey.startsWith('sk-')) {
+          console.warn('⚠️ Attenzione: API key non sembra essere un formato OpenRouter valido (dovrebbe iniziare con "sk-")');
+        }
+      }
+      
       // Prova a caricare l'OpenAI SDK dinamicamente se non è disponibile
       if (typeof window !== 'undefined') {
         if (window.openai) {
