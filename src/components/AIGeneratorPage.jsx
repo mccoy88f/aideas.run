@@ -659,7 +659,6 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
         
         <IconButton
           onClick={loadGeneratedApps}
-          disabled={authLoading}
           sx={{
             background: theme.palette.mode === 'dark'
               ? 'rgba(255, 255, 255, 0.08)'
