@@ -138,6 +138,9 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
       if (isConfigured) {
         setIsAuthenticated(true);
         
+        // Carica il modello predefinito dalle impostazioni
+        await loadDefaultModel();
+        
         // Carica le app generate
         await loadGeneratedApps();
       } else {
@@ -147,6 +150,29 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
     } catch (error) {
       console.error('❌ Errore controllo autenticazione AI:', error);
       setIsAuthenticated(false);
+    }
+  };
+
+  // Carica modello predefinito dalle impostazioni
+  const loadDefaultModel = async () => {
+    try {
+      console.log('🔍 Caricamento modello predefinito dalle impostazioni...');
+      
+      const settings = await StorageService.getAllSettings();
+      const aiSettings = settings.ai || {};
+      const openrouterSettings = aiSettings.openrouter || {};
+      
+      if (openrouterSettings.defaultModel) {
+        setFormData(prev => ({
+          ...prev,
+          aiModel: openrouterSettings.defaultModel
+        }));
+        console.log('✅ Modello predefinito caricato:', openrouterSettings.defaultModel);
+      } else {
+        console.log('ℹ️ Nessun modello predefinito configurato, uso default');
+      }
+    } catch (error) {
+      console.error('❌ Errore caricamento modello predefinito:', error);
     }
   };
 

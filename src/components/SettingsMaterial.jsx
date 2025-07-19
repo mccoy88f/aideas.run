@@ -114,12 +114,17 @@ const SettingsMaterial = ({
   const [aiConfig, setAiConfig] = useState({
     selectedProvider: 'openrouter',
     openrouterApiKey: '',
+    defaultModel: 'openai/gpt-4o-mini', // Modello predefinito
     isTestingConnection: false,
     testResult: null,
     testError: null,
     credits: null,
     isConfigured: false
   });
+
+  // Stato per i modelli AI disponibili
+  const [availableModels, setAvailableModels] = useState([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
 
   const sections = [
     {
@@ -511,6 +516,7 @@ const SettingsMaterial = ({
       setAiConfig({
         selectedProvider: aiSettings.provider || 'openrouter',
         openrouterApiKey: openrouterSettings.apiKey || '',
+        defaultModel: openrouterSettings.defaultModel || 'openai/gpt-4o-mini',
         isConfigured: !!openrouterSettings.apiKey,
         testResult: null,
         testError: null,
@@ -527,10 +533,47 @@ const SettingsMaterial = ({
         
         console.log('💰 API key trovata, caricamento crediti...');
         await loadAICredits();
+        
+        // Carica i modelli disponibili
+        await loadAvailableModels();
       }
       
     } catch (error) {
       console.error('Errore caricamento configurazione AI:', error);
+    }
+  };
+
+  // Carica modelli AI disponibili
+  const loadAvailableModels = async () => {
+    if (!aiConfig.openrouterApiKey) return;
+    
+    setModelsLoading(true);
+    try {
+      console.log('🔍 Caricamento modelli AI da OpenRouter...');
+      
+      const models = await aiServiceManager.getAvailableModels();
+      
+      // Converti il formato per il dropdown
+      const formattedModels = [];
+      Object.entries(models).forEach(([group, groupModels]) => {
+        groupModels.forEach(model => {
+          formattedModels.push({
+            value: model.value,
+            label: model.label,
+            group: group,
+            supportsSystemPrompt: model.supportsSystemPrompt || false
+          });
+        });
+      });
+      
+      setAvailableModels(formattedModels);
+      console.log('✅ Modelli caricati con successo:', formattedModels.length, 'modelli disponibili');
+      
+    } catch (error) {
+      console.error('❌ Errore caricamento modelli:', error);
+      setAvailableModels([]);
+    } finally {
+      setModelsLoading(false);
     }
   };
 
@@ -543,6 +586,13 @@ const SettingsMaterial = ({
       ...prev, 
       openrouterApiKey: apiKey,
       isConfigured: apiKey.length > 0
+    }));
+  };
+
+  const handleDefaultModelChange = (model) => {
+    setAiConfig(prev => ({ 
+      ...prev, 
+      defaultModel: model
     }));
   };
 
@@ -621,7 +671,8 @@ const SettingsMaterial = ({
       console.log('💾 Salvataggio configurazione AI:', {
         provider: aiConfig.selectedProvider,
         hasApiKey: !!aiConfig.openrouterApiKey,
-        apiKeyLength: aiConfig.openrouterApiKey?.length
+        apiKeyLength: aiConfig.openrouterApiKey?.length,
+        defaultModel: aiConfig.defaultModel
       });
 
       const updatedSettings = {
@@ -629,7 +680,8 @@ const SettingsMaterial = ({
         ai: {
           provider: aiConfig.selectedProvider,
           openrouter: {
-            apiKey: aiConfig.openrouterApiKey
+            apiKey: aiConfig.openrouterApiKey,
+            defaultModel: aiConfig.defaultModel
           }
         }
       };
@@ -1365,6 +1417,72 @@ const SettingsMaterial = ({
             )}
           </Box>
         </Grid>
+
+        {/* Modello Predefinito */}
+        {aiConfig.isConfigured && (
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" gutterBottom>
+              🤖 Modello AI Predefinito
+            </Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Seleziona il modello AI che verrà utilizzato automaticamente quando apri il generatore AI
+            </Typography>
+            
+            <FormControl fullWidth>
+              <InputLabel>Modello Predefinito</InputLabel>
+              <Select
+                value={aiConfig.defaultModel}
+                onChange={(e) => handleDefaultModelChange(e.target.value)}
+                label="Modello Predefinito"
+                disabled={modelsLoading}
+              >
+                {availableModels.length === 0 ? (
+                  <MenuItem disabled>
+                    {modelsLoading ? 'Caricamento modelli...' : 'Nessun modello disponibile'}
+                  </MenuItem>
+                ) : (
+                  availableModels.map(model => (
+                    <MenuItem key={model.value} value={model.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                        <span>{model.label}</span>
+                        {model.supportsSystemPrompt && (
+                          <Chip 
+                            size="small" 
+                            label="System" 
+                            color="success" 
+                            variant="outlined"
+                            sx={{ ml: 'auto', fontSize: '0.7rem', height: 20 }}
+                          />
+                        )}
+                      </Box>
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+              {modelsLoading && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                  <CircularProgress size={16} />
+                  <Typography variant="caption" color="text.secondary">
+                    Caricamento modelli...
+                  </Typography>
+                </Box>
+              )}
+            </FormControl>
+            
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={loadAvailableModels}
+              disabled={modelsLoading || !aiConfig.openrouterApiKey}
+              startIcon={<RefreshIcon />}
+              sx={{ mt: 1 }}
+            >
+              {modelsLoading ? 'Caricamento...' : 
+               availableModels.length > 0 ? `Aggiorna Modelli (${availableModels.length})` : 
+               'Carica Modelli'}
+            </Button>
+          </Grid>
+        )}
 
         {/* Informazioni Crediti */}
         {aiConfig.credits && (
