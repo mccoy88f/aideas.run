@@ -18,9 +18,12 @@ export class OpenRouterService extends BaseAIService {
     await super.initialize(config);
     
     try {
+      console.log('🔧 Inizializzazione OpenRouter con API key:', this.config.apiKey ? 'Presente' : 'Mancante');
+      
       // Prova a caricare l'OpenAI SDK dinamicamente se non è disponibile
       if (typeof window !== 'undefined') {
         if (window.openai) {
+          console.log('📦 Usando OpenAI SDK da window.openai');
           this.client = new window.openai({
             baseURL: this.baseURL,
             apiKey: this.config.apiKey,
@@ -28,6 +31,7 @@ export class OpenRouterService extends BaseAIService {
           });
         } else {
           // Carica dinamicamente l'SDK se non è disponibile
+          console.log('📦 Caricamento dinamico OpenAI SDK');
           const { default: OpenAI } = await import('https://cdn.jsdelivr.net/npm/openai@4.28.0/+esm');
           this.client = new OpenAI({
             baseURL: this.baseURL,
@@ -35,9 +39,11 @@ export class OpenRouterService extends BaseAIService {
             dangerouslyAllowBrowser: true
           });
         }
+        
+        console.log('✅ Client OpenAI inizializzato con successo');
       }
     } catch (error) {
-      console.error('Errore caricamento OpenAI SDK:', error);
+      console.error('❌ Errore caricamento OpenAI SDK:', error);
       throw new Error('Impossibile caricare OpenAI SDK');
     }
   }
@@ -114,6 +120,13 @@ export class OpenRouterService extends BaseAIService {
       stream = false
     } = options;
 
+    console.log('🤖 Generazione risposta OpenRouter:', {
+      model,
+      promptLength: prompt.length,
+      hasClient: !!this.client,
+      hasApiKey: !!this.config.apiKey
+    });
+
     try {
       const completion = await this.client.chat.completions.create({
         model,
@@ -132,13 +145,21 @@ export class OpenRouterService extends BaseAIService {
         }
       });
 
+      console.log('✅ Risposta OpenRouter generata con successo');
+
       if (stream) {
         return completion; // Restituisce lo stream
       } else {
         return completion.choices[0]?.message?.content || '';
       }
     } catch (error) {
-      console.error('Errore nella generazione risposta OpenRouter:', error);
+      console.error('❌ Errore nella generazione risposta OpenRouter:', error);
+      console.error('🔍 Dettagli errore:', {
+        message: error.message,
+        status: error.status,
+        type: error.type,
+        code: error.code
+      });
       throw error;
     }
   }

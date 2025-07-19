@@ -541,16 +541,25 @@ const SettingsMaterial = ({
       return;
     }
 
+    console.log('🧪 Test connessione AI con API key:', {
+      hasApiKey: !!aiConfig.openrouterApiKey,
+      apiKeyLength: aiConfig.openrouterApiKey?.length,
+      apiKeyStart: aiConfig.openrouterApiKey?.substring(0, 10) + '...'
+    });
+
     setAiConfig(prev => ({ ...prev, isTestingConnection: true, testResult: null, testError: null }));
 
     try {
       // Inizializza il servizio con la nuova API key
+      console.log('🤖 Inizializzazione AIServiceManager per test');
       await aiServiceManager.initialize({
         openrouter: { apiKey: aiConfig.openrouterApiKey }
       });
 
       // Testa la connessione
+      console.log('🧪 Esecuzione test connessione');
       const result = await aiServiceManager.testConnection();
+      console.log('📊 Risultato test:', result);
       
       if (result.success) {
         setAiConfig(prev => ({ 
@@ -577,6 +586,7 @@ const SettingsMaterial = ({
         showToast(`Errore test connessione: ${result.error}`, 'error');
       }
     } catch (error) {
+      console.error('❌ Errore durante test connessione:', error);
       setAiConfig(prev => ({ 
         ...prev, 
         testResult: 'error', 
@@ -590,6 +600,12 @@ const SettingsMaterial = ({
 
   const saveAIConfig = async () => {
     try {
+      console.log('💾 Salvataggio configurazione AI:', {
+        provider: aiConfig.selectedProvider,
+        hasApiKey: !!aiConfig.openrouterApiKey,
+        apiKeyLength: aiConfig.openrouterApiKey?.length
+      });
+
       const updatedSettings = {
         ...localSettings,
         ai: {
@@ -601,18 +617,21 @@ const SettingsMaterial = ({
       };
 
       await StorageService.setAllSettings(updatedSettings);
+      console.log('✅ Impostazioni salvate in StorageService');
       
       // Inizializza il gestore AI
       if (aiConfig.openrouterApiKey) {
+        console.log('🤖 Inizializzazione AIServiceManager con API key');
         await aiServiceManager.initialize({
           openrouter: { apiKey: aiConfig.openrouterApiKey }
         });
+        console.log('✅ AIServiceManager inizializzato');
       }
 
       showToast('Configurazione AI salvata con successo!', 'success');
       setHasChanges(true);
     } catch (error) {
-      console.error('Errore salvataggio configurazione AI:', error);
+      console.error('❌ Errore salvataggio configurazione AI:', error);
       showToast('Errore salvataggio configurazione AI', 'error');
     }
   };
