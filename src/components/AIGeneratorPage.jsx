@@ -602,6 +602,27 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
     groups[group].push(model);
     return groups;
   }, {});
+  
+  // Ordina i modelli alfabeticamente all'interno di ogni categoria
+  Object.keys(groupedModels).forEach(group => {
+    groupedModels[group].sort((a, b) => a.label.localeCompare(b.label));
+  });
+  
+  // Ordina le categorie: prima i modelli gratuiti, poi quelli a pagamento
+  const sortedGroups = Object.keys(groupedModels).sort((a, b) => {
+    const aIsFree = a.includes('🆓') || a.includes('Gratuiti');
+    const bIsFree = b.includes('🆓') || b.includes('Gratuiti');
+    
+    if (aIsFree && !bIsFree) return -1;
+    if (!aIsFree && bIsFree) return 1;
+    return a.localeCompare(b);
+  });
+  
+  // Crea un nuovo oggetto con le categorie ordinate
+  const orderedGroupedModels = {};
+  sortedGroups.forEach(group => {
+    orderedGroupedModels[group] = groupedModels[group];
+  });
 
   return (
     <Box sx={{ 
@@ -799,12 +820,12 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                   required
                   disabled={modelsLoading}
                 >
-                  {Object.keys(groupedModels).length === 0 ? (
+                  {Object.keys(orderedGroupedModels).length === 0 ? (
                     <MenuItem disabled>
                       {modelsLoading ? 'Caricamento modelli...' : 'Nessun modello disponibile'}
                     </MenuItem>
                   ) : (
-                    Object.entries(groupedModels).map(([group, models]) => [
+                    Object.entries(orderedGroupedModels).map(([group, models]) => [
                       <MenuItem key={group} disabled sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                         {group}
                       </MenuItem>,
@@ -850,6 +871,36 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
               >
                 {isGenerating ? 'Generazione in corso...' : '🎨 Genera App'}
               </Button>
+              
+              {/* Barra di caricamento durante la generazione */}
+              {isGenerating && (
+                <Box sx={{ mt: 2 }}>
+                  <LinearProgress 
+                    sx={{ 
+                      height: 6, 
+                      borderRadius: 3,
+                      background: theme.palette.mode === 'dark' 
+                        ? 'rgba(255, 255, 255, 0.1)' 
+                        : 'rgba(0, 0, 0, 0.1)',
+                      '& .MuiLinearProgress-bar': {
+                        background: 'linear-gradient(90deg, #ff6b6b, #ee5a24)',
+                        borderRadius: 3
+                      }
+                    }} 
+                  />
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      mt: 1, 
+                      textAlign: 'center', 
+                      color: 'text.secondary',
+                      fontStyle: 'italic'
+                    }}
+                  >
+                    L'AI sta creando la tua app... ⏳
+                  </Typography>
+                </Box>
+              )}
             </Box>
           </Paper>
 

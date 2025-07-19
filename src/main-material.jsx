@@ -956,12 +956,15 @@ function AIdeasApp() {
       // Estrai metadati dall'app
       const { name, description, icon, htmlContent, type, category, isModification, originalAppId, originalUniqueId } = appData;
       
+      // Carica tutte le app esistenti una sola volta
+      const allExistingApps = await StorageService.getAllApps();
+      
       // Se è una modifica di un'app esistente, controlla se esiste già
       if (isModification && originalAppId) {
         console.log('🔄 Modifica app esistente rilevata:', originalAppId);
         
         // Trova l'app originale
-        const originalApp = existingApps.find(app => app.id === originalAppId);
+        const originalApp = allExistingApps.find(app => app.id === originalAppId);
         
         if (originalApp) {
           // Mostra sempre il dialog di scelta per le modifiche
@@ -991,8 +994,7 @@ function AIdeasApp() {
       const uniqueId = StorageService.generateUniqueId(name, 'AI Generated');
       
       // Controlla se esiste già un'app con lo stesso uniqueId
-      const existingApps = await StorageService.getAllApps();
-      const existingApp = existingApps.find(app => app.uniqueId === uniqueId);
+      const existingApp = allExistingApps.find(app => app.uniqueId === uniqueId);
       
       if (existingApp) {
         // App duplicata trovata - chiedi all'utente cosa fare
