@@ -364,12 +364,18 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       setCurrentApp(app);
       setPreviewOpen(true);
       
-      // Inizializza la chat con il prompt e la risposta
-      setChatMessages([
-        { role: 'assistant', content: '💡 **Debug**: [Mostra risposta originale dell\'AI](debug:original)', isDebug: true, originalResponse: response },
-        { role: 'user', content: userPrompt },
-        { role: 'assistant', content: response }
-      ]);
+        // Inizializza la chat con il prompt e la risposta
+  setChatMessages([
+    { role: 'assistant', content: '💡 **Debug**: [Mostra risposta originale dell\'AI](debug:original)', isDebug: true, originalResponse: response },
+    { role: 'user', content: userPrompt },
+    { role: 'assistant', content: response }
+  ]);
+  
+  // Salva il system prompt per le modifiche future
+  setCurrentApp(prev => ({
+    ...prev,
+    systemPrompt: systemPrompt
+  }));
       
       console.log('✅ App generata con successo!');
       showToast('App generata con successo!', 'success');
@@ -574,7 +580,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     };
   }, []);
 
-  // Invia messaggio chat
+  // Invia messaggio chat con contesto
   const handleSendChatMessage = async () => {
     if (!chatInput.trim() || !currentApp) return;
     
@@ -586,6 +592,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       // Aggiungi messaggio utente
       setChatMessages(prev => [...prev, { role: 'user', content: message }]);
       
+      // Prepara il messaggio con il codice corrente
       const modifyPrompt = `RICHIESTA DI MODIFICA: ${message}
 
 CODICE ATTUALE DELL'APP:
@@ -600,8 +607,37 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
       
       let response;
       
-      if (modelSupportsSystemPrompt) {
-        // Usa system prompt nativo
+      // Usa il contesto della conversazione se disponibile
+      if (currentApp.systemPrompt && modelSupportsSystemPrompt) {
+        // Costruisci la cronologia dei messaggi per mantenere il contesto
+        const conversationMessages = [
+          { role: 'system', content: currentApp.systemPrompt }
+        ];
+        
+        // Aggiungi i messaggi precedenti della chat (escludendo i messaggi di debug)
+        chatMessages.forEach(msg => {
+          if (msg.role !== 'system' && !msg.isDebug) {
+            conversationMessages.push({
+              role: msg.role,
+              content: msg.content
+            });
+          }
+        });
+        
+        // Aggiungi il nuovo messaggio
+        conversationMessages.push({
+          role: 'user',
+          content: modifyPrompt
+        });
+        
+        // Usa il metodo con cronologia messaggi
+        response = await aiServiceManager.generateResponseWithConversation(conversationMessages, {
+          model: currentApp.model || 'openai/gpt-4o-mini',
+          temperature: 0.7,
+          maxTokens: 4000
+        });
+      } else if (modelSupportsSystemPrompt) {
+        // Fallback: usa system prompt nativo
         response = await aiServiceManager.generateResponseWithSystem(systemPrompt, modifyPrompt, {
           model: currentApp.model || 'openai/gpt-4o-mini',
           temperature: 0.7,

@@ -111,6 +111,17 @@ export class AIServiceManager {
   }
 
   /**
+   * Genera una risposta AI con cronologia conversazione usando il provider corrente
+   */
+  async generateResponseWithConversation(messages, options = {}) {
+    const service = this.getCurrentService();
+    if (!service.isConfigured()) {
+      throw new Error(`${this.getProviderLabel(this.currentProvider)} non configurato. Configura l'API key nelle impostazioni.`);
+    }
+    return await service.generateResponseWithConversation(messages, options);
+  }
+
+  /**
    * Testa la connessione del provider corrente
    */
   async testConnection() {
