@@ -366,7 +366,6 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       
       // Inizializza la chat con il prompt e la risposta
       setChatMessages([
-        { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' },
         { role: 'assistant', content: '💡 **Debug**: [Mostra risposta originale dell\'AI](debug:original)', isDebug: true, originalResponse: response },
         { role: 'user', content: userPrompt },
         { role: 'assistant', content: response }
@@ -455,7 +454,6 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     
     setChatOpen(true);
     setChatMessages([
-      { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' },
       { role: 'assistant', content: '💡 **Debug**: [Mostra codice HTML corrente](debug:current)', isDebug: true, originalResponse: currentApp.code }
     ]);
   };
@@ -466,7 +464,6 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     setPreviewOpen(true);
     setChatOpen(true);
     setChatMessages([
-      { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' },
       { role: 'assistant', content: '💡 **Debug**: [Mostra codice HTML corrente](debug:current)', isDebug: true, originalResponse: app.code }
     ]);
   };
@@ -500,7 +497,6 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       setPreviewOpen(true);
       setChatOpen(true);
       setChatMessages([
-        { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' },
         { role: 'assistant', content: '💡 **Debug**: [Mostra codice HTML corrente](debug:current)', isDebug: true, originalResponse: app.code }
       ]);
 
