@@ -367,6 +367,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       // Inizializza la chat con il prompt e la risposta
       setChatMessages([
         { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' },
+        { role: 'assistant', content: '💡 **Debug**: [Mostra risposta originale dell\'AI](debug:original)', isDebug: true, originalResponse: response },
         { role: 'user', content: userPrompt },
         { role: 'assistant', content: response }
       ]);
@@ -454,7 +455,8 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     
     setChatOpen(true);
     setChatMessages([
-      { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' }
+      { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' },
+      { role: 'assistant', content: '💡 **Debug**: [Mostra codice HTML corrente](debug:current)', isDebug: true, originalResponse: currentApp.code }
     ]);
   };
 
@@ -464,7 +466,8 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     setPreviewOpen(true);
     setChatOpen(true);
     setChatMessages([
-      { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' }
+      { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' },
+      { role: 'assistant', content: '💡 **Debug**: [Mostra codice HTML corrente](debug:current)', isDebug: true, originalResponse: app.code }
     ]);
   };
 
@@ -497,7 +500,8 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       setPreviewOpen(true);
       setChatOpen(true);
       setChatMessages([
-        { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' }
+        { role: 'system', content: 'Sei un assistente per modificare app generate con AI. L\'utente può chiederti di modificare l\'app corrente.' },
+        { role: 'assistant', content: '💡 **Debug**: [Mostra codice HTML corrente](debug:current)', isDebug: true, originalResponse: app.code }
       ]);
 
     } catch (error) {
@@ -509,6 +513,11 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
   // State per conferma aggiornamento
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
   const [appToUpdate, setAppToUpdate] = useState(null);
+  
+  // State per debug
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debugContent, setDebugContent] = useState('');
+  const [debugTitle, setDebugTitle] = useState('');
 
   // Aggiorna app nella lista generate con le modifiche
   const handleUpdateGeneratedApp = async (app) => {
@@ -547,6 +556,17 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
   const handleCancelUpdate = () => {
     setUpdateConfirmOpen(false);
     setAppToUpdate(null);
+  };
+
+  // Gestisce click sui link di debug
+  const handleDebugClick = (e, message) => {
+    e.preventDefault();
+    
+    if (message.originalResponse) {
+      setDebugTitle('Risposta Originale AI');
+      setDebugContent(message.originalResponse);
+      setDebugOpen(true);
+    }
   };
 
   // Esponi la funzione globalmente quando il componente è montato
@@ -629,8 +649,15 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
         fullResponse.replace(/```html\n?[\s\S]*?\n?```/, '[Codice HTML aggiornato automaticamente]') :
         fullResponse;
       
-      // Aggiorna chat
-      setChatMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+      // Aggiorna chat con messaggio di debug se il codice HTML è stato sostituito
+      const chatMessage = { role: 'assistant', content: aiResponse };
+      if (htmlMatch) {
+        chatMessage.isDebug = true;
+        chatMessage.originalResponse = fullResponse;
+        chatMessage.content = aiResponse + '\n\n💡 **Debug**: [Mostra risposta originale dell\'AI](debug:original)';
+      }
+      
+      setChatMessages(prev => [...prev, chatMessage]);
       
       // NON aggiornare la lista generate qui - verrà fatto solo quando si clicca su "Importa"
       // Questo evita che tutte le app mostrino il nuovo codice
@@ -1180,7 +1207,43 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                           color: msg.role === 'user' ? 'white' : theme.palette.text.primary,
                           lineHeight: 1.4
                         }}>
-                          {msg.content}
+                          {msg.isDebug && msg.content.includes('[Mostra') ? (
+                            <Box>
+                              {msg.content.split(/\[([^\]]+)\]\(([^)]+)\)/).map((part, i) => {
+                                if (i % 3 === 1) {
+                                  // È il testo del link
+                                  const linkText = part;
+                                  const linkUrl = msg.content.split(/\[([^\]]+)\]\(([^)]+)\)/)[i + 1];
+                                  return (
+                                    <Button
+                                      key={i}
+                                      variant="text"
+                                      size="small"
+                                      onClick={(e) => handleDebugClick(e, msg)}
+                                      sx={{
+                                        color: 'inherit',
+                                        textDecoration: 'underline',
+                                        p: 0,
+                                        minWidth: 'auto',
+                                        fontSize: 'inherit',
+                                        '&:hover': {
+                                          background: 'rgba(255, 255, 255, 0.1)'
+                                        }
+                                      }}
+                                    >
+                                      {linkText}
+                                    </Button>
+                                  );
+                                } else if (i % 3 === 0) {
+                                  // È il testo normale
+                                  return part;
+                                }
+                                return null;
+                              })}
+                            </Box>
+                          ) : (
+                            msg.content
+                          )}
                         </Typography>
                       </Box>
                     ))}
@@ -1243,6 +1306,45 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
           </Button>
           <Button onClick={handleConfirmUpdate} variant="contained" color="primary">
             Aggiorna
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog di debug */}
+      <Dialog
+        open={debugOpen}
+        onClose={() => setDebugOpen(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          {debugTitle}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            multiline
+            rows={15}
+            value={debugContent}
+            variant="outlined"
+            InputProps={{
+              readOnly: true,
+              style: { fontFamily: 'monospace', fontSize: '0.9rem' }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDebugOpen(false)}>
+            Chiudi
+          </Button>
+          <Button 
+            onClick={() => {
+              navigator.clipboard.writeText(debugContent);
+              showToast('Contenuto copiato negli appunti!', 'success');
+            }}
+            variant="outlined"
+          >
+            Copia
           </Button>
         </DialogActions>
       </Dialog>
