@@ -366,9 +366,8 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       
         // Inizializza la chat con il prompt e la risposta
   setChatMessages([
-    { role: 'assistant', content: '💡 **Debug**: [Mostra risposta originale dell\'AI](debug:original)', isDebug: true, originalResponse: response },
     { role: 'user', content: userPrompt },
-    { role: 'assistant', content: response }
+    { role: 'assistant', content: response, debugInfo: 'Codice HTML generato' }
   ]);
   
   // Salva il system prompt per le modifiche future
@@ -460,7 +459,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     
     setChatOpen(true);
     setChatMessages([
-      { role: 'assistant', content: '💡 **Debug**: [Mostra codice HTML corrente](debug:current)', isDebug: true, originalResponse: currentApp.code }
+      { role: 'assistant', content: `Codice HTML corrente dell'app "${currentApp.name}":\n\n\`\`\`html\n${currentApp.code}\n\`\`\``, debugInfo: 'Codice HTML corrente' }
     ]);
   };
 
@@ -470,7 +469,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     setPreviewOpen(true);
     setChatOpen(true);
     setChatMessages([
-      { role: 'assistant', content: '💡 **Debug**: [Mostra codice HTML corrente](debug:current)', isDebug: true, originalResponse: app.code }
+      { role: 'assistant', content: `Codice HTML corrente dell'app "${app.name}":\n\n\`\`\`html\n${app.code}\n\`\`\``, debugInfo: 'Codice HTML corrente' }
     ]);
   };
 
@@ -503,7 +502,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
       setPreviewOpen(true);
       setChatOpen(true);
       setChatMessages([
-        { role: 'assistant', content: '💡 **Debug**: [Mostra codice HTML corrente](debug:current)', isDebug: true, originalResponse: app.code }
+        { role: 'assistant', content: `Codice HTML corrente dell'app "${app.name}":\n\n\`\`\`html\n${app.code}\n\`\`\``, debugInfo: 'Codice HTML corrente' }
       ]);
 
     } catch (error) {
@@ -516,11 +515,6 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
   const [appToUpdate, setAppToUpdate] = useState(null);
   
-  // State per debug
-  const [debugOpen, setDebugOpen] = useState(false);
-  const [debugContent, setDebugContent] = useState('');
-  const [debugTitle, setDebugTitle] = useState('');
-
   // Aggiorna app nella lista generate con le modifiche
   const handleUpdateGeneratedApp = async (app) => {
     if (!currentApp || !currentApp.isModification) {
@@ -560,16 +554,7 @@ Implementa tutte le funzionalità richieste senza usare placeholder.`;
     setAppToUpdate(null);
   };
 
-  // Gestisce click sui link di debug
-  const handleDebugClick = (e, message) => {
-    e.preventDefault();
-    
-    if (message.originalResponse) {
-      setDebugTitle('Risposta Originale AI');
-      setDebugContent(message.originalResponse);
-      setDebugOpen(true);
-    }
-  };
+
 
   // Esponi la funzione globalmente quando il componente è montato
   useEffect(() => {
@@ -676,18 +661,12 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
       };
       setCurrentApp(updatedApp);
       
-      // Mostra la risposta completa dell'AI (senza il codice HTML)
-      const aiResponse = htmlMatch ? 
-        fullResponse.replace(/```html\n?[\s\S]*?\n?```/, '[Codice HTML aggiornato automaticamente]') :
-        fullResponse;
-      
-      // Aggiorna chat con messaggio di debug se il codice HTML è stato sostituito
-      const chatMessage = { role: 'assistant', content: aiResponse };
-      if (htmlMatch) {
-        chatMessage.isDebug = true;
-        chatMessage.originalResponse = fullResponse;
-        chatMessage.content = aiResponse + '\n\n💡 **Debug**: [Mostra risposta originale dell\'AI](debug:original)';
-      }
+      // Mostra la risposta completa dell'AI nella chat
+      const chatMessage = { 
+        role: 'assistant', 
+        content: fullResponse,
+        debugInfo: htmlMatch ? 'Codice HTML aggiornato' : 'Risposta AI ricevuta'
+      };
       
       setChatMessages(prev => [...prev, chatMessage]);
       
@@ -696,7 +675,11 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
       
     } catch (error) {
       console.error('Errore modifica:', error);
-      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Errore nella modifica: ' + error.message }]);
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Errore nella modifica: ' + error.message,
+        debugInfo: 'Errore API'
+      }]);
     } finally {
       setIsModifying(false);
     }
@@ -1237,46 +1220,27 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
                         </Box>
                         <Typography variant="body2" sx={{
                           color: msg.role === 'user' ? 'white' : theme.palette.text.primary,
-                          lineHeight: 1.4
+                          lineHeight: 1.4,
+                          whiteSpace: 'pre-wrap'
                         }}>
-                          {msg.isDebug && msg.content.includes('[Mostra') ? (
-                            <Box>
-                              {msg.content.split(/\[([^\]]+)\]\(([^)]+)\)/).map((part, i) => {
-                                if (i % 3 === 1) {
-                                  // È il testo del link
-                                  const linkText = part;
-                                  const linkUrl = msg.content.split(/\[([^\]]+)\]\(([^)]+)\)/)[i + 1];
-                                  return (
-                                    <Button
-                                      key={i}
-                                      variant="text"
-                                      size="small"
-                                      onClick={(e) => handleDebugClick(e, msg)}
-                                      sx={{
-                                        color: 'inherit',
-                                        textDecoration: 'underline',
-                                        p: 0,
-                                        minWidth: 'auto',
-                                        fontSize: 'inherit',
-                                        '&:hover': {
-                                          background: 'rgba(255, 255, 255, 0.1)'
-                                        }
-                                      }}
-                                    >
-                                      {linkText}
-                                    </Button>
-                                  );
-                                } else if (i % 3 === 0) {
-                                  // È il testo normale
-                                  return part;
-                                }
-                                return null;
-                              })}
-                            </Box>
-                          ) : (
-                            msg.content
-                          )}
+                          {msg.content}
                         </Typography>
+                        
+                        {/* Messaggio di debug piccolo sotto */}
+                        {msg.debugInfo && (
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              display: 'block',
+                              mt: 0.5,
+                              color: msg.role === 'user' ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary',
+                              fontStyle: 'italic',
+                              fontSize: '0.7rem'
+                            }}
+                          >
+                            {msg.debugInfo}
+                          </Typography>
+                        )}
                       </Box>
                     ))}
                   </Box>
@@ -1342,44 +1306,7 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
         </DialogActions>
       </Dialog>
 
-      {/* Dialog di debug */}
-      <Dialog
-        open={debugOpen}
-        onClose={() => setDebugOpen(false)}
-        maxWidth="lg"
-        fullWidth
-      >
-        <DialogTitle>
-          {debugTitle}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            multiline
-            rows={15}
-            value={debugContent}
-            variant="outlined"
-            InputProps={{
-              readOnly: true,
-              style: { fontFamily: 'monospace', fontSize: '0.9rem' }
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDebugOpen(false)}>
-            Chiudi
-          </Button>
-          <Button 
-            onClick={() => {
-              navigator.clipboard.writeText(debugContent);
-              showToast('Contenuto copiato negli appunti!', 'success');
-            }}
-            variant="outlined"
-          >
-            Copia
-          </Button>
-        </DialogActions>
-      </Dialog>
+
     </Box>
   );
 };
