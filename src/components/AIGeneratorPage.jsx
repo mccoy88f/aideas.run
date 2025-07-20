@@ -71,7 +71,7 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
     appName: '',
     appDescription: '',
     appType: '',
-    aiModel: 'mistralai/mistral-small-3.2-24b'
+    aiModel: 'mistralai/mistral-small-3.2-24b-instruct:free'
   });
   
   // State per l'autenticazione AI
@@ -587,7 +587,7 @@ Modifica il codice HTML in base alla richiesta, mantenendo tutte le funzionalitÃ
 modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
 
       // Verifica se il modello supporta system prompt
-      const currentModel = dynamicModels.find(model => model.value === (currentApp.model || 'mistralai/mistral-small-3.2-24b'));
+      const currentModel = dynamicModels.find(model => model.value === (currentApp.model || 'mistralai/mistral-small-3.2-24b-instruct:free'));
       const modelSupportsSystemPrompt = currentModel?.supportsSystemPrompt || false;
       
       let response;
@@ -617,14 +617,14 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
         
         // Usa il metodo con cronologia messaggi
                 response = await aiServiceManager.generateResponseWithConversation(conversationMessages, {
-        model: currentApp.model || 'mistralai/mistral-small-3.2-24b',
+        model: currentApp.model || 'mistralai/mistral-small-3.2-24b-instruct:free',
         temperature: 0.7,
         maxTokens: 4000
       });
       } else if (modelSupportsSystemPrompt) {
         // Fallback: usa system prompt nativo
         response = await aiServiceManager.generateResponseWithSystem(systemPrompt, modifyPrompt, {
-          model: currentApp.model || 'mistralai/mistral-small-3.2-24b',
+          model: currentApp.model || 'mistralai/mistral-small-3.2-24b-instruct:free',
           temperature: 0.7,
           maxTokens: 4000
         });
@@ -632,14 +632,14 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
         // Forza system prompt per modelli non supportati
         const combinedPrompt = `${systemPrompt}\n\n${modifyPrompt}`;
         response = await aiServiceManager.generateResponse(combinedPrompt, {
-          model: currentApp.model || 'mistralai/mistral-small-3.2-24b',
+          model: currentApp.model || 'mistralai/mistral-small-3.2-24b-instruct:free',
           temperature: 0.7,
           maxTokens: 4000
         });
       } else {
         // Usa solo user prompt
         response = await aiServiceManager.generateResponse(modifyPrompt, {
-          model: currentApp.model || 'mistralai/mistral-small-3.2-24b',
+          model: currentApp.model || 'mistralai/mistral-small-3.2-24b-instruct:free',
           temperature: 0.7,
           maxTokens: 4000
         });
