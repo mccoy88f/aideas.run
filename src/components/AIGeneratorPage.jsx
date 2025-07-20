@@ -96,7 +96,7 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
   const [modelsLoading, setModelsLoading] = useState(false);
   
   // State per configurazione AI dalle impostazioni
-  const [systemPrompt, setSystemPrompt] = useState("Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript. Se richiesto usa liberire esterne raggiungibili con cdn. Inserisci tutti i metadati html come nome, descrizione, keywords e favicon scelta tra emoji inerenti al progetto. come author inserisci AIDeas.run");
+  const [systemPrompt, setSystemPrompt] = useState("Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive e mobile-first. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript inline. Se richiesto usa librerie esterne raggiungibili tramite CDN.\nIncludi sempre tutti i metadati HTML: title, description, keywords, viewport, theme-color e favicon SVG con emoji inerenti al progetto. Come author usa \"AIDeas.run\".\nUsa design moderno, CSS variables per temi, localStorage per persistenza dati quando utile, e assicurati che sia accessibile e touch-friendly.");
   const [forceSystemPrompt, setForceSystemPrompt] = useState(false);
   
   // Verifica se il modello corrente supporta system prompt
@@ -105,16 +105,18 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
     return currentModel?.supportsSystemPrompt || false;
   };
   
-  // Tipi di app
+  // Tipi di app - Allineati con le categorie del sito AIdeas
   const appTypes = [
-    { value: 'utility', label: 'Utility / Strumento', icon: '🔧' },
-    { value: 'game', label: 'Gioco', icon: '🎮' },
     { value: 'productivity', label: 'Produttività', icon: '📊' },
-    { value: 'calculator', label: 'Calcolatrice', icon: '🧮' },
-    { value: 'dashboard', label: 'Dashboard', icon: '📈' },
-    { value: 'form', label: 'Form / Modulo', icon: '📝' },
-    { value: 'creative', label: 'Creativo', icon: '🎨' },
-    { value: 'other', label: 'Altro', icon: '⚡' }
+    { value: 'entertainment', label: 'Intrattenimento', icon: '🎬' },
+    { value: 'tools', label: 'Strumenti', icon: '🔧' },
+    { value: 'games', label: 'Giochi', icon: '🎮' },
+    { value: 'ai', label: 'Intelligenza Artificiale', icon: '🤖' },
+    { value: 'social', label: 'Social', icon: '👥' },
+    { value: 'education', label: 'Educazione', icon: '📚' },
+    { value: 'business', label: 'Business', icon: '💼' },
+    { value: 'utility', label: 'Utilità', icon: '⚙️' },
+    { value: 'uncategorized', label: 'Altro', icon: '✨' }
   ];
 
   // Carica modelli AI quando l'utente è autenticato

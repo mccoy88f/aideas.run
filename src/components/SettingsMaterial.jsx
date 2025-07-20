@@ -519,7 +519,7 @@ const SettingsMaterial = ({
         selectedProvider: aiSettings.provider || 'openrouter',
         openrouterApiKey: openrouterSettings.apiKey || '',
         defaultModel: openrouterSettings.defaultModel || 'openai/gpt-4o-mini',
-        systemPrompt: openrouterSettings.systemPrompt || "Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript. Se richiesto usa liberire esterne raggiungibili con cdn. Inserisci tutti i metadati html come nome, descrizione, keywords e favicon scelta tra emoji inerenti al progetto. come author inserisci AIDeas.run",
+        systemPrompt: openrouterSettings.systemPrompt || "Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive e mobile-first. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript inline. Se richiesto usa librerie esterne raggiungibili tramite CDN.\nIncludi sempre tutti i metadati HTML: title, description, keywords, viewport, theme-color e favicon SVG con emoji inerenti al progetto. Come author usa \"AIDeas.run\".\nUsa design moderno, CSS variables per temi, localStorage per persistenza dati quando utile, e assicurati che sia accessibile e touch-friendly.",
         forceSystemPrompt: openrouterSettings.forceSystemPrompt || false,
         isConfigured: !!openrouterSettings.apiKey,
         testResult: null,
