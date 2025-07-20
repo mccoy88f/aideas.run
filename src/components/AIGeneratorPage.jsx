@@ -39,7 +39,7 @@ import {
 } from '@mui/material';
 import StorageService from '../services/StorageService.js';
 import { aiServiceManager } from '../services/ai/AIServiceManager.js';
-import { showToast } from '../utils/helpers.js';
+import { showToast, sortAndGroupModels } from '../utils/helpers.js';
 import {
   ArrowBack as ArrowBackIcon,
   SmartToy as AIIcon,
@@ -95,6 +95,10 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
   const [dynamicModels, setDynamicModels] = useState([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   
+  // State per configurazione AI dalle impostazioni
+  const [systemPrompt, setSystemPrompt] = useState("Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript. Se richiesto usa liberire esterne raggiungibili con cdn. Inserisci tutti i metadati html come nome, descrizione, keywords e favicon scelta tra emoji inerenti al progetto. come author inserisci AIDeas.run");
+  const [forceSystemPrompt, setForceSystemPrompt] = useState(false);
+  
   // Verifica se il modello corrente supporta system prompt
   const currentModelSupportsSystemPrompt = () => {
     const currentModel = dynamicModels.find(model => model.value === formData.aiModel);
@@ -138,8 +142,8 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
       if (isConfigured) {
         setIsAuthenticated(true);
         
-        // Carica il modello predefinito dalle impostazioni
-        await loadDefaultModel();
+        // Carica la configurazione AI dalle impostazioni
+        await loadAIConfig();
         
         // Carica le app generate
         await loadGeneratedApps();
@@ -153,15 +157,16 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
     }
   };
 
-  // Carica modello predefinito dalle impostazioni
-  const loadDefaultModel = async () => {
+  // Carica configurazione AI dalle impostazioni
+  const loadAIConfig = async () => {
     try {
-      console.log('🔍 Caricamento modello predefinito dalle impostazioni...');
+      console.log('🔍 Caricamento configurazione AI dalle impostazioni...');
       
       const settings = await StorageService.getAllSettings();
       const aiSettings = settings.ai || {};
       const openrouterSettings = aiSettings.openrouter || {};
       
+      // Carica modello predefinito
       if (openrouterSettings.defaultModel) {
         setFormData(prev => ({
           ...prev,
@@ -171,8 +176,24 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
       } else {
         console.log('ℹ️ Nessun modello predefinito configurato, uso default');
       }
+
+      // Carica system prompt
+      if (openrouterSettings.systemPrompt) {
+        setSystemPrompt(openrouterSettings.systemPrompt);
+        console.log('✅ System prompt caricato dalle impostazioni');
+      } else {
+        console.log('ℹ️ Nessun system prompt configurato, uso default');
+      }
+
+      // Carica flag forza system prompt
+      if (openrouterSettings.forceSystemPrompt !== undefined) {
+        setForceSystemPrompt(openrouterSettings.forceSystemPrompt);
+        console.log('✅ Flag forza system prompt caricato:', openrouterSettings.forceSystemPrompt);
+      } else {
+        console.log('ℹ️ Flag forza system prompt non configurato, uso default (false)');
+      }
     } catch (error) {
-      console.error('❌ Errore caricamento modello predefinito:', error);
+      console.error('❌ Errore caricamento configurazione AI:', error);
     }
   };
 
@@ -235,9 +256,6 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
     }
   };
 
-  // System prompt per la generazione di app
-  const SYSTEM_PROMPT = "Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript. Se richiesto usa liberire esterne raggiungibili con cdn. Inserisci tutti i metadati html come nome, descrizione, keywords e favicon scelta tra emoji inerenti al progetto. come author inserisci AIDeas.run";
-
   // Genera app con AI
   const handleGenerateApp = async (e) => {
     e.preventDefault();
@@ -259,6 +277,8 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
     try {
       console.log('🚀 Avvio generazione app con AI...');
       console.log('📋 Parametri:', { appName, appDescription, appType, aiModel });
+      console.log('🧠 System prompt configurato:', !!systemPrompt);
+      console.log('🔧 Forza system prompt:', forceSystemPrompt);
       
       const userPrompt = `Crea una app web HTML completa chiamata "${appName}".
 
@@ -277,11 +297,38 @@ REQUISITI:
 
 Implementa tutte le funzionalità richieste senza usare placeholder.`;
 
-      const response = await aiServiceManager.generateResponseWithSystem(SYSTEM_PROMPT, userPrompt, {
-        model: aiModel,
-        temperature: 0.7,
-        maxTokens: 4000
-      });
+      // Verifica se il modello supporta system prompt
+      const currentModel = dynamicModels.find(model => model.value === aiModel);
+      const modelSupportsSystemPrompt = currentModel?.supportsSystemPrompt || false;
+      
+      let response;
+      
+      if (modelSupportsSystemPrompt) {
+        // Usa system prompt nativo
+        console.log('✅ Modello supporta system prompt nativo');
+        response = await aiServiceManager.generateResponseWithSystem(systemPrompt, userPrompt, {
+          model: aiModel,
+          temperature: 0.7,
+          maxTokens: 4000
+        });
+      } else if (forceSystemPrompt) {
+        // Forza system prompt per modelli non supportati
+        console.log('🔧 Forzando system prompt per modello non supportato');
+        const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+        response = await aiServiceManager.generateResponse(combinedPrompt, {
+          model: aiModel,
+          temperature: 0.7,
+          maxTokens: 4000
+        });
+      } else {
+        // Usa solo user prompt
+        console.log('ℹ️ Modello non supporta system prompt, uso solo user prompt');
+        response = await aiServiceManager.generateResponse(userPrompt, {
+          model: aiModel,
+          temperature: 0.7,
+          maxTokens: 4000
+        });
+      }
 
       let generatedCode = response;
       
@@ -529,11 +576,35 @@ ${currentApp.code}
 Modifica il codice HTML in base alla richiesta, mantenendo tutte le funzionalità esistenti e aggiungendo le 
 modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
 
-      const response = await aiServiceManager.generateResponse(modifyPrompt, {
-        model: currentApp.model || 'openai/gpt-4o-mini',
-        temperature: 0.7,
-        maxTokens: 4000
-      });
+      // Verifica se il modello supporta system prompt
+      const currentModel = dynamicModels.find(model => model.value === (currentApp.model || 'openai/gpt-4o-mini'));
+      const modelSupportsSystemPrompt = currentModel?.supportsSystemPrompt || false;
+      
+      let response;
+      
+      if (modelSupportsSystemPrompt) {
+        // Usa system prompt nativo
+        response = await aiServiceManager.generateResponseWithSystem(systemPrompt, modifyPrompt, {
+          model: currentApp.model || 'openai/gpt-4o-mini',
+          temperature: 0.7,
+          maxTokens: 4000
+        });
+      } else if (forceSystemPrompt) {
+        // Forza system prompt per modelli non supportati
+        const combinedPrompt = `${systemPrompt}\n\n${modifyPrompt}`;
+        response = await aiServiceManager.generateResponse(combinedPrompt, {
+          model: currentApp.model || 'openai/gpt-4o-mini',
+          temperature: 0.7,
+          maxTokens: 4000
+        });
+      } else {
+        // Usa solo user prompt
+        response = await aiServiceManager.generateResponse(modifyPrompt, {
+          model: currentApp.model || 'openai/gpt-4o-mini',
+          temperature: 0.7,
+          maxTokens: 4000
+        });
+      }
 
       const fullResponse = response;
       
@@ -629,36 +700,8 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
     }));
   };
 
-  // Raggruppa modelli AI per select (usa solo modelli dinamici)
-  const groupedModels = dynamicModels.reduce((groups, model) => {
-    const group = model.group || '🆓 Modelli Gratuiti';
-    if (!groups[group]) {
-      groups[group] = [];
-    }
-    groups[group].push(model);
-    return groups;
-  }, {});
-  
-  // Ordina i modelli alfabeticamente all'interno di ogni categoria
-  Object.keys(groupedModels).forEach(group => {
-    groupedModels[group].sort((a, b) => a.label.localeCompare(b.label));
-  });
-  
-  // Ordina le categorie: prima i modelli gratuiti, poi quelli a pagamento
-  const sortedGroups = Object.keys(groupedModels).sort((a, b) => {
-    const aIsFree = a.includes('🆓') || a.includes('Gratuiti');
-    const bIsFree = b.includes('🆓') || b.includes('Gratuiti');
-    
-    if (aIsFree && !bIsFree) return -1;
-    if (!aIsFree && bIsFree) return 1;
-    return a.localeCompare(b);
-  });
-  
-  // Crea un nuovo oggetto con le categorie ordinate
-  const orderedGroupedModels = {};
-  sortedGroups.forEach(group => {
-    orderedGroupedModels[group] = groupedModels[group];
-  });
+  // Raggruppa e ordina modelli AI usando la funzione di utilità
+  const orderedGroupedModels = sortAndGroupModels(dynamicModels);
 
   return (
     <Box sx={{ 

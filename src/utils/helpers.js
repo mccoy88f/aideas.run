@@ -743,6 +743,46 @@ export const getUserDisplayName = (settings) => {
   return generateRandomUsername();
 };
 
+/**
+ * Ordina i modelli AI in modo consistente
+ * @param {Array} models - Array di modelli AI
+ * @returns {Object} Modelli raggruppati e ordinati
+ */
+export const sortAndGroupModels = (models) => {
+  // Raggruppa modelli per categoria
+  const groupedModels = models.reduce((groups, model) => {
+    const group = model.group || '🆓 Modelli Gratuiti';
+    if (!groups[group]) {
+      groups[group] = [];
+    }
+    groups[group].push(model);
+    return groups;
+  }, {});
+  
+  // Ordina i modelli alfabeticamente all'interno di ogni categoria
+  Object.keys(groupedModels).forEach(group => {
+    groupedModels[group].sort((a, b) => a.label.localeCompare(b.label));
+  });
+  
+  // Ordina le categorie: prima i modelli gratuiti, poi quelli a pagamento
+  const sortedGroups = Object.keys(groupedModels).sort((a, b) => {
+    const aIsFree = a.includes('🆓') || a.includes('Gratuiti');
+    const bIsFree = b.includes('🆓') || b.includes('Gratuiti');
+    
+    if (aIsFree && !bIsFree) return -1;
+    if (!aIsFree && bIsFree) return 1;
+    return a.localeCompare(b);
+  });
+  
+  // Crea un nuovo oggetto con le categorie ordinate
+  const orderedGroupedModels = {};
+  sortedGroups.forEach(group => {
+    orderedGroupedModels[group] = groupedModels[group];
+  });
+  
+  return orderedGroupedModels;
+};
+
 export default {
   // Toast
   showToast,

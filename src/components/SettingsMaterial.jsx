@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import StorageService from '../services/StorageService.js';
 import GoogleDriveService from '../services/GoogleDriveService.js';
 import { aiServiceManager } from '../services/ai/AIServiceManager.js';
-import { showToast } from '../utils/helpers.js';
+import { showToast, sortAndGroupModels } from '../utils/helpers.js';
 import {
   Dialog,
   DialogTitle,
@@ -115,6 +115,8 @@ const SettingsMaterial = ({
     selectedProvider: 'openrouter',
     openrouterApiKey: '',
     defaultModel: 'openai/gpt-4o-mini', // Modello predefinito
+    systemPrompt: "Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript. Se richiesto usa liberire esterne raggiungibili con cdn. Inserisci tutti i metadati html come nome, descrizione, keywords e favicon scelta tra emoji inerenti al progetto. come author inserisci AIDeas.run",
+    forceSystemPrompt: false, // Forza system prompt per modelli non supportati
     isTestingConnection: false,
     testResult: null,
     testError: null,
@@ -517,6 +519,8 @@ const SettingsMaterial = ({
         selectedProvider: aiSettings.provider || 'openrouter',
         openrouterApiKey: openrouterSettings.apiKey || '',
         defaultModel: openrouterSettings.defaultModel || 'openai/gpt-4o-mini',
+        systemPrompt: openrouterSettings.systemPrompt || "Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript. Se richiesto usa liberire esterne raggiungibili con cdn. Inserisci tutti i metadati html come nome, descrizione, keywords e favicon scelta tra emoji inerenti al progetto. come author inserisci AIDeas.run",
+        forceSystemPrompt: openrouterSettings.forceSystemPrompt || false,
         isConfigured: !!openrouterSettings.apiKey,
         testResult: null,
         testError: null,
@@ -596,6 +600,20 @@ const SettingsMaterial = ({
     }));
   };
 
+  const handleSystemPromptChange = (prompt) => {
+    setAiConfig(prev => ({ 
+      ...prev, 
+      systemPrompt: prompt
+    }));
+  };
+
+  const handleForceSystemPromptChange = (force) => {
+    setAiConfig(prev => ({ 
+      ...prev, 
+      forceSystemPrompt: force
+    }));
+  };
+
   const testAIConnection = async () => {
     if (!aiConfig.openrouterApiKey) {
       showToast('Inserisci prima la tua API key OpenRouter', 'warning');
@@ -672,7 +690,9 @@ const SettingsMaterial = ({
         provider: aiConfig.selectedProvider,
         hasApiKey: !!aiConfig.openrouterApiKey,
         apiKeyLength: aiConfig.openrouterApiKey?.length,
-        defaultModel: aiConfig.defaultModel
+        defaultModel: aiConfig.defaultModel,
+        hasSystemPrompt: !!aiConfig.systemPrompt,
+        forceSystemPrompt: aiConfig.forceSystemPrompt
       });
 
       const updatedSettings = {
@@ -681,7 +701,9 @@ const SettingsMaterial = ({
           provider: aiConfig.selectedProvider,
           openrouter: {
             apiKey: aiConfig.openrouterApiKey,
-            defaultModel: aiConfig.defaultModel
+            defaultModel: aiConfig.defaultModel,
+            systemPrompt: aiConfig.systemPrompt,
+            forceSystemPrompt: aiConfig.forceSystemPrompt
           }
         }
       };
@@ -1481,6 +1503,54 @@ const SettingsMaterial = ({
                availableModels.length > 0 ? `Aggiorna Modelli (${availableModels.length})` : 
                'Carica Modelli'}
             </Button>
+          </Grid>
+        )}
+
+        {/* System Prompt */}
+        {aiConfig.isConfigured && (
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" gutterBottom>
+              🧠 System Prompt
+            </Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Configura il prompt di sistema che verrà utilizzato per la generazione di app AI
+            </Typography>
+            
+            <TextField
+              fullWidth
+              multiline
+              rows={6}
+              label="System Prompt"
+              value={aiConfig.systemPrompt}
+              onChange={(e) => handleSystemPromptChange(e.target.value)}
+              variant="outlined"
+              placeholder="Inserisci il prompt di sistema..."
+              helperText="Questo prompt definisce il comportamento dell'AI durante la generazione di app"
+            />
+          </Grid>
+        )}
+
+        {/* Flag Forza System Prompt */}
+        {aiConfig.isConfigured && (
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={aiConfig.forceSystemPrompt}
+                  onChange={(e) => handleForceSystemPromptChange(e.target.checked)}
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body1">
+                    🔧 Forza System Prompt per modelli non supportati
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Se attivato, il system prompt verrà inviato come parte del messaggio utente per modelli che non lo supportano nativamente
+                  </Typography>
+                </Box>
+              }
+            />
           </Grid>
         )}
 
