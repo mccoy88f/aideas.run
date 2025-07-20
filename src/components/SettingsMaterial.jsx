@@ -643,6 +643,10 @@ const SettingsMaterial = ({
 
         // Carica i crediti
         await loadAICredits();
+        
+        // Carica automaticamente i modelli disponibili dopo il test riuscito
+        console.log('📋 Caricamento automatico modelli dopo test connessione...');
+        await loadAvailableModels();
       } else {
         setAiConfig(prev => ({ 
           ...prev, 
@@ -1463,22 +1467,27 @@ const SettingsMaterial = ({
                     {modelsLoading ? 'Caricamento modelli...' : 'Nessun modello disponibile'}
                   </MenuItem>
                 ) : (
-                  availableModels.map(model => (
-                    <MenuItem key={model.value} value={model.value}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                        <span>{model.label}</span>
-                        {model.supportsSystemPrompt && (
-                          <Chip 
-                            size="small" 
-                            label="System" 
-                            color="success" 
-                            variant="outlined"
-                            sx={{ ml: 'auto', fontSize: '0.7rem', height: 20 }}
-                          />
-                        )}
-                      </Box>
-                    </MenuItem>
-                  ))
+                  Object.entries(sortAndGroupModels(availableModels)).map(([group, models]) => [
+                    <MenuItem key={group} disabled sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                      {group}
+                    </MenuItem>,
+                    ...models.map(model => (
+                      <MenuItem key={model.value} value={model.value} sx={{ pl: 4 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                          <span>{model.label}</span>
+                          {model.supportsSystemPrompt && (
+                            <Chip 
+                              size="small" 
+                              label="System" 
+                              color="success" 
+                              variant="outlined"
+                              sx={{ ml: 'auto', fontSize: '0.7rem', height: 20 }}
+                            />
+                          )}
+                        </Box>
+                      </MenuItem>
+                    ))
+                  ])
                 )}
               </Select>
               {modelsLoading && (
