@@ -148,6 +148,12 @@ const SettingsMaterial = ({
       description: 'Configurazione servizi AI e API key'
     },
     {
+      id: 'github',
+      title: 'GitHub',
+      icon: <GitHubIcon />,
+      description: 'Configurazione GitHub per sottomissione app'
+    },
+    {
       id: 'notifications',
       title: 'Notifiche',
       icon: <NotificationsIcon />,
@@ -1131,13 +1137,19 @@ const SettingsMaterial = ({
             
             <Alert severity="info" sx={{ mb: 2 }}>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                <strong>Come ottenere un token GitHub:</strong>
+                <strong>Configurazione GitHub:</strong>
               </Typography>
               <Typography variant="body2" component="div">
-                1. Vai su GitHub → Settings → Developer settings → Personal access tokens<br/>
-                2. Genera un nuovo token (classic)<br/>
-                3. Seleziona la scope <code>gist</code><br/>
-                4. Copia il token e incollalo qui sotto
+                Per una configurazione completa di GitHub (inclusa sottomissione app), vai alla sezione{' '}
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={() => setActiveSection('github')}
+                  sx={{ p: 0, minWidth: 'auto', textTransform: 'none' }}
+                >
+                  <strong>GitHub</strong>
+                </Button>
+                {' '}nelle impostazioni.
               </Typography>
             </Alert>
             
@@ -1322,6 +1334,120 @@ const SettingsMaterial = ({
           </Box>
         </Paper>
       )}
+    </Box>
+  );
+
+  const renderGitHubSettings = () => (
+    <Box sx={{ space: 3 }}>
+      <Typography variant="h6" gutterBottom>
+        Configurazione GitHub
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Configura GitHub per sottomettere app allo store AIdeas
+      </Typography>
+      
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <GitHubIcon />
+          Autenticazione GitHub
+        </Typography>
+        
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            <strong>Per sottomettere app allo store AIdeas, devi configurare GitHub:</strong>
+          </Typography>
+          <Typography variant="body2" component="div">
+            1. Vai su GitHub → Settings → Developer settings → Personal access tokens<br/>
+            2. Genera un nuovo token (classic)<br/>
+            3. Seleziona le scopes: <code>gist</code> e <code>repo</code><br/>
+            4. Copia il token e incollalo qui sotto
+          </Typography>
+        </Alert>
+
+        <TextField
+          fullWidth
+          label="Token GitHub Personal Access"
+          type="password"
+          value={cloudSyncConfig.githubToken}
+          onChange={(e) => handleGitHubTokenChange(e.target.value)}
+          placeholder="ghp_xxxxxxxxxxxxxxxx"
+          sx={{ mb: 2 }}
+          helperText="Il token viene salvato localmente e utilizzato per creare issues e gist"
+        />
+
+        <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+          <Button
+            variant="contained"
+            startIcon={cloudSyncConfig.isTestingConnection ? <CircularProgress size={20} /> : <GitHubIcon />}
+            onClick={testCloudConnection}
+            disabled={cloudSyncConfig.isTestingConnection || !cloudSyncConfig.githubToken.trim()}
+          >
+            {cloudSyncConfig.isTestingConnection ? 'Test in corso...' : 'Testa Connessione GitHub'}
+          </Button>
+          
+          <Button
+            variant="outlined"
+            onClick={() => setActiveSection('cloudsync')}
+            startIcon={<SyncIcon />}
+          >
+            Configurazione Avanzata Cloud Sync
+          </Button>
+        </Box>
+
+        {/* Stato connessione */}
+        {userInfo.github && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              ✅ <strong>Connesso come:</strong> {userInfo.github.login} ({userInfo.github.name || userInfo.github.login})
+            </Typography>
+          </Alert>
+        )}
+
+        {!userInfo.github && cloudSyncConfig.githubToken && (
+          <Alert severity="warning">
+            <Typography variant="body2">
+              ⚠️ Token configurato ma connessione non testata. Usa il pulsante "Testa Connessione GitHub".
+            </Typography>
+          </Alert>
+        )}
+
+        {!cloudSyncConfig.githubToken && (
+          <Alert severity="info">
+            <Typography variant="body2">
+              ℹ️ Inserisci un token GitHub per poter sottomettere app allo store.
+            </Typography>
+          </Alert>
+        )}
+      </Paper>
+
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Informazioni Store AIdeas
+        </Typography>
+        
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          Quando sottometti un'app, viene creata un'issue nel repository <code>mccoy88f/aideas.store</code> con:
+        </Typography>
+        
+        <Box component="ul" sx={{ pl: 2, mb: 2 }}>
+          <Typography component="li" variant="body2">
+            Dettagli dell'app (nome, descrizione, categoria)
+          </Typography>
+          <Typography component="li" variant="body2">
+            File ZIP dell'app caricato su file.io
+          </Typography>
+          <Typography component="li" variant="body2">
+            Report di sicurezza dell'app
+          </Typography>
+          <Typography component="li" variant="body2">
+            Informazioni sull'autore
+          </Typography>
+        </Box>
+
+        <Typography variant="body2" color="text.secondary">
+          Le app vengono riviste e, se approvate, vengono aggiunte automaticamente allo store pubblico.
+        </Typography>
+      </Paper>
     </Box>
   );
 
@@ -1706,6 +1832,8 @@ const SettingsMaterial = ({
         return renderAppearanceSettings();
       case 'ai':
         return renderAISettings();
+      case 'github':
+        return renderGitHubSettings();
       case 'notifications':
         return renderNotificationSettings();
       case 'backup':
