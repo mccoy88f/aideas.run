@@ -113,7 +113,7 @@ export class OpenRouterService extends BaseAIService {
       'mistralai/mistral-large',
       'mistralai/mistral-medium',
       'mistralai/mistral-small',
-      'mistralai/mistral-small-3.2-24b-instruct:free',
+              'deepseek/deepseek-r1:free',
       
       // Cohere models
       'cohere/command-r',
@@ -182,12 +182,12 @@ export class OpenRouterService extends BaseAIService {
         '💎 Modelli Premium': []
       };
 
-      // Aggiungi Mistral Small 3.2 24B come predefinito nella categoria consigliati
+      // Aggiungi DeepSeek R1 come predefinito nella categoria consigliati
       const recommendedModels = [
         {
-          value: 'mistralai/mistral-small-3.2-24b-instruct:free',
-          label: 'Mistral Small 3.2 24B (free)',
-          description: 'Modello Mistral ottimizzato per performance e qualità',
+          value: 'deepseek/deepseek-r1:free',
+          label: 'DeepSeek R1 (free)',
+          description: 'Modello DeepSeek ottimizzato per performance e qualità',
           context_length: 32768,
           pricing: { prompt: '0.000000', completion: '0.000000' },
           supportsSystemPrompt: true,
@@ -236,7 +236,7 @@ export class OpenRouterService extends BaseAIService {
     }
 
     const {
-      model = 'mistralai/mistral-small-3.2-24b-instruct:free',
+      model = 'deepseek/deepseek-r1:free',
       temperature = 0.7,
       maxTokens = 4000,
       stream = false
@@ -304,7 +304,7 @@ export class OpenRouterService extends BaseAIService {
     }
 
     const {
-      model = 'mistralai/mistral-small-3.2-24b-instruct:free',
+      model = 'deepseek/deepseek-r1:free',
       temperature = 0.7,
       maxTokens = 4000,
       stream = false
@@ -373,7 +373,7 @@ export class OpenRouterService extends BaseAIService {
    */
   async generateResponseWithFetch(prompt, options = {}) {
     const {
-      model = 'mistralai/mistral-small-3.2-24b-instruct:free',
+      model = 'deepseek/deepseek-r1:free',
       temperature = 0.7,
       maxTokens = 4000
     } = options;
@@ -427,7 +427,7 @@ export class OpenRouterService extends BaseAIService {
    */
   async generateResponseWithSystemFetch(systemPrompt, userPrompt, options = {}) {
     const {
-      model = 'mistralai/mistral-small-3.2-24b-instruct:free',
+      model = 'deepseek/deepseek-r1:free',
       temperature = 0.7,
       maxTokens = 4000
     } = options;
@@ -490,7 +490,7 @@ export class OpenRouterService extends BaseAIService {
 
     try {
       const response = await this.generateResponse('Test di connessione', {
-        model: 'mistralai/mistral-small-3.2-24b-instruct:free',
+        model: 'deepseek/deepseek-r1:free',
         maxTokens: 10
       });
       
@@ -600,7 +600,7 @@ export class OpenRouterService extends BaseAIService {
     }
 
     const {
-      model = 'mistralai/mistral-small-3.2-24b-instruct:free',
+      model = 'deepseek/deepseek-r1:free',
       temperature = 0.7,
       maxTokens = 4000,
       stream = false
@@ -659,7 +659,7 @@ export class OpenRouterService extends BaseAIService {
    */
   async generateResponseWithConversationFetch(messages, options = {}) {
     const {
-      model = 'mistralai/mistral-small-3.2-24b-instruct:free',
+      model = 'deepseek/deepseek-r1:free',
       temperature = 0.7,
       maxTokens = 4000
     } = options;

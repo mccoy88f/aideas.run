@@ -114,7 +114,7 @@ const SettingsMaterial = ({
   const [aiConfig, setAiConfig] = useState({
     selectedProvider: 'openrouter',
     openrouterApiKey: '',
-    defaultModel: 'mistralai/mistral-small-3.2-24b-instruct:free', // Modello predefinito
+    defaultModel: 'deepseek/deepseek-r1:free', // Modello predefinito
     systemPrompt: "Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript. Se richiesto usa liberire esterne raggiungibili con cdn. Inserisci tutti i metadati html come nome, descrizione, keywords e favicon scelta tra emoji inerenti al progetto. come author inserisci AIDeas.run",
     forceSystemPrompt: false, // Forza system prompt per modelli non supportati
     isTestingConnection: false,
@@ -518,7 +518,7 @@ const SettingsMaterial = ({
       setAiConfig({
         selectedProvider: aiSettings.provider || 'openrouter',
         openrouterApiKey: openrouterSettings.apiKey || '',
-        defaultModel: openrouterSettings.defaultModel || 'mistralai/mistral-small-3.2-24b-instruct:free',
+        defaultModel: openrouterSettings.defaultModel || 'deepseek/deepseek-r1:free',
         systemPrompt: openrouterSettings.systemPrompt || "Sei un esperto sviluppatore che crea app o giochi HTML in un singolo file sempre responsive e mobile-first. Rispondi sempre con codice completo e funzionante, usando HTML, CSS e JavaScript inline. Se richiesto usa librerie esterne raggiungibili tramite CDN.\nIncludi sempre tutti i metadati HTML: title, description, keywords, viewport, theme-color e favicon SVG con emoji inerenti al progetto. Come author usa \"AIDeas.run\".\nUsa design moderno, CSS variables per temi, localStorage per persistenza dati quando utile, e assicurati che sia accessibile e touch-friendly.",
         forceSystemPrompt: openrouterSettings.forceSystemPrompt || false,
         isConfigured: !!openrouterSettings.apiKey,
