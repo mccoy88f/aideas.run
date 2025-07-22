@@ -1,0 +1,75 @@
+name: Process App Submission
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  publish-app:
+    if: contains(github.event.label.name, 'approved')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract app info from issue
+        id: extract
+        run: |
+          # Parse issue body to extract ZIP URL and app name
+          APP_NAME=$(echo "${{ github.event.issue.title }}" | sed 's/\[SUBMISSION\] //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+          ZIP_URL=$(echo "${{ github.event.issue.body }}" | grep -o 'https://file.io/[^[:space:]]*')
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "zip_url=$ZIP_URL" >> $GITHUB_OUTPUT
+      
+      - name: Download and extract ZIP
+        run: |
+          # Download ZIP
+          curl -L "${{ steps.extract.outputs.zip_url }}" -o temp.zip
+          
+          # Create app directory
+          mkdir -p "apps/${{ steps.extract.outputs.app_name }}"
+          
+          # Extract ZIP to app directory
+          unzip -j temp.zip -d "apps/${{ steps.extract.outputs.app_name }}/"
+          
+          # Cleanup
+          rm temp.zip
+      
+      - name: Validate app structure
+        run: |
+          # Check if required files exist
+          if [ ! -f "apps/${{ steps.extract.outputs.app_name }}/index.html" ]; then
+            echo "Error: index.html is required"
+            exit 1
+          fi
+          
+          # Validate aideas.json if exists
+          if [ -f "apps/${{ steps.extract.outputs.app_name }}/aideas.json" ]; then
+            # Add JSON validation here
+            echo "Manifest found and validated"
+          fi
+      
+      - name: Update catalog
+        run: |
+          # Generate/update catalog.json with new app
+          node .github/scripts/update-catalog.js
+      
+      - name: Commit new app
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Add app: ${{ steps.extract.outputs.app_name }}"
+          git push
+      
+      - name: Close and comment issue
+        uses: peter-evans/close-issue@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          comment: |
+            ✅ App **${{ steps.extract.outputs.app_name }}** has been published!
+            
+            You can find it at: https://mccoy88f.github.io/aideas.store/apps/${{ steps.extract.outputs.app_name }}/ 

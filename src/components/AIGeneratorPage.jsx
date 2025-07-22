@@ -37,6 +37,7 @@ import {
   DialogActions,
   DialogContentText
 } from '@mui/material';
+
 import StorageService from '../services/StorageService.js';
 import { aiServiceManager } from '../services/ai/AIServiceManager.js';
 import { showToast, sortAndGroupModels } from '../utils/helpers.js';
@@ -56,7 +57,8 @@ import {
   Error as ErrorIcon,
   Info as InfoIcon,
   Settings as SettingsIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+
 } from '@mui/icons-material';
 
 /**
@@ -90,6 +92,8 @@ const AIGeneratorPage = ({ onNavigateBack, onAppGenerated, onEditInstalledApp, o
   
   // State per preview
   const [previewOpen, setPreviewOpen] = useState(false);
+  
+
   
   // State per i modelli AI dinamici
   const [dynamicModels, setDynamicModels] = useState([]);
@@ -1305,6 +1309,8 @@ modifiche richieste. Restituisci SOLO il codice HTML completo modificato.`;
           </Button>
         </DialogActions>
       </Dialog>
+
+
 
 
     </Box>

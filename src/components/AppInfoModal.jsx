@@ -51,6 +51,7 @@ import {
 import AppAnalyzer from '../services/AppAnalyzer.js';
 import { showToast } from '../utils/helpers.js';
 import StorageService from '../services/StorageService.js';
+import AppSubmissionModal from './AppSubmissionModal.jsx';
 
 /**
  * Modal per visualizzare informazioni dettagliate sull'app
@@ -64,6 +65,7 @@ const AppInfoModal = ({ open, onClose, app }) => {
   const [submittingToStore, setSubmittingToStore] = useState(false);
   const [shareMenuAnchor, setShareMenuAnchor] = useState(null);
   const [submitInstructionsOpen, setSubmitInstructionsOpen] = useState(false);
+  const [submissionModalOpen, setSubmissionModalOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     overview: true,
     files: false,
@@ -336,8 +338,29 @@ const AppInfoModal = ({ open, onClose, app }) => {
   const handleSubmitToStore = async () => {
     if (!app) return;
     
-    // Invece di tentare l'automazione, mostra le istruzioni manuali
-    setSubmitInstructionsOpen(true);
+    // Verifica se l'app può essere sottoposta
+    if (!canSubmitToStore(app)) {
+      showToast('Questa app non può essere sottoposta allo store', 'warning');
+      return;
+    }
+    
+    setSubmissionModalOpen(true);
+  };
+
+  // Verifica se un'app può essere sottoposta allo store
+  const canSubmitToStore = (app) => {
+    // Non può essere sottoposta se:
+    // 1. Proviene già dallo store (source === 'store')
+    // 2. Non è installata localmente (non ha id)
+    // 3. È un'app URL esterna
+    if (app.source === 'store' || !app.id || app.type === 'url') {
+      return false;
+    }
+    
+    // Può essere sottoposta se:
+    // 1. È stata installata manualmente (source === 'manual')
+    // 2. È stata generata con AI e importata (source === 'ai-generated')
+    return app.source === 'manual' || app.source === 'ai-generated';
   };
 
   const handleShareMenuOpen = (event) => {
@@ -961,8 +984,8 @@ const AppInfoModal = ({ open, onClose, app }) => {
           >
             Condividi
           </Button>
-          {/* Pulsante "Sottometti allo Store" solo per app installate manualmente */}
-          {app && app.source === 'manual' && (
+          {/* Pulsante "Sottometti allo Store" solo per app che possono essere sottoposte */}
+          {app && canSubmitToStore(app) && (
             <Button
               onClick={handleSubmitToStore}
               variant="contained"
@@ -1132,6 +1155,17 @@ const AppInfoModal = ({ open, onClose, app }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Modal di sottomissione app */}
+      <AppSubmissionModal
+        open={submissionModalOpen}
+        onClose={() => setSubmissionModalOpen(false)}
+        app={app}
+        onSubmissionComplete={(result) => {
+          showToast(`App sottomessa con successo! Issue #${result.issueNumber}`, 'success');
+          setSubmissionModalOpen(false);
+        }}
+      />
     </>
   );
 };
