@@ -53,6 +53,7 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
   const [result, setResult] = useState(null);
   const [userSubmissions, setUserSubmissions] = useState([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Form data per metadati editabili
   const [formData, setFormData] = useState({
@@ -87,10 +88,23 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
   const loadUserSubmissions = async () => {
     try {
       setLoadingSubmissions(true);
+      
+      // Verifica se l'utente è autenticato prima di caricare le submission
+      const isAuthenticated = await appSubmissionService.githubService.isAuthenticated();
+      setIsAuthenticated(isAuthenticated);
+      
+      if (!isAuthenticated) {
+        DEBUG.log('ℹ️ Utente non autenticato, salto caricamento submission');
+        setUserSubmissions([]);
+        return;
+      }
+      
       const submissions = await appSubmissionService.getUserSubmissions();
       setUserSubmissions(submissions);
     } catch (error) {
       DEBUG.error('❌ Errore caricamento submission:', error);
+      // In caso di errore, imposta array vuoto invece di fallire
+      setUserSubmissions([]);
     } finally {
       setLoadingSubmissions(false);
     }
@@ -299,6 +313,13 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
               <Typography variant="body2">
                 Sottometti la tua app allo store AIdeas per renderla disponibile a tutti gli utenti. 
                 La tua app sarà rivista prima della pubblicazione.
+                {!isAuthenticated && (
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="body2" color="warning.main">
+                      ⚠️ Configura GitHub nelle impostazioni per poter sottomettere app.
+                    </Typography>
+                  </Box>
+                )}
               </Typography>
             </Alert>
 
@@ -407,9 +428,14 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
                 ))}
               </List>
             ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                Nessuna submission precedente
-              </Typography>
+              <Box sx={{ textAlign: 'center', py: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Nessuna submission precedente
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Le tue submission appariranno qui dopo aver configurato GitHub nelle impostazioni
+                </Typography>
+              </Box>
             )}
           </Stack>
         )}
@@ -574,7 +600,7 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
               disabled={!formData.name || !formData.description}
               startIcon={<UploadIcon />}
             >
-              Prepara App
+              {isAuthenticated ? 'Prepara App' : 'Configura GitHub Prima'}
             </Button>
           </>
         )}

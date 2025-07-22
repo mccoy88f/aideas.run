@@ -29,6 +29,11 @@ export default class AppSubmissionService {
     return await ErrorHandler.withRetry(async () => {
       DEBUG.log(`🔍 Preparazione app ${app.name} per sottomissione...`);
 
+      // Verifica autenticazione GitHub
+      if (!await this.githubService.isAuthenticated()) {
+        throw new Error('Autenticazione GitHub richiesta per sottomettere app. Vai nelle impostazioni e configura GitHub.');
+      }
+
       // Validazione base
       if (!app.name || !app.name.trim()) {
         throw new Error('Nome app richiesto');
