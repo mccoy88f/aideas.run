@@ -26,29 +26,44 @@ jobs:
       - name: Extract app info from issue
         id: extract
         run: |
-          # Parse issue body to extract ZIP URL and app info
-          ISSUE_BODY="${{ github.event.issue.body }}"
+          # Create a safe temporary file to avoid shell interpretation issues
+          echo "${{ github.event.issue.body }}" > /tmp/issue_body.txt
           
           echo "Processing issue: ${{ github.event.issue.title }}"
           echo "Issue action: ${{ github.event.action }}"
           echo "Issue labels: ${{ github.event.issue.labels.*.name }}"
           
-          # Extract ZIP URL from file.io link (improved regex)
-          ZIP_URL=$(echo "$ISSUE_BODY" | grep -o 'https://file\.io/[a-zA-Z0-9]*' | head -1)
+          # Extract ZIP URL from GitHub Gist (prioritize this)
+          ZIP_URL=$(grep -o 'https://gist\.githubusercontent\.com/[^[:space:]]*' /tmp/issue_body.txt | head -1)
           
-          # Extract app name from issue title (remove [SUBMISSION] prefix)
+          # If no Gist URL found, try GitHub raw URLs
+          if [ -z "$ZIP_URL" ]; then
+            ZIP_URL=$(grep -o 'https://raw\.githubusercontent\.com/[^[:space:]]*' /tmp/issue_body.txt | head -1)
+          fi
+          
+          # If still no URL found, try .zip URLs
+          if [ -z "$ZIP_URL" ]; then
+            ZIP_URL=$(grep -o 'https://[^[:space:]]*\.zip' /tmp/issue_body.txt | head -1)
+          fi
+          
+          # If still no URL found, try file.io (legacy)
+          if [ -z "$ZIP_URL" ]; then
+            ZIP_URL=$(grep -o 'https://file\.io/[a-zA-Z0-9]*' /tmp/issue_body.txt | head -1)
+          fi
+          
+          # Extract app name from issue title
           APP_NAME=$(echo "${{ github.event.issue.title }}" | sed 's/\[SUBMISSION\] //' | sed 's/\[SUBMISSION\]//')
           
           # Generate app ID (sanitize name)
           APP_ID=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
           
-          # Extract additional info from issue body if available
-          DESCRIPTION=$(echo "$ISSUE_BODY" | grep -A1 "**Description:**" | tail -1 | sed 's/^[[:space:]]*//')
-          AUTHOR=$(echo "$ISSUE_BODY" | grep -A1 "**Author:**" | tail -1 | sed 's/^[[:space:]]*//')
-          CATEGORY=$(echo "$ISSUE_BODY" | grep -A1 "**Category:**" | tail -1 | sed 's/^[[:space:]]*//')
-          TAGS=$(echo "$ISSUE_BODY" | grep -A1 "**Tags:**" | tail -1 | sed 's/^[[:space:]]*//')
+          # Extract additional info using safer approach
+          DESCRIPTION=$(grep -A1 "**Description:**" /tmp/issue_body.txt | tail -1 | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' || echo "App submitted via AIdeas Store")
+          AUTHOR=$(grep -A1 "**Author:**" /tmp/issue_body.txt | tail -1 | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' || echo "Unknown")
+          CATEGORY=$(grep -A1 "**Category:**" /tmp/issue_body.txt | tail -1 | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' || echo "utility")
+          TAGS=$(grep -A1 "**Tags:**" /tmp/issue_body.txt | tail -1 | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' || echo "")
           
-          # Set defaults if not found
+          # Set defaults if empty
           [ -z "$DESCRIPTION" ] && DESCRIPTION="App submitted via AIdeas Store"
           [ -z "$AUTHOR" ] && AUTHOR="Unknown"
           [ -z "$CATEGORY" ] && CATEGORY="utility"
@@ -75,7 +90,7 @@ jobs:
           if [ -z "$ZIP_URL" ]; then
             echo "Error: No ZIP URL found in issue body"
             echo "Issue body preview:"
-            echo "$ISSUE_BODY" | head -10
+            head -10 /tmp/issue_body.txt
             exit 1
           fi
           
@@ -83,10 +98,13 @@ jobs:
             echo "Error: No app name found in issue title"
             exit 1
           fi
+          
+          # Cleanup
+          rm -f /tmp/issue_body.txt
       
       - name: Download and extract ZIP
         run: |
-          # Download ZIP (potentially base64 encoded)
+          # Download ZIP from Gist or other source
           echo "Downloading ZIP from: ${{ steps.extract.outputs.zip_url }}"
           curl -L "${{ steps.extract.outputs.zip_url }}" -o temp.zip
           
@@ -96,14 +114,13 @@ jobs:
             exit 1
           fi
           
-          # Check if file is base64 encoded (starts with common base64 chars)
-          # Note: New submissions will be binary ZIP files, but keep base64 support for legacy
+          # Check if file is base64 encoded (common for Gists)
           if head -c 10 temp.zip | grep -q '^[A-Za-z0-9+/]*$'; then
-            echo "Detected base64 encoded ZIP (legacy), decoding..."
+            echo "Detected base64 encoded ZIP, decoding..."
             base64 -d < temp.zip > temp-real.zip
             mv temp-real.zip temp.zip
           else
-            echo "Binary ZIP file detected (new format)"
+            echo "Binary ZIP file detected"
           fi
           
           # Create app directory

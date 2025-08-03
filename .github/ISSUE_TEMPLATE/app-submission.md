@@ -17,7 +17,7 @@ assignees: ""
 ## 📦 App Files
 
 **ZIP Download URL:** 
-*Upload your app ZIP to file.io and paste the link here*
+*The ZIP file will be automatically uploaded as a GitHub Gist. The URL will appear here after submission.*
 
 ## 🔍 Review Checklist
 

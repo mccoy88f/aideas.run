@@ -126,51 +126,31 @@ export default class AppSubmissionService {
   }
 
   /**
-   * Upload ZIP come file binario su GitHub
+   * Upload ZIP come Gist su GitHub
    * @param {Blob} zipBlob - File ZIP da uploadare
-   * @returns {Promise<string>} URL del file uploadato
+   * @returns {Promise<string>} URL del Gist creato
    */
   async uploadZipToFileIO(zipBlob) {
     try {
-      DEBUG.log('📤 Upload ZIP come file binario su GitHub...');
-      
-      // Crea un repository temporaneo o usa un repository dedicato
-      const fileName = `app-${Date.now()}.zip`;
-      const filePath = `uploads/${fileName}`;
-      
-      // Converti Blob in base64 per GitHub API (necessario per file binari)
-      const arrayBuffer = await zipBlob.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-      
-      // Upload come file nel repository aideas.store
-      const response = await this.githubService.makeRequest(
-        `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/contents/${filePath}`,
-        {
-          method: 'PUT',
-          headers: {
-            ...await this.githubService.getAuthHeaders(),
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: `Add app submission: ${fileName}`,
-            content: base64,
-            encoding: 'base64'
-          })
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Upload fallito: ${response.statusText}`);
+      DEBUG.log('📤 Upload ZIP come Gist su GitHub...');
+      const githubService = new GitHubService();
+      const isAuthenticated = await githubService.isAuthenticated();
+
+      if (!isAuthenticated) {
+        throw new Error('Autenticazione GitHub richiesta per l\'upload del Gist.');
       }
-      
-      const result = await response.json();
-      const downloadUrl = result.content.download_url;
-      
-      DEBUG.success(`✅ ZIP uploadato come file binario: ${downloadUrl}`);
-      return downloadUrl;
+
+      const fileName = `app-${Date.now()}.zip`;
+      const description = `AIdeas App Submission: ${fileName}`;
+      const isPublic = false; // Gist privato
+
+      const gistUrl = await githubService.createGist(fileName, zipBlob, description, isPublic);
+
+      DEBUG.success(`✅ ZIP uploadato come Gist: ${gistUrl}`);
+      return gistUrl;
 
     } catch (error) {
-      DEBUG.error('❌ Errore upload ZIP:', error);
+      DEBUG.error('❌ Errore upload ZIP come Gist:', error);
       throw new Error(`Impossibile uploadare il file: ${error.message}`);
     }
   }
