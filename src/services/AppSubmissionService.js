@@ -126,46 +126,47 @@ export default class AppSubmissionService {
   }
 
   /**
-   * Upload ZIP come Gist su GitHub
+   * Upload ZIP come file binario su GitHub
    * @param {Blob} zipBlob - File ZIP da uploadare
    * @returns {Promise<string>} URL del file uploadato
    */
   async uploadZipToFileIO(zipBlob) {
     try {
-      DEBUG.log('📤 Upload ZIP come Gist su GitHub...');
+      DEBUG.log('📤 Upload ZIP come file binario su GitHub...');
       
-      // Converti Blob in base64
+      // Crea un repository temporaneo o usa un repository dedicato
+      const fileName = `app-${Date.now()}.zip`;
+      const filePath = `uploads/${fileName}`;
+      
+      // Converti Blob in base64 per GitHub API (necessario per file binari)
       const arrayBuffer = await zipBlob.arrayBuffer();
       const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
       
-      const gistData = {
-        description: 'AIdeas App Submission ZIP',
-        public: false,
-        files: {
-          'app.zip': {
+      // Upload come file nel repository aideas.store
+      const response = await this.githubService.makeRequest(
+        `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/contents/${filePath}`,
+        {
+          method: 'PUT',
+          headers: {
+            ...await this.githubService.getAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: `Add app submission: ${fileName}`,
             content: base64,
             encoding: 'base64'
-          }
+          })
         }
-      };
-      
-      const response = await this.githubService.makeRequest('/gists', {
-        method: 'POST',
-        headers: {
-          ...await this.githubService.getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(gistData)
-      });
+      );
       
       if (!response.ok) {
         throw new Error(`Upload fallito: ${response.statusText}`);
       }
       
-      const gist = await response.json();
-      const downloadUrl = gist.files['app.zip'].raw_url;
+      const result = await response.json();
+      const downloadUrl = result.content.download_url;
       
-      DEBUG.success(`✅ ZIP uploadato come Gist: ${downloadUrl}`);
+      DEBUG.success(`✅ ZIP uploadato come file binario: ${downloadUrl}`);
       return downloadUrl;
 
     } catch (error) {

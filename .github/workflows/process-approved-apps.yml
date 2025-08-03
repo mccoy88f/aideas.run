@@ -6,6 +6,7 @@ on:
 
 jobs:
   process-approved-app:
+    # Solo se l'issue ha la label 'approved' E è stata etichettata o chiusa
     if: |
       (github.event.action == 'labeled' && contains(github.event.label.name, 'approved')) ||
       (github.event.action == 'closed' && contains(github.event.issue.labels.*.name, 'approved'))
@@ -28,35 +29,82 @@ jobs:
           # Parse issue body to extract ZIP URL and app info
           ISSUE_BODY="${{ github.event.issue.body }}"
           
-          # Extract ZIP URL from file.io link (escape special characters)
-          ZIP_URL=$(echo "$ISSUE_BODY" | grep -o 'https://file\.io/[^[:space:]]*' | head -1)
+          echo "Processing issue: ${{ github.event.issue.title }}"
+          echo "Issue action: ${{ github.event.action }}"
+          echo "Issue labels: ${{ github.event.issue.labels.*.name }}"
+          
+          # Extract ZIP URL from file.io link (improved regex)
+          ZIP_URL=$(echo "$ISSUE_BODY" | grep -o 'https://file\.io/[a-zA-Z0-9]*' | head -1)
           
           # Extract app name from issue title (remove [SUBMISSION] prefix)
-          APP_NAME=$(echo "${{ github.event.issue.title }}" | sed 's/\[SUBMISSION\] //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+          APP_NAME=$(echo "${{ github.event.issue.title }}" | sed 's/\[SUBMISSION\] //' | sed 's/\[SUBMISSION\]//')
           
           # Generate app ID (sanitize name)
-          APP_ID=$(echo "$APP_NAME" | sed 's/[^a-z0-9-]//g')
+          APP_ID=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
+          
+          # Extract additional info from issue body if available
+          DESCRIPTION=$(echo "$ISSUE_BODY" | grep -A1 "**Description:**" | tail -1 | sed 's/^[[:space:]]*//')
+          AUTHOR=$(echo "$ISSUE_BODY" | grep -A1 "**Author:**" | tail -1 | sed 's/^[[:space:]]*//')
+          CATEGORY=$(echo "$ISSUE_BODY" | grep -A1 "**Category:**" | tail -1 | sed 's/^[[:space:]]*//')
+          TAGS=$(echo "$ISSUE_BODY" | grep -A1 "**Tags:**" | tail -1 | sed 's/^[[:space:]]*//')
+          
+          # Set defaults if not found
+          [ -z "$DESCRIPTION" ] && DESCRIPTION="App submitted via AIdeas Store"
+          [ -z "$AUTHOR" ] && AUTHOR="Unknown"
+          [ -z "$CATEGORY" ] && CATEGORY="utility"
+          [ -z "$TAGS" ] && TAGS=""
           
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "app_id=$APP_ID" >> $GITHUB_OUTPUT
           echo "zip_url=$ZIP_URL" >> $GITHUB_OUTPUT
+          echo "description=$DESCRIPTION" >> $GITHUB_OUTPUT
+          echo "author=$AUTHOR" >> $GITHUB_OUTPUT
+          echo "category=$CATEGORY" >> $GITHUB_OUTPUT
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
           
           echo "Extracted info:"
           echo "App Name: $APP_NAME"
           echo "App ID: $APP_ID"
           echo "ZIP URL: $ZIP_URL"
+          echo "Description: $DESCRIPTION"
+          echo "Author: $AUTHOR"
+          echo "Category: $CATEGORY"
+          echo "Tags: $TAGS"
           
           # Validate that we have the required information
           if [ -z "$ZIP_URL" ]; then
             echo "Error: No ZIP URL found in issue body"
+            echo "Issue body preview:"
+            echo "$ISSUE_BODY" | head -10
+            exit 1
+          fi
+          
+          if [ -z "$APP_NAME" ]; then
+            echo "Error: No app name found in issue title"
             exit 1
           fi
       
       - name: Download and extract ZIP
         run: |
-          # Download ZIP
+          # Download ZIP (potentially base64 encoded)
           echo "Downloading ZIP from: ${{ steps.extract.outputs.zip_url }}"
           curl -L "${{ steps.extract.outputs.zip_url }}" -o temp.zip
+          
+          # Check if download was successful
+          if [ ! -f temp.zip ] || [ ! -s temp.zip ]; then
+            echo "Error: Failed to download ZIP file"
+            exit 1
+          fi
+          
+          # Check if file is base64 encoded (starts with common base64 chars)
+          # Note: New submissions will be binary ZIP files, but keep base64 support for legacy
+          if head -c 10 temp.zip | grep -q '^[A-Za-z0-9+/]*$'; then
+            echo "Detected base64 encoded ZIP (legacy), decoding..."
+            base64 -d < temp.zip > temp-real.zip
+            mv temp-real.zip temp.zip
+          else
+            echo "Binary ZIP file detected (new format)"
+          fi
           
           # Create app directory
           mkdir -p "apps/${{ steps.extract.outputs.app_id }}"
@@ -77,13 +125,15 @@ jobs:
           # Check if required files exist
           if [ ! -f "$APP_DIR/index.html" ]; then
             echo "Error: index.html is required"
+            echo "Available files:"
+            ls -la "$APP_DIR/"
             exit 1
           fi
           
           # Create aideas.json if it doesn't exist
           if [ ! -f "$APP_DIR/aideas.json" ]; then
             echo "Creating aideas.json manifest..."
-            echo '{"name":"${{ steps.extract.outputs.app_name }}","description":"App submitted via AIdeas Store","author":"Unknown","version":"1.0.0","category":"utility","tags":[],"icon":"📱","appFormat":"unzipped"}' > "$APP_DIR/aideas.json"
+            echo '{"name":"${{ steps.extract.outputs.app_name }}","description":"${{ steps.extract.outputs.description }}","author":"${{ steps.extract.outputs.author }}","version":"1.0.0","category":"${{ steps.extract.outputs.category }}","tags":["${{ steps.extract.outputs.tags }}"],"icon":"📱","appFormat":"unzipped"}' > "$APP_DIR/aideas.json"
           fi
           
           # Validate aideas.json
@@ -118,6 +168,10 @@ jobs:
             const catalogPath = 'catalog.json';
             const appId = '${{ steps.extract.outputs.app_id }}';
             const appName = '${{ steps.extract.outputs.app_name }}';
+            const description = '${{ steps.extract.outputs.description }}';
+            const author = '${{ steps.extract.outputs.author }}';
+            const category = '${{ steps.extract.outputs.category }}';
+            const tags = '${{ steps.extract.outputs.tags }}'.split(',').filter(tag => tag.trim());
             
             let catalog = { apps: [], lastUpdated: new Date().toISOString() };
             
@@ -131,11 +185,11 @@ jobs:
             const appInfo = {
               id: appId,
               name: appName,
-              description: 'App submitted via AIdeas Store',
-              author: 'Unknown',
+              description: description,
+              author: author,
               version: '1.0.0',
-              category: 'utility',
-              tags: [],
+              category: category,
+              tags: tags,
               icon: '📱',
               githubUrl: 'https://github.com/mccoy88f/aideas.store/tree/main/apps/' + appId,
               downloadUrl: 'https://github.com/mccoy88f/aideas.store/archive/refs/heads/main.zip',
@@ -176,6 +230,8 @@ jobs:
             
             **App:** ${{ steps.extract.outputs.app_name }}
             **ID:** ${{ steps.extract.outputs.app_id }}
+            **Autore:** ${{ steps.extract.outputs.author }}
+            **Categoria:** ${{ steps.extract.outputs.category }}
             
             L'app è stata aggiunta al repository AIdeas Store e sarà disponibile a breve.
             
