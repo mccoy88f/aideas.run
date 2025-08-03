@@ -1,313 +1,123 @@
-# AIdeas
-(fase alpha)
+# AIdeas - Run your AI-Ideas!
 
-Un launcher di applicazioni moderno e personalizzabile, progettato per offrire un'esperienza utente fluida e intuitiva.
+Un launcher di applicazioni web moderno e intelligente, progettato per trasformare le tue idee in applicazioni funzionanti.
 
-**Run your AIdeas** - Trasforma le tue idee in applicazioni web con il nostro launcher intelligente.
+**Run your AI-Ideas!** - Trasforma le tue idee in applicazioni web con il nostro launcher intelligente.
 
 ## 🚀 Caratteristiche Principali
 
-- **Interfaccia Moderna**: Design pulito e responsive con supporto per temi chiari e scuri
-- **Gestione App Avanzata**: Organizzazione per categorie, tag e preferiti
-- **Ricerca Intelligente**: Ricerca rapida con filtri e ordinamento
-- **Personalizzazione**: Temi, layout e impostazioni completamente personalizzabili
-- **Storage Locale**: Salvataggio sicuro dei dati con IndexedDB
-- **PWA Ready**: Installabile come applicazione desktop/mobile
+### ✨ **Funzionalità Implementate**
+
+- **🎨 Interfaccia Moderna**: Design Material UI con supporto per temi chiari e scuri
+- **📱 PWA Ready**: Installabile come applicazione desktop/mobile
+- **🛍️ AIdeas Store**: Repository di app condivise e sistema di submission
+- **🔍 Ricerca Intelligente**: Ricerca rapida con filtri e ordinamento
+- **📊 Gestione App Avanzata**: Organizzazione per categorie, tag e preferiti
+- **⚙️ Impostazioni Complete**: Sistema di configurazione avanzato
+- **🌍 Internazionalizzazione**: Supporto multi-lingua (IT/EN)
+- **🔐 Sicurezza**: Analisi di sicurezza delle app prima dell'installazione
+- **☁️ Sincronizzazione**: Backup e ripristino con GitHub Gists
+
+### 🏗️ **Architettura Multi-Repository**
+
+Il progetto utilizza un'architettura a due repository:
+
+- **`aideas.run`** (questo repository): Frontend, servizi e logica di business
+- **`aideas.store`**: Repository delle app approvate e workflow automatici
+
+```
+┌─────────────────┐    ┌─────────────────┐
+│   aideas.run    │    │  aideas.store   │
+│   (Frontend)    │◄──►│   (Storage)     │
+└─────────────────┘    └─────────────────┘
+         │                       │
+         ▼                       ▼
+   ┌─────────────┐        ┌─────────────┐
+   │ Submission  │        │   Workflow  │
+   │   Service   │        │  Automatic  │
+   └─────────────┘        └─────────────┘
+```
 
 ## 📱 Modal delle Impostazioni - Mobile Optimized
 
-Il modal delle impostazioni è stato completamente ottimizzato per dispositivi mobili con le seguenti migliorie:
+Il modal delle impostazioni è completamente ottimizzato per dispositivi mobili:
 
-### ✅ Correzioni Implementate
+### ✅ **Funzionalità Implementate**
 
-1. **Bullet Points Rimossi**
-   - Eliminati i punti colorati dai titoli delle sezioni su tutti i dispositivi
-   - Design più pulito e minimalista
+- **Header e Footer Fissi**: Barra del titolo e pulsanti sempre visibili
+- **Layout Responsive**: Ottimizzato per desktop, tablet e mobile
+- **Navigazione Intuitiva**: Scroll orizzontale su mobile
+- **Spaziatura Ottimizzata**: Layout compatto per schermi piccoli
+- **Gestione Funzionalità**: Indicatori per funzioni in sviluppo
 
-2. **Header e Footer Fissi**
-   - Barra del titolo e pulsanti sempre visibili durante lo scroll
-   - Navigazione più intuitiva su mobile
+### 🎨 **Impostazioni Disponibili**
 
-3. **Spaziatura Ottimizzata**
-   - Ridotta la spaziatura generale per mostrare più contenuto
-   - Layout più compatto su schermi piccoli
-   - Padding e margin ottimizzati per mobile
+#### **Generali** ✅
+- **Nome utente**: Personalizzazione del profilo
+- **Lingua**: Supporto IT/EN con sistema i18n
+- **Salvataggio automatico**: Backup automatico delle app
+- **Modalità debug**: Logging avanzato per sviluppatori
+- **Modalità di apertura**: Modale o nuova finestra
 
-4. **Layout Responsive Migliorato**
-   - Navigazione orizzontale su mobile con scroll
-   - Pulsanti di navigazione più piccoli e compatti
-   - Icone ridimensionate per schermi touch
+#### **Aspetto** 🚧 (Parzialmente implementato)
+- **Tema**: Chiaro/Scuro/Sistema
+- **Modalità visualizzazione**: Griglia/Lista/Compatta
+- ~~Dimensione card~~ (rimossa - non implementata)
+- ~~Animazioni~~ (rimossa - non implementata)
+- ~~Effetto glossy~~ (rimossa - non implementata)
+- ~~Barra inferiore~~ (rimossa - non implementata)
 
-5. **Gestione Funzionalità Disabilitate**
-   - Indicatori visivi per funzioni non disponibili
-   - Controlli disabilitati con feedback chiaro
-   - Messaggi informativi per funzionalità in sviluppo
+#### **Notifiche** 🚧 (In sviluppo)
+- Funzionalità in fase di sviluppo
 
-### 📐 Breakpoint Responsive
+#### **Sicurezza** 🚧 (In sviluppo)
+- Funzionalità in fase di sviluppo
 
-- **Desktop (>768px)**: Layout a due colonne con navigazione verticale
-- **Tablet (≤768px)**: Layout ottimizzato con spaziatura ridotta
-- **Mobile (≤480px)**: Layout ultra-compatto con elementi ridimensionati
+## 🛍️ AIdeas Store
 
-### 🎨 Stili Mobile
+### **Sistema di Submission**
 
-```css
-/* Esempio delle ottimizzazioni mobile */
-@media (max-width: 768px) {
-  .settings-layout {
-    height: calc(100vh - 200px);
-    gap: var(--space-3);
-  }
-  
-  .settings-nav-btn {
-    min-width: 100px;
-    font-size: var(--font-size-sm);
-    padding: var(--space-2) var(--space-3);
-  }
-  
-  .modal.modal-xl .modal-header,
-  .modal.modal-xl .modal-footer {
-    position: sticky;
-    background: var(--color-bg-modal);
-    z-index: 10;
-  }
-}
+1. **Submit App**: Carica app tramite interfaccia web
+2. **Review Process**: Issue automatica nel repository `aideas.store`
+3. **Approval Workflow**: Label `approved` → aggiunta automatica
+4. **Distribution**: App disponibili per tutti gli utenti
+
+### **Workflow Automatico**
+
+```yaml
+# .github/workflows/process-approved-apps.yml
+on:
+  issues:
+    types: [labeled, closed]
+
+jobs:
+  process-approved-app:
+    if: contains(github.event.label.name, 'approved')
+    # Scarica ZIP → Estrae file → Aggiunge al repository
 ```
 
-## 🎯 Popup di Conferma - Design Coerente
+### **Funzionalità Store**
 
-Il popup di conferma è stato aggiornato per seguire lo stesso design pattern del modal delle impostazioni:
+- **Browse Apps**: Sfoglia app disponibili
+- **Install Apps**: Installazione con un click
+- **App Categories**: Organizzazione per categorie
+- **Search & Filter**: Ricerca avanzata
+- **App Info**: Dettagli completi e analisi sicurezza
 
-### ✨ Nuove Caratteristiche
+## 🔧 Installazione e Sviluppo
 
-1. **Header e Footer Fissi**
-   - Titolo e icona sempre visibili nell'header
-   - Pulsanti di azione sempre accessibili nel footer
-   - Scroll solo nella sezione contenuto
+### **Prerequisiti**
 
-2. **Design Coerente**
-   - Stesso stile del modal delle impostazioni
-   - Utilizzo delle stesse variabili CSS
-   - Animazioni e transizioni uniformi
-
-3. **Layout Responsive**
-   - Ottimizzato per mobile e desktop
-   - Pulsanti a larghezza piena su mobile
-   - Spaziatura adattiva
-
-4. **Tipi di Popup**
-   - **Domanda**: Per conferme generali
-   - **Avviso**: Per azioni con conseguenze
-   - **Pericolo**: Per eliminazioni definitive
-   - **Info**: Per informazioni dettagliate
-
-### 🎨 Stili del Popup
-
-```css
-.confirm-popup-content {
-  display: flex;
-  flex-direction: column;
-  max-height: 80vh;
-}
-
-.confirm-popup-header {
-  position: sticky;
-  top: 0;
-  background: var(--color-bg-modal);
-  z-index: 10;
-}
-
-.confirm-popup-body {
-  overflow-y: auto;
-  flex: 1;
-}
-
-.confirm-popup-footer {
-  position: sticky;
-  bottom: 0;
-  background: var(--color-bg-modal);
-  z-index: 10;
-}
-```
-
-### 📱 Responsive Mobile
-
-```css
-@media (max-width: 768px) {
-  .confirm-popup-content {
-    max-width: 95%;
-    max-height: 90vh;
-  }
-  
-  .confirm-popup-footer {
-    flex-direction: column;
-  }
-  
-  .confirm-popup-btn {
-    width: 100%;
-  }
-}
-```
-
-## 📥 Modal di Importazione App - Corretto
-
-Il modal di importazione app è stato corretto per risolvere i problemi di layout e responsività:
-
-### ✅ Correzioni Applicate
-
-1. **Header e Footer Effettivamente Fissi**
-   - Utilizzo di `position: sticky` invece di margini negativi
-   - `flex-shrink: 0` per evitare ridimensionamenti
-   - Header e footer non si muovono durante lo scroll
-
-2. **Pulsanti dei Tipi Corretti**
-   - Larghezza 100% su mobile per tutti i pulsanti
-   - Layout coerente tra i diversi tipi di importazione
-   - Spaziatura uniforme e responsive
-
-3. **Layout Flex Ottimizzato**
-   - Scroll solo nella sezione `import-forms`
-   - I pulsanti dei tipi rimangono sempre visibili
-   - Contenuto principale scrollabile indipendentemente
-
-4. **CSS Pulito**
-   - Rimozione delle definizioni duplicate
-   - Media queries corrette e specifiche
-   - Padding e margin ottimizzati
-
-### 🎨 Stili del Modal di Importazione
-
-```css
-.modal.modal-lg .modal-body {
-  display: flex;
-  flex-direction: column;
-  height: calc(80vh - 140px);
-  overflow: hidden;
-  padding: 0;
-}
-
-.modal.modal-lg .modal-header {
-  position: sticky;
-  top: 0;
-  background: var(--color-bg-modal);
-  z-index: 10;
-  flex-shrink: 0;
-}
-
-.modal.modal-lg .modal-footer {
-  position: sticky;
-  bottom: 0;
-  background: var(--color-bg-modal);
-  z-index: 10;
-  flex-shrink: 0;
-}
-
-.import-types {
-  flex-shrink: 0;
-  margin-bottom: var(--space-4);
-}
-
-.import-forms {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 var(--space-6);
-  margin: 0 calc(-1 * var(--space-6));
-}
-```
-
-### 📱 Responsive Mobile
-
-```css
-@media (max-width: 768px) {
-  .import-type-btn {
-    width: 100%;
-    flex-direction: row;
-    align-items: center;
-  }
-  
-  .modal.modal-lg .modal-body {
-    height: calc(100vh - 200px);
-  }
-  
-  .import-forms {
-    padding: 0 var(--space-4);
-    margin: 0 calc(-1 * var(--space-4));
-  }
-}
-
-@media (max-width: 480px) {
-  .import-type-btn {
-    width: 100%;
-    padding: var(--space-2);
-  }
-  
-  .modal.modal-lg .modal-body {
-    height: calc(100vh - 180px);
-  }
-}
-```
-
-## 🧪 Test del Modal e Popup
-
-Sono disponibili diversi file di test per verificare il funzionamento:
-
-- **`test-settings.html`**: Test completo del modal con tutte le funzionalità
-- **`test-settings-quick.html`**: Test rapido per verifiche veloci
-- **`test-settings-mobile.html`**: Test specifico per ottimizzazioni mobile
-- **`test-confirm-popup.html`**: Test del nuovo popup di conferma
-- **`test-import-modal.html`**: Test del modal di importazione corretto
-
-### Come Testare
-
-1. Apri uno dei file di test nel browser
-2. Riduci la finestra o usa gli strumenti di sviluppo per simulare mobile
-3. Verifica che header e footer rimangano fissi durante lo scroll
-4. Controlla che i bullet points siano rimossi dai titoli
-5. Testa la navigazione tra le sezioni
-6. Prova tutti i tipi di popup di conferma
-
-### Test Modal di Importazione
-
-```bash
-# Apri il file di test
-open test-import-modal.html
-
-# Test da eseguire:
-# - Verifica header e footer fissi (non si muovono)
-# - Controlla che i pulsanti dei tipi abbiano larghezza 100% su mobile
-# - Testa lo scroll del contenuto (solo la parte centrale)
-# - Verifica la navigazione tra i tipi di importazione
-# - Controlla il responsive su diversi dispositivi
-# - Testa le animazioni e transizioni
-```
-
-### Test Popup di Conferma
-
-```bash
-# Apri il file di test
-open test-confirm-popup.html
-
-# Test da eseguire:
-# - Prova tutti i tipi (domanda, avviso, pericolo, info)
-# - Verifica header e footer fissi
-# - Testa su mobile per responsive
-# - Controlla animazioni e transizioni
-# - Verifica gestione tasti (Esc, Enter)
-```
-
-## 🛠️ Installazione e Sviluppo
-
-### Prerequisiti
-
-- Node.js 18+ 
+- Node.js 18+
 - npm o yarn
+- Git
 
-### Installazione
+### **Installazione**
 
 ```bash
 # Clona il repository
-git clone <repository-url>
-cd sakai-reborn
+git clone https://github.com/mccoy88f/aideas.run.git
+cd aideas.run
 
 # Installa le dipendenze
 npm install
@@ -316,91 +126,108 @@ npm install
 npm run dev
 ```
 
-### Script Disponibili
+### **Script Disponibili**
 
 ```bash
-npm run dev          # Avvia server di sviluppo con proxy
+npm run dev          # Avvia server di sviluppo
 npm run build        # Build per produzione
 npm run preview      # Anteprima build di produzione
-npm run dev:proxy    # Solo server proxy
-npm run dev:vite     # Solo server Vite
 ```
 
 ## 📁 Struttura del Progetto
 
 ```
-sakai-reborn/
+aideas.run/
 ├── src/
-│   ├── components/
-│   │   ├── SettingPanel.js      # Modal impostazioni
-│   │   ├── AppCard.js           # Card applicazioni
-│   │   ├── AppLauncher.js       # Launcher principale
+│   ├── components/           # Componenti React
+│   │   ├── SettingsMaterial.jsx    # Modal impostazioni
+│   │   ├── AppCardMaterial.jsx     # Card applicazioni
+│   │   ├── StorePage.jsx           # Pagina store
 │   │   └── ...
-│   ├── styles/
-│   │   ├── main.css             # Stili principali (mobile optimized)
-│   │   └── variables.scss       # Variabili CSS
-│   ├── services/
-│   │   ├── StorageService.js    # Gestione storage
+│   ├── services/            # Servizi
+│   │   ├── StorageService.js       # Gestione storage
+│   │   ├── StoreService.js         # Gestione store
+│   │   ├── AppSubmissionService.js # Submission app
+│   │   ├── SecurityService.js      # Analisi sicurezza
 │   │   └── ...
-│   └── main.js                  # Entry point
-├── public/                      # Asset pubblici
-├── meta-proxy/                  # Server proxy per metadati
-└── test-*.html                  # File di test
+│   ├── utils/
+│   │   ├── i18n.js                # Internazionalizzazione
+│   │   └── ...
+│   └── main-material.jsx           # Entry point
+├── .github/workflows/       # GitHub Actions
+├── docs/                    # Documentazione
+└── scripts/                 # Script di utilità
 ```
 
 ## 🎯 Funzionalità Principali
 
-### Gestione Applicazioni
-- Aggiunta/rimozione app tramite URL o file
-- Organizzazione per categorie e tag
-- Sistema di preferiti
-- Cronologia utilizzo
+### **Gestione Applicazioni**
+- ✅ Aggiunta/rimozione app tramite URL, ZIP o GitHub
+- ✅ Organizzazione per categorie e tag
+- ✅ Sistema di preferiti
+- ✅ Cronologia utilizzo
+- ✅ Analisi di sicurezza automatica
 
-### Personalizzazione
-- Temi chiari/scuri/automatici
-- Layout a griglia o lista
-- Colori personalizzabili
-- Impostazioni avanzate
+### **AIdeas Store**
+- ✅ Browse app disponibili
+- ✅ Installazione con un click
+- ✅ Sistema di submission
+- ✅ Workflow di approvazione automatico
+- ✅ Categorizzazione e ricerca
 
-### Storage e Sincronizzazione
-- Salvataggio locale con IndexedDB
-- Backup e ripristino dati
-- Statistiche utilizzo
-- Gestione cache
+### **Personalizzazione**
+- ✅ Temi chiari/scuri/automatici
+- ✅ Layout a griglia o lista
+- ✅ Impostazioni avanzate
+- ✅ Internazionalizzazione (IT/EN)
 
-## 🔧 Configurazione
+### **Storage e Sincronizzazione**
+- ✅ Salvataggio locale con IndexedDB
+- ✅ Backup e ripristino con GitHub Gists
+- ✅ Statistiche utilizzo
+- ✅ Gestione cache
 
-### Variabili CSS Personalizzabili
+## 🔐 Sicurezza
 
-```css
-:root {
-  --color-primary: #007bff;
-  --color-bg-surface: #ffffff;
-  --color-text: #333333;
-  --radius-lg: 12px;
-  --space-4: 1rem;
-  /* ... altre variabili */
-}
+### **Analisi Automatica**
+- **URL Validation**: Controllo sicurezza URL
+- **Content Analysis**: Analisi contenuti HTML/JS
+- **Permission Check**: Verifica permessi richiesti
+- **Security Report**: Report dettagliato per l'utente
+
+### **Funzionalità Sicurezza**
+- ✅ Validazione URL prima dell'installazione
+- ✅ Analisi contenuti per malware
+- ✅ Controllo permessi e accessi
+- ✅ Report di sicurezza dettagliato
+
+## 🌍 Internazionalizzazione
+
+### **Lingue Supportate**
+- **Italiano** (default)
+- **English**
+
+### **Sistema i18n**
+```javascript
+import { t, setLanguage } from './utils/i18n.js';
+
+// Cambia lingua
+setLanguage('en');
+
+// Traduci testo
+const message = t('settings.general.username');
 ```
-
-### Impostazioni Avanzate
-
-Il modal delle impostazioni permette di configurare:
-- Comportamento app (avvio automatico, preferiti)
-- Aspetto (tema, colori, stile card)
-- Storage (pulizia cache, backup)
-- Sistema (aggiornamenti, log)
 
 ## 📱 Supporto Mobile
 
-### Caratteristiche Mobile
-- Layout responsive ottimizzato
-- Navigazione touch-friendly
-- Modal a schermo intero su mobile
-- Header e footer fissi per navigazione
-- Spaziatura ottimizzata per schermi piccoli
+### **Caratteristiche Mobile**
+- ✅ Layout responsive ottimizzato
+- ✅ Navigazione touch-friendly
+- ✅ Modal a schermo intero su mobile
+- ✅ Header e footer fissi per navigazione
+- ✅ Spaziatura ottimizzata per schermi piccoli
 
-### Browser Supportati
+### **Browser Supportati**
 - Chrome/Edge (raccomandato)
 - Firefox
 - Safari
@@ -408,7 +235,7 @@ Il modal delle impostazioni permette di configurare:
 
 ## 🚀 Deployment
 
-### Build per Produzione
+### **Build per Produzione**
 
 ```bash
 npm run build
@@ -416,7 +243,7 @@ npm run build
 
 I file ottimizzati saranno generati nella cartella `dist/`.
 
-### Hosting
+### **Hosting**
 
 Il progetto può essere deployato su:
 - Netlify
@@ -426,7 +253,17 @@ Il progetto può essere deployato su:
 
 ## 🤝 Contribuire
 
-1. Fork del repository
+### **Sistema di Submission**
+
+1. **Fork** del repository `aideas.store`
+2. **Crea submission** tramite interfaccia web
+3. **Review process** tramite GitHub Issues
+4. **Approval** con label `approved`
+5. **Automatic deployment** tramite workflow
+
+### **Sviluppo Locale**
+
+1. Fork del repository `aideas.run`
 2. Crea un branch per la feature (`git checkout -b feature/nuova-feature`)
 3. Commit delle modifiche (`git commit -am 'Aggiungi nuova feature'`)
 4. Push del branch (`git push origin feature/nuova-feature`)
@@ -438,34 +275,26 @@ Questo progetto è rilasciato sotto licenza MIT. Vedi il file `LICENSE` per i de
 
 ## 🐛 Problemi Noti
 
-### Funzionalità Disabilitate
+### **Funzionalità in Sviluppo**
 
-Alcune funzionalità sono attualmente disabilitate o in sviluppo:
+- **Notifiche**: Sistema di notifiche avanzato
+- **Sicurezza Avanzata**: Controlli di sicurezza aggiuntivi
+- **Aspetto Avanzato**: Opzioni di personalizzazione aggiuntive
 
-- **Sincronizzazione Cloud**: In sviluppo
-- **SyncManager**: Commentato nel codice
-- **Alcune opzioni avanzate**: Non ancora implementate
+### **Funzionalità Rimosse**
 
-Vedi `FUNZIONALITA_DISABILITATE.md` per la lista completa.
-
-### Problemi Risolti
-
-- ✅ Modal impostazioni ottimizzato per mobile
-- ✅ Header e footer fissi durante lo scroll
-- ✅ Bullet points rimossi dai titoli
-- ✅ Spaziatura ottimizzata per schermi piccoli
-- ✅ Gestione funzionalità disabilitate
-- ✅ Layout responsive migliorato
-
-Vedi `PROBLEMS_FIXED.md` per i dettagli delle correzioni.
+- **Sincronizzazione Cloud**: Sostituita con GitHub Gists
+- **Alcune opzioni aspetto**: Non implementate, rimosse dall'UI
 
 ## 📞 Supporto
 
 Per problemi o domande:
-1. Controlla la documentazione
+1. Controlla la documentazione in `docs/`
 2. Verifica i file di test
 3. Apri una issue su GitHub
 
 ---
 
-**SAKAI Reborn** - Un launcher moderno per un'esperienza utente straordinaria! 🚀
+**AIdeas** - Run your AI-Ideas! 🚀
+
+*Trasforma le tue idee in applicazioni web con il nostro launcher intelligente.*
