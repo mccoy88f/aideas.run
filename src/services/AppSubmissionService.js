@@ -93,7 +93,7 @@ export default class AppSubmissionService {
         throw new Error('Autenticazione GitHub richiesta per sottomettere app');
       }
 
-      // Upload ZIP su file.io
+      // Upload ZIP come Gist su GitHub
       const zipUrl = await this.uploadZipToFileIO(submissionData.zipBlob);
       
       // Crea issue su GitHub
@@ -126,33 +126,47 @@ export default class AppSubmissionService {
   }
 
   /**
-   * Upload ZIP su file.io
+   * Upload ZIP come Gist su GitHub
    * @param {Blob} zipBlob - File ZIP da uploadare
    * @returns {Promise<string>} URL del file uploadato
    */
   async uploadZipToFileIO(zipBlob) {
     try {
-      DEBUG.log('📤 Upload ZIP su file.io...');
+      DEBUG.log('📤 Upload ZIP come Gist su GitHub...');
       
-      const formData = new FormData();
-      formData.append('file', zipBlob, 'app.zip');
+      // Converti Blob in base64
+      const arrayBuffer = await zipBlob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
       
-      const response = await fetch('https://file.io/', {
+      const gistData = {
+        description: 'AIdeas App Submission ZIP',
+        public: false,
+        files: {
+          'app.zip': {
+            content: base64,
+            encoding: 'base64'
+          }
+        }
+      };
+      
+      const response = await this.githubService.makeRequest('/gists', {
         method: 'POST',
-        body: formData
+        headers: {
+          ...await this.githubService.getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(gistData)
       });
       
       if (!response.ok) {
         throw new Error(`Upload fallito: ${response.statusText}`);
       }
       
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error('Upload fallito: ' + (result.message || 'Errore sconosciuto'));
-      }
+      const gist = await response.json();
+      const downloadUrl = gist.files['app.zip'].raw_url;
       
-      DEBUG.success(`✅ ZIP uploadato: ${result.link}`);
-      return result.link;
+      DEBUG.success(`✅ ZIP uploadato come Gist: ${downloadUrl}`);
+      return downloadUrl;
 
     } catch (error) {
       DEBUG.error('❌ Errore upload ZIP:', error);

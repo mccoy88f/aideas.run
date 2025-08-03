@@ -95,6 +95,14 @@ export default class GitHubService {
   }
 
   /**
+   * Ottiene informazioni dell'utente autenticato
+   * @returns {Object|null} Informazioni utente o null se non autenticato
+   */
+  getUserInfo() {
+    return this.userInfo;
+  }
+
+  /**
    * Ottiene informazioni su un repository
    * @param {string} owner - Proprietario del repo
    * @param {string} repo - Nome del repository
