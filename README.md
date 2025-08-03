@@ -17,6 +17,9 @@ Un launcher di applicazioni web moderno e intelligente, progettato per trasforma
 - **🌍 Internazionalizzazione**: Supporto multi-lingua (IT/EN)
 - **🔐 Sicurezza**: Analisi di sicurezza delle app prima dell'installazione
 - **☁️ Sincronizzazione**: Backup e ripristino con GitHub Gists
+- **🤖 AI Generator**: Generazione automatica di app con OpenRouter
+- **🔄 Sync Manager**: Gestione avanzata della sincronizzazione
+- **📤 App Submission**: Sistema completo di submission e approvazione
 
 ### 🏗️ **Architettura Multi-Repository**
 
@@ -38,40 +41,32 @@ Il progetto utilizza un'architettura a due repository:
    └─────────────┘        └─────────────┘
 ```
 
-## 📱 Modal delle Impostazioni - Mobile Optimized
+## 🤖 AI Generator
 
-Il modal delle impostazioni è completamente ottimizzato per dispositivi mobili:
+### **Generazione Automatica di App**
 
-### ✅ **Funzionalità Implementate**
+- **OpenRouter Integration**: Connessione diretta a OpenRouter API
+- **Modelli AI Supportati**: DeepSeek, GPT, Claude e altri modelli
+- **Prompt Engineering**: Sistema avanzato di prompt per la generazione
+- **App Templates**: Generazione di app HTML/CSS/JS complete
+- **Metadata Automatic**: Categorizzazione e tag automatici
+- **Security Analysis**: Controllo automatico delle app generate
 
-- **Header e Footer Fissi**: Barra del titolo e pulsanti sempre visibili
-- **Layout Responsive**: Ottimizzato per desktop, tablet e mobile
-- **Navigazione Intuitiva**: Scroll orizzontale su mobile
-- **Spaziatura Ottimizzata**: Layout compatto per schermi piccoli
-- **Gestione Funzionalità**: Indicatori per funzioni in sviluppo
+### **Funzionalità AI**
 
-### 🎨 **Impostazioni Disponibili**
+```javascript
+// Esempio di generazione app
+const aiService = new AIServiceManager();
+await aiService.initialize({
+  openrouter: { apiKey: 'your-api-key' }
+});
 
-#### **Generali** ✅
-- **Nome utente**: Personalizzazione del profilo
-- **Lingua**: Supporto IT/EN con sistema i18n
-- **Salvataggio automatico**: Backup automatico delle app
-- **Modalità debug**: Logging avanzato per sviluppatori
-- **Modalità di apertura**: Modale o nuova finestra
-
-#### **Aspetto** 🚧 (Parzialmente implementato)
-- **Tema**: Chiaro/Scuro/Sistema
-- **Modalità visualizzazione**: Griglia/Lista/Compatta
-- ~~Dimensione card~~ (rimossa - non implementata)
-- ~~Animazioni~~ (rimossa - non implementata)
-- ~~Effetto glossy~~ (rimossa - non implementata)
-- ~~Barra inferiore~~ (rimossa - non implementata)
-
-#### **Notifiche** 🚧 (In sviluppo)
-- Funzionalità in fase di sviluppo
-
-#### **Sicurezza** 🚧 (In sviluppo)
-- Funzionalità in fase di sviluppo
+const app = await aiService.generateApp({
+  prompt: "Crea un'app per calcolare il BMI",
+  model: "deepseek/deepseek-r1:free",
+  category: "utility"
+});
+```
 
 ## 🛍️ AIdeas Store
 
@@ -103,6 +98,93 @@ jobs:
 - **App Categories**: Organizzazione per categorie
 - **Search & Filter**: Ricerca avanzata
 - **App Info**: Dettagli completi e analisi sicurezza
+
+## 🔄 Sync Manager
+
+### **Gestione Sincronizzazione Avanzata**
+
+- **Multi-Provider**: GitHub Gists, Google Drive, Local Storage
+- **Conflict Resolution**: Gestione automatica dei conflitti
+- **Backup Strategy**: Strategie di backup multiple
+- **Real-time Sync**: Sincronizzazione in tempo reale
+- **Version Control**: Controllo versioni delle app
+
+### **Provider Supportati**
+
+- **GitHub Gists**: Backup su GitHub Gists
+- **Google Drive**: Sincronizzazione con Google Drive
+- **Local Storage**: Backup locale con IndexedDB
+
+## 🔐 Security Service
+
+### **Analisi di Sicurezza Automatica**
+
+- **URL Validation**: Controllo sicurezza URL prima dell'installazione
+- **Content Analysis**: Analisi contenuti HTML/JS per malware
+- **Permission Check**: Verifica permessi e accessi richiesti
+- **Security Report**: Report dettagliato per l'utente
+- **Risk Assessment**: Valutazione rischi automatica
+
+### **Funzionalità Sicurezza**
+
+```javascript
+// Esempio di analisi sicurezza
+const securityService = new SecurityService();
+const report = await securityService.performSecurityScan(app);
+
+if (report.issues.length > 0) {
+  console.log('⚠️ Problemi di sicurezza rilevati:', report.issues);
+}
+```
+
+## 📱 Modal delle Impostazioni - Mobile Optimized
+
+Il modal delle impostazioni è completamente ottimizzato per dispositivi mobili:
+
+### ✅ **Funzionalità Implementate**
+
+- **Header e Footer Fissi**: Barra del titolo e pulsanti sempre visibili
+- **Layout Responsive**: Ottimizzato per desktop, tablet e mobile
+- **Navigazione Intuitiva**: Scroll orizzontale su mobile
+- **Spaziatura Ottimizzata**: Layout compatto per schermi piccoli
+- **Gestione Funzionalità**: Indicatori per funzioni in sviluppo
+
+### 🎨 **Impostazioni Disponibili**
+
+#### **Generali** ✅
+- **Nome utente**: Personalizzazione del profilo
+- **Lingua**: Supporto IT/EN con sistema i18n
+- **Salvataggio automatico**: Backup automatico delle app
+- **Modalità debug**: Logging avanzato per sviluppatori
+- **Modalità di apertura**: Modale o nuova finestra
+
+#### **Aspetto** 🚧 (Parzialmente implementato)
+- **Tema**: Chiaro/Scuro/Sistema
+- **Modalità visualizzazione**: Griglia/Lista/Compatta
+- ~~Dimensione card~~ (rimossa - non implementata)
+- ~~Animazioni~~ (rimossa - non implementata)
+- ~~Effetto glossy~~ (rimossa - non implementata)
+- ~~Barra inferiore~~ (rimossa - non implementata)
+
+#### **Intelligenza Artificiale** ✅
+- **OpenRouter API Key**: Configurazione API key per OpenRouter
+- **Modello AI**: Selezione modello per generazione app
+- **Crediti**: Monitoraggio crediti OpenRouter
+- **Test Connessione**: Verifica connessione AI
+
+#### **Sincronizzazione** ✅
+- **Provider**: Selezione provider (GitHub, Google Drive, Local)
+- **Auto-sync**: Sincronizzazione automatica
+- **Conflict Resolution**: Gestione conflitti
+- **Backup Strategy**: Strategie di backup
+
+#### **Notifiche** 🚧 (In sviluppo)
+- Funzionalità in fase di sviluppo
+
+#### **Sicurezza** ✅
+- **Security Analysis**: Analisi automatica delle app
+- **Risk Assessment**: Valutazione rischi
+- **Permission Check**: Controllo permessi
 
 ## 🔧 Installazione e Sviluppo
 
@@ -143,12 +225,18 @@ aideas.run/
 │   │   ├── SettingsMaterial.jsx    # Modal impostazioni
 │   │   ├── AppCardMaterial.jsx     # Card applicazioni
 │   │   ├── StorePage.jsx           # Pagina store
+│   │   ├── AIGeneratorPage.jsx     # Generatore AI
+│   │   ├── SyncManagerMaterial.jsx # Gestore sincronizzazione
 │   │   └── ...
 │   ├── services/            # Servizi
 │   │   ├── StorageService.js       # Gestione storage
 │   │   ├── StoreService.js         # Gestione store
 │   │   ├── AppSubmissionService.js # Submission app
 │   │   ├── SecurityService.js      # Analisi sicurezza
+│   │   ├── ai/                     # Servizi AI
+│   │   │   ├── AIServiceManager.js # Gestore servizi AI
+│   │   │   ├── OpenRouterService.js # Servizio OpenRouter
+│   │   │   └── BaseAIService.js    # Servizio base AI
 │   │   └── ...
 │   ├── utils/
 │   │   ├── i18n.js                # Internazionalizzazione
@@ -175,6 +263,20 @@ aideas.run/
 - ✅ Workflow di approvazione automatico
 - ✅ Categorizzazione e ricerca
 
+### **AI Generator**
+- ✅ Generazione app con OpenRouter
+- ✅ Modelli AI multipli
+- ✅ Prompt engineering avanzato
+- ✅ Templates automatici
+- ✅ Metadata automatici
+
+### **Sync Manager**
+- ✅ Multi-provider (GitHub, Google Drive, Local)
+- ✅ Conflict resolution
+- ✅ Real-time sync
+- ✅ Backup strategies
+- ✅ Version control
+
 ### **Personalizzazione**
 - ✅ Temi chiari/scuri/automatici
 - ✅ Layout a griglia o lista
@@ -194,12 +296,14 @@ aideas.run/
 - **Content Analysis**: Analisi contenuti HTML/JS
 - **Permission Check**: Verifica permessi richiesti
 - **Security Report**: Report dettagliato per l'utente
+- **Risk Assessment**: Valutazione rischi automatica
 
 ### **Funzionalità Sicurezza**
 - ✅ Validazione URL prima dell'installazione
 - ✅ Analisi contenuti per malware
 - ✅ Controllo permessi e accessi
 - ✅ Report di sicurezza dettagliato
+- ✅ Valutazione rischi automatica
 
 ## 🌍 Internazionalizzazione
 
@@ -278,7 +382,6 @@ Questo progetto è rilasciato sotto licenza MIT. Vedi il file `LICENSE` per i de
 ### **Funzionalità in Sviluppo**
 
 - **Notifiche**: Sistema di notifiche avanzato
-- **Sicurezza Avanzata**: Controlli di sicurezza aggiuntivi
 - **Aspetto Avanzato**: Opzioni di personalizzazione aggiuntive
 
 ### **Funzionalità Rimosse**
