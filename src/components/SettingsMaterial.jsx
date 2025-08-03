@@ -892,6 +892,7 @@ const SettingsMaterial = ({
           </FormControl>
         </Grid>
         
+        {/* TODO: Implementare le seguenti impostazioni
         <Grid item xs={12}>
           <Typography gutterBottom>
             Dimensione card: {localSettings.cardSize || 1}
@@ -931,8 +932,6 @@ const SettingsMaterial = ({
           />
         </Grid>
         
-
-        
         <Grid item xs={12}>
           <FormControlLabel
             control={
@@ -944,16 +943,22 @@ const SettingsMaterial = ({
             label={localSettings.bottomBar ? 'Barra in basso' : 'Barra in alto'}
           />
         </Grid>
+        */}
       </Grid>
     </Box>
   );
 
+  // TODO: Implementare sezione notifiche
   const renderNotificationSettings = () => (
     <Box sx={{ space: 3 }}>
       <Typography variant="h6" gutterBottom>
         Gestione Notifiche
       </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Funzionalità in sviluppo - disponibile nelle prossime versioni
+      </Typography>
       
+      {/* TODO: Implementare le seguenti impostazioni
       <List>
         <ListItem>
           <ListItemIcon>
@@ -1003,6 +1008,7 @@ const SettingsMaterial = ({
           </ListItemSecondaryAction>
         </ListItem>
       </List>
+      */}
     </Box>
   );
 
@@ -1451,12 +1457,17 @@ const SettingsMaterial = ({
     </Box>
   );
 
+  // TODO: Implementare sezione sicurezza
   const renderSecuritySettings = () => (
     <Box sx={{ space: 3 }}>
       <Typography variant="h6" gutterBottom>
         Sicurezza e Privacy
       </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Funzionalità in sviluppo - disponibile nelle prossime versioni
+      </Typography>
       
+      {/* TODO: Implementare le seguenti impostazioni
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <FormControlLabel
@@ -1481,9 +1492,8 @@ const SettingsMaterial = ({
             label="Invia report di crash"
           />
         </Grid>
-        
-
       </Grid>
+      */}
     </Box>
   );
 

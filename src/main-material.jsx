@@ -62,6 +62,7 @@ import {
 
 import StorageService from './services/StorageService.js';
 import { showToast, hideToast, getUserDisplayName } from './utils/helpers.js';
+import { initI18n, setLanguage, t } from './utils/i18n.js';
 import { DEBUG, ErrorTracker } from './utils/debug.js';
 import AppCardMaterial from './components/AppCardMaterial.jsx';
 import AppImporterMaterial from './components/AppImporterMaterial.jsx';
@@ -387,6 +388,11 @@ function AIdeasApp() {
   const loadUserSettings = async () => {
     try {
       const settingsData = await StorageService.getAllSettings();
+      
+      // Inizializza il sistema di internazionalizzazione
+      const userLanguage = settingsData.language || 'it';
+      initI18n(userLanguage);
+      console.log(`🌍 Lingua impostata: ${userLanguage}`);
       
       // Se non c'è un nome utente, genera un nome casuale e salvalo
       if (!settingsData.username || !settingsData.username.trim()) {
@@ -951,6 +957,10 @@ function AIdeasApp() {
       
       const appId = await StorageService.installApp(processedAppData);
       await loadApps(); // Ricarica tutte le app
+      
+      // Salvataggio automatico se abilitato
+      await autoSaveApps();
+      
       setImporterOpen(false);
       showToast('Applicazione aggiunta con successo', 'success');
     } catch (error) {
@@ -1685,6 +1695,18 @@ function AIdeasApp() {
       console.log('🎨 Tema aggiornato dalle impostazioni:', newSettings.theme);
     }
     
+    // Se è cambiato il nome utente, aggiorna l'interfaccia
+    if (newSettings.username && newSettings.username !== settings.username) {
+      console.log('👤 Nome utente aggiornato:', newSettings.username);
+      // L'interfaccia si aggiornerà automaticamente al prossimo render
+    }
+    
+    // Se è cambiata la lingua, aggiorna il sistema i18n
+    if (newSettings.language && newSettings.language !== settings.language) {
+      console.log('🌍 Lingua aggiornata:', newSettings.language);
+      setLanguage(newSettings.language);
+    }
+    
     // Se sono cambiate le impostazioni AI, reinizializza AIServiceManager
     if (newSettings.ai) {
       try {
@@ -1708,6 +1730,18 @@ function AIdeasApp() {
     // Mostra messaggio informativo per modalità compatta
     if (newViewMode === 'compact') {
       showToast('Modalità mobile: Click per avviare, tieni premuto per opzioni', 'info');
+    }
+  };
+
+  // Salvataggio automatico delle app
+  const autoSaveApps = async () => {
+    if (settings.autoSave) {
+      try {
+        await StorageService.saveAllApps(apps);
+        console.log('💾 Salvataggio automatico completato');
+      } catch (error) {
+        console.error('❌ Errore salvataggio automatico:', error);
+      }
     }
   };
 
