@@ -1,0 +1,184 @@
+name: Process Approved Apps
+
+on:
+  issues:
+    types: [labeled, closed]
+
+jobs:
+  process-approved-app:
+    if: |
+      contains(github.event.label.name, 'approved') && 
+      github.event.action == 'labeled' &&
+      github.event.issue.state == 'closed'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Extract app info from issue
+        id: extract
+        run: |
+          # Parse issue body to extract ZIP URL and app info
+          ISSUE_BODY="${{ github.event.issue.body }}"
+          
+          # Extract ZIP URL from file.io link
+          ZIP_URL=$(echo "$ISSUE_BODY" | grep -o 'https://file.io/[^[:space:]]*' | head -1)
+          
+          # Extract app name from issue title (remove [SUBMISSION] prefix)
+          APP_NAME=$(echo "${{ github.event.issue.title }}" | sed 's/\[SUBMISSION\] //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+          
+          # Generate app ID (sanitize name)
+          APP_ID=$(echo "$APP_NAME" | sed 's/[^a-z0-9-]//g')
+          
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "app_id=$APP_ID" >> $GITHUB_OUTPUT
+          echo "zip_url=$ZIP_URL" >> $GITHUB_OUTPUT
+          
+          echo "Extracted info:"
+          echo "App Name: $APP_NAME"
+          echo "App ID: $APP_ID"
+          echo "ZIP URL: $ZIP_URL"
+      
+      - name: Download and extract ZIP
+        run: |
+          # Download ZIP
+          echo "Downloading ZIP from: ${{ steps.extract.outputs.zip_url }}"
+          curl -L "${{ steps.extract.outputs.zip_url }}" -o temp.zip
+          
+          # Create app directory
+          mkdir -p "apps/${{ steps.extract.outputs.app_id }}"
+          
+          # Extract ZIP to app directory
+          unzip -j temp.zip -d "apps/${{ steps.extract.outputs.app_id }}/"
+          
+          # Cleanup
+          rm temp.zip
+          
+          echo "Files extracted:"
+          ls -la "apps/${{ steps.extract.outputs.app_id }}/"
+      
+      - name: Validate app structure
+        run: |
+          APP_DIR="apps/${{ steps.extract.outputs.app_id }}"
+          
+          # Check if required files exist
+          if [ ! -f "$APP_DIR/index.html" ]; then
+            echo "Error: index.html is required"
+            exit 1
+          fi
+          
+          # Create aideas.json if it doesn't exist
+          if [ ! -f "$APP_DIR/aideas.json" ]; then
+            echo "Creating aideas.json manifest..."
+            echo '{"name":"${{ steps.extract.outputs.app_name }}","description":"App submitted via AIdeas Store","author":"Unknown","version":"1.0.0","category":"utility","tags":[],"icon":"📱","appFormat":"unzipped"}' > "$APP_DIR/aideas.json"
+          fi
+          
+          # Validate aideas.json
+          if [ -f "$APP_DIR/aideas.json" ]; then
+            echo "Validating aideas.json..."
+            node -e "
+              try {
+                const manifest = JSON.parse(require('fs').readFileSync('$APP_DIR/aideas.json', 'utf8'));
+                console.log('Manifest validated:', manifest.name);
+              } catch (e) {
+                console.error('Invalid aideas.json:', e.message);
+                process.exit(1);
+              }
+            "
+          fi
+          
+          echo "App structure validated successfully"
+      
+      - name: Update catalog
+        run: |
+          # Create catalog.json if it doesn't exist
+          if [ ! -f "catalog.json" ]; then
+            echo "Creating catalog.json..."
+            echo '{"apps":[],"lastUpdated":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "catalog.json"
+          fi
+          
+          # Update catalog with new app
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            
+            const catalogPath = 'catalog.json';
+            const appId = '${{ steps.extract.outputs.app_id }}';
+            const appName = '${{ steps.extract.outputs.app_name }}';
+            
+            let catalog = { apps: [], lastUpdated: new Date().toISOString() };
+            
+            if (fs.existsSync(catalogPath)) {
+              catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+            }
+            
+            // Check if app already exists
+            const existingAppIndex = catalog.apps.findIndex(app => app.id === appId);
+            
+            const appInfo = {
+              id: appId,
+              name: appName,
+              description: 'App submitted via AIdeas Store',
+              author: 'Unknown',
+              version: '1.0.0',
+              category: 'utility',
+              tags: [],
+              icon: '📱',
+              githubUrl: 'https://github.com/mccoy88f/aideas.store/tree/main/apps/' + appId,
+              downloadUrl: 'https://github.com/mccoy88f/aideas.store/archive/refs/heads/main.zip',
+              installDate: new Date().toISOString(),
+              lastUsed: null,
+              favorite: false,
+              type: 'store',
+              storeId: appId,
+              lastModified: new Date().toISOString()
+            };
+            
+            if (existingAppIndex >= 0) {
+              catalog.apps[existingAppIndex] = appInfo;
+            } else {
+              catalog.apps.push(appInfo);
+            }
+            
+            catalog.lastUpdated = new Date().toISOString();
+            
+            fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2));
+            console.log('Catalog updated with app:', appId);
+          "
+      
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Add approved app: ${{ steps.extract.outputs.app_name }} (ID: ${{ steps.extract.outputs.app_id }})"
+          git push
+      
+      - name: Comment on issue
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            ✅ **App approvata e pubblicata automaticamente!**
+            
+            **App:** ${{ steps.extract.outputs.app_name }}
+            **ID:** ${{ steps.extract.outputs.app_id }}
+            
+            L'app è stata aggiunta al repository AIdeas Store e sarà disponibile a breve.
+            
+            📍 **Percorso:** `apps/${{ steps.extract.outputs.app_id }}/`
+            
+            Grazie per la submission!
+      
+      - name: Notify success
+        run: |
+          echo "✅ App '${{ steps.extract.outputs.app_name }}' (ID: ${{ steps.extract.outputs.app_id }}) has been successfully added to the store!"
+          echo "Repository updated with new app files and catalog." 

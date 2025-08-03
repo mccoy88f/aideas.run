@@ -1,0 +1,23 @@
+{
+  "apps": [
+    {
+      "id": "test-app",
+      "name": "test-app",
+      "description": "App submitted via AIdeas Store",
+      "author": "Unknown",
+      "version": "1.0.0",
+      "category": "utility",
+      "tags": [],
+      "icon": "📱",
+      "githubUrl": "https://github.com/mccoy88f/aideas.store/tree/main/apps/test-app",
+      "downloadUrl": "https://github.com/mccoy88f/aideas.store/archive/refs/heads/main.zip",
+      "installDate": "2025-08-03T08:14:24.158Z",
+      "lastUsed": null,
+      "favorite": false,
+      "type": "store",
+      "storeId": "test-app",
+      "lastModified": "2025-08-03T08:14:24.158Z"
+    }
+  ],
+  "lastUpdated": "2025-08-03T08:14:24.158Z"
+}
