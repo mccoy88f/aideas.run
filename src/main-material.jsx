@@ -891,8 +891,33 @@ function AIdeasApp() {
     try {
       let processedAppData = { ...appData };
       
+      // Gestisci file HTML singoli
+      if (appData.type === 'html' && appData.htmlFile) {
+        console.log('📄 Processando file HTML singolo:', appData.htmlFile.name);
+        
+        // Leggi il contenuto del file HTML
+        const htmlContent = await appData.htmlFile.text();
+        
+        // Estrai metadati dall'HTML
+        const htmlMetadata = extractHtmlMetadataFromZip(htmlContent);
+        
+        // Prepara i dati dell'app
+        processedAppData = {
+          ...appData,
+          name: appData.name || htmlMetadata.title || 'App HTML',
+          description: appData.description || htmlMetadata.description || '',
+          category: appData.category || 'altro',
+          tags: appData.tags?.length > 0 ? appData.tags : (htmlMetadata.keywords ? htmlMetadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag) : []),
+          icon: appData.icon || htmlMetadata.icon,
+          author: appData.author || htmlMetadata.author || 'Unknown',
+          content: htmlContent,
+          type: 'html'
+        };
+        
+        console.log('✅ File HTML processato con successo');
+      }
       // Gestisci file ZIP
-      if (appData.type === 'zip' && appData.zipFile) {
+      else if (appData.type === 'zip' && appData.zipFile) {
         console.log('📦 Processando file ZIP:', appData.zipFile.name);
         
         // Importa JSZip dinamicamente

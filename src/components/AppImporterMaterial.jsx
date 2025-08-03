@@ -168,14 +168,28 @@ const AppImporterMaterial = ({
       }
       switch (importType) {
         case 'zip':
-          appData.type = 'zip';
-          appData.zipFile = uploadedZip;
-          appData.filename = uploadedZip.name;
-          appData.name = formData.name;
-          appData.description = formData.description;
-          appData.category = formData.category;
-          appData.author = formData.author;
-          appData.tags = formData.tags;
+          // Distingui tra file HTML singolo e ZIP
+          if (uploadedZip && uploadedZip.name.toLowerCase().endsWith('.html')) {
+            // File HTML singolo
+            appData.type = 'html';
+            appData.htmlFile = uploadedZip;
+            appData.filename = uploadedZip.name;
+            appData.name = formData.name;
+            appData.description = formData.description;
+            appData.category = formData.category;
+            appData.author = formData.author;
+            appData.tags = formData.tags;
+          } else {
+            // File ZIP
+            appData.type = 'zip';
+            appData.zipFile = uploadedZip;
+            appData.filename = uploadedZip.name;
+            appData.name = formData.name;
+            appData.description = formData.description;
+            appData.category = formData.category;
+            appData.author = formData.author;
+            appData.tags = formData.tags;
+          }
           break;
         case 'github':
           appData.url = githubUrl;
