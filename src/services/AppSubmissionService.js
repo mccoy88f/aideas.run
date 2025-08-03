@@ -144,7 +144,7 @@ export default class AppSubmissionService {
       const description = `AIdeas App Submission: ${fileName}`;
       const isPublic = false; // Gist privato
 
-      const gistUrl = await githubService.createGist(fileName, zipBlob, description, isPublic);
+      const gistUrl = await githubService.createGistWithFile(fileName, zipBlob, description, isPublic);
 
       DEBUG.success(`✅ ZIP uploadato come Gist: ${gistUrl}`);
       return gistUrl;

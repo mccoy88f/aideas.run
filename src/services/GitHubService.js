@@ -392,6 +392,45 @@ export default class GitHubService {
   }
 
   /**
+   * Crea un Gist con un file ZIP
+   * @param {string} fileName - Nome del file
+   * @param {Blob} zipBlob - File ZIP da uploadare
+   * @param {string} description - Descrizione del Gist
+   * @param {boolean} isPublic - Se il Gist è pubblico
+   * @returns {Promise<string>} URL del Gist creato
+   */
+  async createGistWithFile(fileName, zipBlob, description = 'AIdeas App Submission', isPublic = false) {
+    try {
+      // Converti Blob in base64
+      const arrayBuffer = await zipBlob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      
+      const gistData = {
+        description: description,
+        public: isPublic,
+        files: {
+          [fileName]: {
+            content: base64
+          }
+        }
+      };
+
+      const gist = await this.createGist(gistData);
+      
+      // Restituisci l'URL del file raw
+      const fileKey = Object.keys(gist.files)[0];
+      const rawUrl = gist.files[fileKey].raw_url;
+      
+      DEBUG.log('✅ Gist con ZIP creato:', gist.id);
+      return rawUrl;
+
+    } catch (error) {
+      DEBUG.error('Errore creazione Gist con ZIP:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Aggiorna un Gist esistente
    * @param {string} gistId - ID del Gist
    * @param {Object} gistData - Nuovi dati del Gist
