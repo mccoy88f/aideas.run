@@ -44,8 +44,8 @@ export default class AppSubmissionService {
       }
 
       // Analisi di sicurezza
-      const securityReport = await this.securityService.analyzeApp(app);
-      if (securityReport.hasIssues) {
+      const securityReport = await this.securityService.performSecurityScan(app);
+      if (securityReport.issues && securityReport.issues.length > 0) {
         DEBUG.warn('⚠️ Problemi di sicurezza rilevati:', securityReport.issues);
         // Non blocchiamo la sottomissione, ma aggiungiamo warning
       }
