@@ -132,6 +132,10 @@ const AppImporterMaterial = ({
         setError('URL è obbligatorio per importazione da URL');
         return;
       }
+      if (importType === 'url' && !urlVerified) {
+        setError('Devi verificare l\'URL prima di procedere');
+        return;
+      }
       if (importType === 'zip' && !uploadedZip) {
         setError('Devi caricare un file ZIP o HTML');
         return;
@@ -283,7 +287,10 @@ const AppImporterMaterial = ({
       }
 
       setUrlVerified(true);
-      showToast('URL verificato e metadati estratti con successo!', 'success');
+      const successMessage = importType === 'url' 
+        ? 'URL verificato e file pronto per l\'importazione!' 
+        : 'URL verificato e metadati estratti con successo!';
+      showToast(successMessage, 'success');
       
     } catch (error) {
       console.error('Errore verifica URL:', error);
@@ -714,15 +721,33 @@ const AppImporterMaterial = ({
               />
               
               {importType === 'url' && (
-                <TextField
-                  label="URL *"
-                  value={formData.url}
-                  onChange={(e) => handleInputChange('url', e.target.value)}
-                  fullWidth
-                  variant="outlined"
-                  required
-                  placeholder="https://esempio.com"
-                />
+                <Box>
+                  <TextField
+                    label="URL *"
+                    value={formData.url}
+                    onChange={(e) => handleInputChange('url', e.target.value)}
+                    fullWidth
+                    variant="outlined"
+                    required
+                    placeholder="https://esempio.com"
+                    helperText="Inserisci l'URL del file ZIP o HTML da importare"
+                    sx={{ mb: 2 }}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={handleVerifyUrl}
+                    disabled={!formData.url.trim() || verifyingUrl}
+                    startIcon={verifyingUrl ? <CircularProgress size={16} /> : <LinkIcon />}
+                    fullWidth
+                  >
+                    {verifyingUrl ? 'Verificando...' : 'Verifica URL e Estrai Metadati'}
+                  </Button>
+                  {formData.url && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      Clicca "Verifica URL" per controllare la validità del file e estrarre automaticamente i metadati
+                    </Typography>
+                  )}
+                </Box>
               )}
               
               {importType === 'zip' && (
