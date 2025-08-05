@@ -1,7 +1,6 @@
 import { DEBUG } from '../utils/debug.js';
 import ErrorHandler from './ErrorHandler.js';
 import GitHubService from './GitHubService.js';
-import StorageService from './StorageService.js';
 import SecurityService from './SecurityService.js';
 
 /**
@@ -18,7 +17,6 @@ export default class AppSubmissionService {
       repo: 'aideas.store'
     };
     this.submissionCache = new Map();
-    this.storageService = new StorageService();
   }
 
   /**
@@ -619,7 +617,7 @@ ${securityReport.hasIssues ?
       const submissions = await this.getLocalSubmissions();
       submissions.push(localSubmission);
       
-      await this.storageService.set('localSubmissions', submissions);
+      localStorage.setItem('aideas_localSubmissions', JSON.stringify(submissions));
       DEBUG.log(`💾 Submission salvata localmente: ${localSubmission.appName} -> #${issueNumber}`);
     } catch (error) {
       DEBUG.error('❌ Errore salvataggio submission locale:', error);
@@ -632,8 +630,8 @@ ${securityReport.hasIssues ?
    */
   async getLocalSubmissions() {
     try {
-      const submissions = await this.storageService.get('localSubmissions');
-      return submissions || [];
+      const submissions = localStorage.getItem('aideas_localSubmissions');
+      return submissions ? JSON.parse(submissions) : [];
     } catch (error) {
       DEBUG.error('❌ Errore recupero submission locali:', error);
       return [];
@@ -667,7 +665,7 @@ ${securityReport.hasIssues ?
       
       if (submissionIndex !== -1) {
         submissions[submissionIndex].status = status;
-        await this.storageService.set('localSubmissions', submissions);
+        localStorage.setItem('aideas_localSubmissions', JSON.stringify(submissions));
         DEBUG.log(`📝 Stato submission aggiornato: #${issueNumber} -> ${status}`);
       }
     } catch (error) {
