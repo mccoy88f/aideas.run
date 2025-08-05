@@ -2199,6 +2199,21 @@ function AIdeasApp() {
     setBulkActionType(null);
   };
 
+  // Handler per doppio click sui pulsanti
+  const handleDoubleClick = (action) => {
+    action();
+  };
+
+  const handleButtonClick = (action, event) => {
+    // Se è un doppio click (event.detail === 2)
+    if (event.detail === 2) {
+      handleDoubleClick(action);
+    } else {
+      // Click singolo
+      action();
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ 
@@ -2432,8 +2447,7 @@ function AIdeasApp() {
             <Box sx={{ pr: 2, pl: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               <IconButton
                 aria-label="AIdeas Store"
-                onClick={navigateToStore}
-                onDoubleClick={navigateToStore}
+                onClick={(e) => handleButtonClick(navigateToStore, e)}
                 sx={{
                   background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
                   color: 'white',
@@ -2448,8 +2462,7 @@ function AIdeasApp() {
               </IconButton>
               <IconButton
                 aria-label="Genera app con AI"
-                onClick={navigateToAIGenerator}
-                onDoubleClick={navigateToAIGenerator}
+                onClick={(e) => handleButtonClick(navigateToAIGenerator, e)}
                 sx={{
                   background: `linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)`,
                   color: 'white',
@@ -2464,8 +2477,7 @@ function AIdeasApp() {
               </IconButton>
               <IconButton
                 aria-label="Aggiungi app"
-                onClick={() => setImporterOpen(true)}
-                onDoubleClick={() => setImporterOpen(true)}
+                onClick={(e) => handleButtonClick(() => setImporterOpen(true), e)}
                 sx={{
                   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                   color: 'white',

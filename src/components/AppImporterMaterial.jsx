@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { showToast } from '../utils/helpers.js';
 import {
   Dialog,
   DialogTitle,
@@ -61,6 +62,8 @@ const AppImporterMaterial = ({
   const [uploadedZip, setUploadedZip] = useState(null);
   const [customIcon, setCustomIcon] = useState(null);
   const [iconSelectorOpen, setIconSelectorOpen] = useState(false);
+  const [urlVerified, setUrlVerified] = useState(false);
+  const [verifyingUrl, setVerifyingUrl] = useState(false);
 
   const steps = [
     {
@@ -136,6 +139,10 @@ const AppImporterMaterial = ({
         setError('URL è obbligatorio per collegare WebAPP');
         return;
       }
+      if (importType === 'webapp' && !urlVerified) {
+        setError('Devi verificare l\'URL prima di procedere');
+        return;
+      }
     }
     setError('');
     setActiveStep((prevStep) => prevStep + 1);
@@ -159,6 +166,8 @@ const AppImporterMaterial = ({
 
     setUploadedZip(null);
     setCustomIcon(null);
+    setUrlVerified(false);
+    setVerifyingUrl(false);
     setError('');
   };
 
@@ -233,6 +242,55 @@ const AppImporterMaterial = ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
+  };
+
+  const handleVerifyUrl = async () => {
+    if (!formData.url.trim()) {
+      setError('Inserisci un URL valido');
+      return;
+    }
+
+    setVerifyingUrl(true);
+    setError('');
+
+    try {
+      // Carica il contenuto dall'URL
+      const response = await fetch(formData.url);
+      if (!response.ok) {
+        throw new Error(`Errore nel caricamento dell'URL: ${response.status}`);
+      }
+
+      const htmlContent = await response.text();
+      const htmlMetadata = extractHtmlMetadataFromZip(htmlContent);
+
+      // Aggiorna i campi con i metadati estratti
+      const updatedFormData = {
+        ...formData,
+        name: htmlMetadata.title || formData.name || 'WebAPP',
+        description: htmlMetadata.description || formData.description || '',
+        author: htmlMetadata.author || formData.author || 'Unknown',
+        tags: htmlMetadata.keywords ? 
+          htmlMetadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag) : 
+          formData.tags
+      };
+
+      setFormData(updatedFormData);
+      
+      // Imposta l'icona se trovata
+      if (htmlMetadata.icon) {
+        setCustomIcon(htmlMetadata.icon);
+      }
+
+      setUrlVerified(true);
+      showToast('URL verificato e metadati estratti con successo!', 'success');
+      
+    } catch (error) {
+      console.error('Errore verifica URL:', error);
+      setError(`Errore nella verifica dell'URL: ${error.message}`);
+      setUrlVerified(false);
+    } finally {
+      setVerifyingUrl(false);
+    }
   };
 
   const handleFileUpload = async (event, type) => {
@@ -590,36 +648,42 @@ const AppImporterMaterial = ({
                 <Button
                   variant="outlined"
                   color="secondary"
-                  onClick={() => {
-                    onClose();
-                    window.history.pushState(null, '', '/store');
-                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  onClick={(e) => {
+                    if (e.detail === 2) {
+                      // Doppio click
+                      onClose();
+                      window.history.pushState(null, '', '/store');
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                    } else {
+                      // Click singolo
+                      onClose();
+                      window.history.pushState(null, '', '/store');
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                    }
                   }}
                   startIcon={<StoreIcon />}
                   sx={{ textTransform: 'none' }}
-                  onDoubleClick={() => {
-                    onClose();
-                    window.history.pushState(null, '', '/store');
-                    window.dispatchEvent(new PopStateEvent('popstate'));
-                  }}
                 >
                   Esplora AIdeas Store
                 </Button>
                 <Button
                   variant="outlined"
                   color="error"
-                  onClick={() => {
-                    onClose();
-                    window.history.pushState(null, '', '/ai-generator');
-                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  onClick={(e) => {
+                    if (e.detail === 2) {
+                      // Doppio click
+                      onClose();
+                      window.history.pushState(null, '', '/ai-generator');
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                    } else {
+                      // Click singolo
+                      onClose();
+                      window.history.pushState(null, '', '/ai-generator');
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                    }
                   }}
                   startIcon={<AIIcon />}
                   sx={{ textTransform: 'none' }}
-                  onDoubleClick={() => {
-                    onClose();
-                    window.history.pushState(null, '', '/ai-generator');
-                    window.dispatchEvent(new PopStateEvent('popstate'));
-                  }}
                 >
                   Genera app con l'AI
                 </Button>
@@ -694,16 +758,33 @@ const AppImporterMaterial = ({
               )}
               
               {importType === 'webapp' && (
-                <TextField
-                  label="URL WebAPP *"
-                  value={formData.url}
-                  onChange={(e) => handleInputChange('url', e.target.value)}
-                  fullWidth
-                  variant="outlined"
-                  required
-                  placeholder="https://esempio.com"
-                  helperText="Inserisci l'URL dell'applicazione web. I metadati verranno recuperati automaticamente."
-                />
+                <Box>
+                  <TextField
+                    label="URL WebAPP *"
+                    value={formData.url}
+                    onChange={(e) => handleInputChange('url', e.target.value)}
+                    fullWidth
+                    variant="outlined"
+                    required
+                    placeholder="https://esempio.com"
+                    helperText="Inserisci l'URL dell'applicazione web"
+                    sx={{ mb: 2 }}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={handleVerifyUrl}
+                    disabled={!formData.url.trim() || verifyingUrl}
+                    startIcon={verifyingUrl ? <CircularProgress size={16} /> : <LinkIcon />}
+                    fullWidth
+                  >
+                    {verifyingUrl ? 'Verificando...' : 'Verifica URL e Estrai Metadati'}
+                  </Button>
+                  {formData.url && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      Clicca "Verifica URL" per estrarre automaticamente nome, descrizione, autore e tag dall'applicazione web
+                    </Typography>
+                  )}
+                </Box>
               )}
               
               <TextField
