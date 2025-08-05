@@ -54,6 +54,8 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
   const [userSubmissions, setUserSubmissions] = useState([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [existingSubmission, setExistingSubmission] = useState(null);
+  const [canSubmit, setCanSubmit] = useState(false);
 
   // Form data per metadati editabili
   const [formData, setFormData] = useState({
@@ -161,11 +163,20 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
       
       // Verifica se l'app corrente è già stata submittata
       if (app) {
-        const existingSubmission = await appSubmissionService.checkAppAlreadySubmitted(app);
-        if (existingSubmission) {
-          setError(`L'app "${app.name}" è già stata submittata. Status: ${existingSubmission.status}`);
+        const existing = await appSubmissionService.checkAppAlreadySubmitted(app);
+        setExistingSubmission(existing);
+        
+        if (existing) {
+          if (existing.state === 'open') {
+            setError(`L'app "${app.name}" è già stata submittata e l'issue è ancora aperta.`);
+          } else {
+            setError(`L'app "${app.name}" è già stata submittata. Status: ${existing.state}`);
+          }
         }
       }
+      
+      // Determina se l'utente può sottomettere
+      setCanSubmit(isAuthenticated && !existingSubmission);
     } catch (error) {
       DEBUG.error('❌ Errore caricamento submission:', error);
       // In caso di errore, imposta array vuoto invece di fallire
@@ -178,6 +189,20 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
   // Prepara l'app per la sottomissione
   const handlePrepareSubmission = async () => {
     if (!app) return;
+
+    // Verifica autenticazione
+    if (!isAuthenticated) {
+      setError('Devi configurare GitHub nelle impostazioni prima di sottomettere un\'app.');
+      setStep('error');
+      return;
+    }
+
+    // Verifica se esiste già una submission aperta
+    if (existingSubmission && existingSubmission.state === 'open') {
+      setError(`L'app "${app.name}" è già stata submittata e l'issue è ancora aperta.`);
+      setStep('error');
+      return;
+    }
 
     setStep('preparing');
     setProgress({ show: true, value: 0, text: 'Preparazione app...' });
@@ -243,6 +268,20 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
   const handleSubmitApp = async () => {
     if (!submissionData) return;
 
+    // Verifica autenticazione
+    if (!isAuthenticated) {
+      setError('Devi configurare GitHub nelle impostazioni prima di sottomettere un\'app.');
+      setStep('error');
+      return;
+    }
+
+    // Verifica se esiste già una submission aperta
+    if (existingSubmission && existingSubmission.state === 'open') {
+      setError(`L'app è già stata submittata e l'issue è ancora aperta.`);
+      setStep('error');
+      return;
+    }
+
     setStep('submitting');
     setProgress({ show: true, value: 0, text: 'Upload ZIP...' });
     setError(null);
@@ -307,7 +346,16 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
     setError(null);
     setResult(null);
     setProgress({ show: false, value: 0, text: '' });
+    setExistingSubmission(null);
+    setCanSubmit(false);
     onClose();
+  };
+
+  // Apre l'issue esistente in una nuova tab
+  const handleOpenExistingIssue = () => {
+    if (existingSubmission && existingSubmission.html_url) {
+      window.open(existingSubmission.html_url, '_blank');
+    }
   };
 
   // Ottieni status color per submission
@@ -410,6 +458,32 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
                 )}
               </Typography>
             </Alert>
+
+            {/* Alert per submission esistente */}
+            {existingSubmission && (
+              <Alert 
+                severity={existingSubmission.state === 'open' ? 'warning' : 'info'} 
+                icon={<InfoIcon />}
+                action={
+                  existingSubmission.html_url && (
+                    <Button
+                      size="small"
+                      onClick={handleOpenExistingIssue}
+                      startIcon={<OpenIcon />}
+                    >
+                      Apri Issue
+                    </Button>
+                  )
+                }
+              >
+                <Typography variant="body2">
+                  {existingSubmission.state === 'open' 
+                    ? `L'app "${app?.name}" è già stata submittata e l'issue è ancora aperta.`
+                    : `L'app "${app?.name}" è già stata submittata (Status: ${existingSubmission.state}).`
+                  }
+                </Typography>
+              </Alert>
+            )}
 
             <Typography variant="h6">Metadati App</Typography>
             
@@ -693,10 +767,20 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
             <Button
               variant="contained"
               onClick={handlePrepareSubmission}
-              disabled={!formData.name || !formData.description}
+              disabled={
+                !formData.name || 
+                !formData.description || 
+                !isAuthenticated || 
+                (existingSubmission && existingSubmission.state === 'open')
+              }
               startIcon={<UploadIcon />}
             >
-              {isAuthenticated ? 'Prepara App' : 'Configura GitHub Prima'}
+              {!isAuthenticated 
+                ? 'Configura GitHub Prima' 
+                : existingSubmission && existingSubmission.state === 'open'
+                ? 'Issue Già Aperta'
+                : 'Prepara App'
+              }
             </Button>
           </>
         )}
@@ -709,6 +793,7 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
             <Button
               variant="contained"
               onClick={handleSubmitApp}
+              disabled={!isAuthenticated || (existingSubmission && existingSubmission.state === 'open')}
               startIcon={<GitHubIcon />}
             >
               Sottometti App
