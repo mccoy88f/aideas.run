@@ -409,7 +409,7 @@ ${securityReport.hasIssues ?
       }
 
       const response = await this.githubService.makeRequest(
-        `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/issues?creator=${userLogin}&labels=app-submission`,
+        `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/issues?creator=${userLogin}&labels=submission`,
         {
           headers: await this.githubService.getAuthHeaders()
         }
@@ -444,6 +444,29 @@ ${securityReport.hasIssues ?
     } catch (error) {
       DEBUG.error('❌ Errore recupero submission utente:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Verifica se un'app è già stata submittata dall'utente
+   * @param {Object} app - App da verificare
+   * @returns {Promise<Object|null>} Submission esistente o null
+   */
+  async checkAppAlreadySubmitted(app) {
+    try {
+      const submissions = await this.getUserSubmissions();
+      const appName = app.name.toLowerCase().trim();
+      
+      // Cerca submission con lo stesso nome
+      const existingSubmission = submissions.find(submission => {
+        const submissionTitle = submission.title.replace('[SUBMISSION] ', '').toLowerCase().trim();
+        return submissionTitle === appName;
+      });
+      
+      return existingSubmission || null;
+    } catch (error) {
+      DEBUG.error('❌ Errore verifica submission esistente:', error);
+      return null;
     }
   }
 

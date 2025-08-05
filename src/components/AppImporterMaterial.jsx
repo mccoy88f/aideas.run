@@ -102,12 +102,16 @@ const AppImporterMaterial = ({
   ];
 
   const categories = [
-    'Produttività',
-    'Intrattenimento', 
-    'Sviluppo',
-    'Social',
-    'Utility',
-    'Altro'
+    { value: 'productivity', label: 'Produttività' },
+    { value: 'entertainment', label: 'Intrattenimento' },
+    { value: 'tools', label: 'Strumenti' },
+    { value: 'games', label: 'Giochi' },
+    { value: 'ai', label: 'Intelligenza Artificiale' },
+    { value: 'social', label: 'Social' },
+    { value: 'education', label: 'Educazione' },
+    { value: 'business', label: 'Business' },
+    { value: 'utility', label: 'Utilità' },
+    { value: 'uncategorized', label: 'Altro' }
   ];
 
   const handleNext = () => {
@@ -709,8 +713,8 @@ const AppImporterMaterial = ({
                   Categoria
                 </option>
                 {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
+                  <option key={category.value} value={category.value}>
+                    {category.label}
                   </option>
                 ))}
               </TextField>
@@ -864,7 +868,10 @@ const AppImporterMaterial = ({
                     <Typography variant="subtitle2" color="text.secondary">
                       Categoria
                     </Typography>
-                    <Chip label={formData.category} size="small" />
+                    <Chip 
+                      label={categories.find(cat => cat.value === formData.category)?.label || formData.category} 
+                      size="small" 
+                    />
                   </Box>
                 )}
                 

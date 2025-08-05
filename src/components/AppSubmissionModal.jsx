@@ -101,6 +101,14 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
       
       const submissions = await appSubmissionService.getUserSubmissions();
       setUserSubmissions(submissions);
+      
+      // Verifica se l'app corrente è già stata submittata
+      if (app) {
+        const existingSubmission = await appSubmissionService.checkAppAlreadySubmitted(app);
+        if (existingSubmission) {
+          setError(`L'app "${app.name}" è già stata submittata. Status: ${existingSubmission.status}`);
+        }
+      }
     } catch (error) {
       DEBUG.error('❌ Errore caricamento submission:', error);
       // In caso di errore, imposta array vuoto invece di fallire
@@ -128,6 +136,12 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
         tags: formData.tags,
         author: formData.author
       };
+
+      // Verifica se l'app è già stata submittata
+      const existingSubmission = await appSubmissionService.checkAppAlreadySubmitted(updatedApp);
+      if (existingSubmission) {
+        throw new Error(`L'app "${updatedApp.name}" è già stata submittata. Status: ${existingSubmission.status}`);
+      }
 
       setProgress({ show: true, value: 30, text: 'Validazione app...' });
       
