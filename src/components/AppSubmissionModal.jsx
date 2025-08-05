@@ -167,16 +167,24 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
         setExistingSubmission(existing);
         
         if (existing) {
-          if (existing.state === 'open') {
+          if (existing.submissionType === 'pending') {
             setError(`L'app "${app.name}" è già stata submittata e l'issue è ancora aperta.`);
+          } else if (existing.submissionType === 'approved') {
+            setError(`L'app "${app.name}" è già stata approvata e pubblicata.`);
+          } else if (existing.submissionType === 'rejected') {
+            setError(`L'app "${app.name}" è stata rifiutata. Puoi sottomettere una nuova versione.`);
           } else {
-            setError(`L'app "${app.name}" è già stata submittata. Status: ${existing.state}`);
+            setError(`L'app "${app.name}" è già stata submittata. Status: ${existing.submissionType}`);
           }
         }
       }
       
       // Determina se l'utente può sottomettere
-      setCanSubmit(isAuthenticated && !existingSubmission);
+      const canSubmitApp = isAuthenticated && 
+        (!existingSubmission || 
+         existingSubmission.submissionType === 'rejected' || 
+         existingSubmission.submissionType === 'closed');
+      setCanSubmit(canSubmitApp);
     } catch (error) {
       DEBUG.error('❌ Errore caricamento submission:', error);
       // In caso di errore, imposta array vuoto invece di fallire
@@ -198,7 +206,7 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
     }
 
     // Verifica se esiste già una submission aperta
-    if (existingSubmission && existingSubmission.state === 'open') {
+    if (existingSubmission && existingSubmission.submissionType === 'pending') {
       setError(`L'app "${app.name}" è già stata submittata e l'issue è ancora aperta.`);
       setStep('error');
       return;
@@ -276,7 +284,7 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
     }
 
     // Verifica se esiste già una submission aperta
-    if (existingSubmission && existingSubmission.state === 'open') {
+    if (existingSubmission && existingSubmission.submissionType === 'pending') {
       setError(`L'app è già stata submittata e l'issue è ancora aperta.`);
       setStep('error');
       return;
@@ -462,10 +470,14 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
             {/* Alert per submission esistente */}
             {existingSubmission && (
               <Alert 
-                severity={existingSubmission.state === 'open' ? 'warning' : 'info'} 
+                severity={
+                  existingSubmission.submissionType === 'pending' ? 'warning' :
+                  existingSubmission.submissionType === 'approved' ? 'success' :
+                  existingSubmission.submissionType === 'rejected' ? 'error' : 'info'
+                } 
                 icon={<InfoIcon />}
                 action={
-                  existingSubmission.html_url && (
+                  existingSubmission.url && (
                     <Button
                       size="small"
                       onClick={handleOpenExistingIssue}
@@ -477,9 +489,13 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
                 }
               >
                 <Typography variant="body2">
-                  {existingSubmission.state === 'open' 
+                  {existingSubmission.submissionType === 'pending' 
                     ? `L'app "${app?.name}" è già stata submittata e l'issue è ancora aperta.`
-                    : `L'app "${app?.name}" è già stata submittata (Status: ${existingSubmission.state}).`
+                    : existingSubmission.submissionType === 'approved'
+                    ? `L'app "${app?.name}" è già stata approvata e pubblicata.`
+                    : existingSubmission.submissionType === 'rejected'
+                    ? `L'app "${app?.name}" è stata rifiutata. Puoi sottomettere una nuova versione.`
+                    : `L'app "${app?.name}" è già stata submittata (Status: ${existingSubmission.submissionType}).`
                   }
                 </Typography>
               </Alert>
@@ -771,14 +787,18 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
                 !formData.name || 
                 !formData.description || 
                 !isAuthenticated || 
-                (existingSubmission && existingSubmission.state === 'open')
+                (existingSubmission && existingSubmission.submissionType === 'pending')
               }
               startIcon={<UploadIcon />}
             >
               {!isAuthenticated 
                 ? 'Configura GitHub Prima' 
-                : existingSubmission && existingSubmission.state === 'open'
+                : existingSubmission && existingSubmission.submissionType === 'pending'
                 ? 'Issue Già Aperta'
+                : existingSubmission && existingSubmission.submissionType === 'approved'
+                ? 'App Già Approvata'
+                : existingSubmission && existingSubmission.submissionType === 'rejected'
+                ? 'Sottometti Nuova Versione'
                 : 'Prepara App'
               }
             </Button>
@@ -793,7 +813,7 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
             <Button
               variant="contained"
               onClick={handleSubmitApp}
-              disabled={!isAuthenticated || (existingSubmission && existingSubmission.state === 'open')}
+              disabled={!isAuthenticated || (existingSubmission && existingSubmission.submissionType === 'pending')}
               startIcon={<GitHubIcon />}
             >
               Sottometti App

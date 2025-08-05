@@ -514,6 +514,20 @@ ${securityReport.hasIssues ?
           status = 'rejected';
         }
 
+        // Determina il tipo di submission esistente
+        let submissionType = 'new';
+        if (existingIssue.state === 'open') {
+          submissionType = 'pending';
+        } else if (existingIssue.state === 'closed') {
+          if (labels.includes('approved')) {
+            submissionType = 'approved';
+          } else if (labels.includes('rejected')) {
+            submissionType = 'rejected';
+          } else {
+            submissionType = 'closed';
+          }
+        }
+
         return {
           issueNumber: existingIssue.number,
           status: status,
@@ -522,7 +536,8 @@ ${securityReport.hasIssues ?
           createdAt: existingIssue.created_at,
           updatedAt: existingIssue.updated_at,
           labels: labels,
-          state: existingIssue.state // 'open' o 'closed'
+          state: existingIssue.state, // 'open' o 'closed'
+          submissionType: submissionType // 'pending', 'approved', 'rejected', 'closed'
         };
       }
       
