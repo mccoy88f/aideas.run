@@ -2,6 +2,7 @@ import { DEBUG } from '../utils/debug.js';
 import ErrorHandler from './ErrorHandler.js';
 import GitHubService from './GitHubService.js';
 import SecurityService from './SecurityService.js';
+import StorageService from './StorageService.js';
 
 /**
  * AIdeas App Submission Service
@@ -12,6 +13,7 @@ export default class AppSubmissionService {
   constructor() {
     this.githubService = new GitHubService();
     this.securityService = new SecurityService();
+    this.storageService = new StorageService();
     this.storeRepo = {
       owner: 'mccoy88f',
       repo: 'aideas.store'
@@ -617,7 +619,7 @@ ${securityReport.hasIssues ?
       const submissions = await this.getLocalSubmissions();
       submissions.push(localSubmission);
       
-      localStorage.setItem('aideas_localSubmissions', JSON.stringify(submissions));
+      await this.storageService.setSetting('localSubmissions', JSON.stringify(submissions));
       DEBUG.log(`💾 Submission salvata localmente: ${localSubmission.appName} -> #${issueNumber}`);
     } catch (error) {
       DEBUG.error('❌ Errore salvataggio submission locale:', error);
@@ -630,8 +632,8 @@ ${securityReport.hasIssues ?
    */
   async getLocalSubmissions() {
     try {
-      const submissions = localStorage.getItem('aideas_localSubmissions');
-      return submissions ? JSON.parse(submissions) : [];
+      const submissions = await this.storageService.getSetting('localSubmissions', '[]');
+      return JSON.parse(submissions);
     } catch (error) {
       DEBUG.error('❌ Errore recupero submission locali:', error);
       return [];
@@ -665,7 +667,7 @@ ${securityReport.hasIssues ?
       
       if (submissionIndex !== -1) {
         submissions[submissionIndex].status = status;
-        localStorage.setItem('aideas_localSubmissions', JSON.stringify(submissions));
+        await this.storageService.setSetting('localSubmissions', JSON.stringify(submissions));
         DEBUG.log(`📝 Stato submission aggiornato: #${issueNumber} -> ${status}`);
       }
     } catch (error) {
