@@ -294,8 +294,17 @@ const AppImporterMaterial = ({
       
     } catch (error) {
       console.error('Errore verifica URL:', error);
-      setError(`Errore nella verifica dell'URL: ${error.message}`);
-      setUrlVerified(false);
+      
+      // Se è un errore CORS o di rete, mostra un messaggio più user-friendly
+      if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+        setError('Impossibile verificare l\'URL a causa di restrizioni di rete. Puoi comunque procedere con l\'installazione, ma i metadati potrebbero non essere estratti automaticamente.');
+        // Permetti comunque di procedere
+        setUrlVerified(true);
+        showToast('Attenzione: Verifica non riuscita, ma puoi procedere con l\'installazione', 'warning');
+      } else {
+        setError(`Errore nella verifica dell'URL: ${error.message}`);
+        setUrlVerified(false);
+      }
     } finally {
       setVerifyingUrl(false);
     }
@@ -739,12 +748,26 @@ const AppImporterMaterial = ({
                     disabled={!formData.url.trim() || verifyingUrl}
                     startIcon={verifyingUrl ? <CircularProgress size={16} /> : <LinkIcon />}
                     fullWidth
+                    sx={{ mb: 1 }}
                   >
                     {verifyingUrl ? 'Verificando...' : 'Verifica URL e Estrai Metadati'}
                   </Button>
+                  <Button
+                    variant="text"
+                    onClick={() => {
+                      setUrlVerified(true);
+                      setError('');
+                      showToast('Procedendo senza verifica. I metadati dovranno essere inseriti manualmente.', 'info');
+                    }}
+                    disabled={!formData.url.trim()}
+                    fullWidth
+                    sx={{ mb: 1 }}
+                  >
+                    Procedi senza verifica
+                  </Button>
                   {formData.url && (
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      Clicca "Verifica URL" per controllare la validità del file e estrarre automaticamente i metadati
+                      Clicca "Verifica URL" per controllare la validità del file e estrarre automaticamente i metadati, oppure "Procedi senza verifica" se hai problemi di rete
                     </Typography>
                   )}
                 </Box>
@@ -802,12 +825,26 @@ const AppImporterMaterial = ({
                     disabled={!formData.url.trim() || verifyingUrl}
                     startIcon={verifyingUrl ? <CircularProgress size={16} /> : <LinkIcon />}
                     fullWidth
+                    sx={{ mb: 1 }}
                   >
                     {verifyingUrl ? 'Verificando...' : 'Verifica URL e Estrai Metadati'}
                   </Button>
+                  <Button
+                    variant="text"
+                    onClick={() => {
+                      setUrlVerified(true);
+                      setError('');
+                      showToast('Procedendo senza verifica. I metadati dovranno essere inseriti manualmente.', 'info');
+                    }}
+                    disabled={!formData.url.trim()}
+                    fullWidth
+                    sx={{ mb: 1 }}
+                  >
+                    Procedi senza verifica
+                  </Button>
                   {formData.url && (
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      Clicca "Verifica URL" per estrarre automaticamente nome, descrizione, autore e tag dall'applicazione web
+                      Clicca "Verifica URL" per estrarre automaticamente nome, descrizione, autore e tag dall'applicazione web, oppure "Procedi senza verifica" se hai problemi di rete
                     </Typography>
                   )}
                 </Box>

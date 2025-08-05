@@ -17,7 +17,11 @@ export default class ProxyService {
       'https://api.codetabs.com/v1/proxy?quest=',
       'https://corsproxy.io/?',
       'https://cors-anywhere.1d4s.me/',
-      'https://cors-anywhere.herokuapp.com/'
+      'https://cors-anywhere.herokuapp.com/',
+      'https://cors-anywhere.herokuapp.com/',
+      'https://api.codetabs.com/v1/proxy?quest=',
+      'https://cors.bridged.cc/',
+      'https://thingproxy.freeboard.io/fetch/'
     ];
     
     this.currentProxyIndex = 0;
@@ -50,17 +54,16 @@ export default class ProxyService {
             'Accept-Encoding': 'gzip, deflate',
             'DNT': '1',
             'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
           },
-          timeout: 10000
+          timeout: 8000
         });
 
         if (response.ok) {
           const content = await response.text();
           
-          // Verifica che sia HTML valido
-          if (content.includes('<html') || content.includes('<head') || content.includes('<body')) {
+          // Verifica che sia HTML valido o contenuto utile
+          if (content.includes('<html') || content.includes('<head') || content.includes('<body') || content.length > 100) {
             this.currentProxyIndex = proxyIndex; // Aggiorna proxy di successo
             return content;
           }
