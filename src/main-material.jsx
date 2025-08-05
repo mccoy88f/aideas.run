@@ -80,6 +80,7 @@ import EmojiSelector from './components/EmojiSelector.jsx';
 import GoogleDriveService from './services/GoogleDriveService.js';
 import GitHubService from './services/GitHubService.js';
 import AppRouteService from './services/AppRouteService.js';
+import ProxyService from './services/ProxyService.js';
 import { aiServiceManager } from './services/ai/AIServiceManager.js';
 
 /**
@@ -984,18 +985,21 @@ function AIdeasApp() {
         console.log('🌐 Processando importazione da URL:', appData.url);
         
         try {
-          // Carica il contenuto dall'URL
-          const response = await fetch(appData.url);
-          if (!response.ok) {
-            throw new Error(`Errore nel caricamento dell'URL: ${response.status}`);
+          // Usa il ProxyService per evitare problemi CORS
+          const proxyService = new ProxyService();
+          const content = await proxyService.fetchWithProxy(appData.url);
+          
+          if (!content) {
+            throw new Error('Impossibile recuperare il contenuto dall\'URL');
           }
           
-          const contentType = response.headers.get('content-type');
+          // Determina il tipo di contenuto basandosi sull'URL e sul contenuto
+          const isZip = appData.url.toLowerCase().endsWith('.zip') || content.startsWith('PK');
+          const isHtml = content.includes('<html') || content.includes('<head') || content.includes('<body') || appData.url.toLowerCase().endsWith('.html');
           
           // Se è un file HTML singolo
-          if (contentType && contentType.includes('text/html')) {
-            const htmlContent = await response.text();
-            const htmlMetadata = extractHtmlMetadataFromZip(htmlContent);
+          if (isHtml) {
+            const htmlMetadata = extractHtmlMetadataFromZip(content);
             
             processedAppData = {
               ...appData,
@@ -1005,16 +1009,16 @@ function AIdeasApp() {
               tags: appData.tags?.length > 0 ? appData.tags : (htmlMetadata.keywords ? htmlMetadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag) : []),
               icon: appData.icon || htmlMetadata.icon,
               author: appData.author || htmlMetadata.author || 'Unknown',
-              content: htmlContent,
+              content: content,
               type: 'html'
             };
             
             console.log('✅ File HTML da URL processato con successo');
           }
           // Se è un file ZIP
-          else if (contentType && contentType.includes('application/zip') || appData.url.toLowerCase().endsWith('.zip')) {
-            const zipBlob = await response.blob();
-            const zipFile = new File([zipBlob], 'app.zip', { type: 'application/zip' });
+          else if (isZip) {
+            // Converti il contenuto in Blob per JSZip
+            const zipBlob = new Blob([content], { type: 'application/zip' });
             
             // Importa JSZip dinamicamente
             const JSZip = (await import('jszip')).default;
