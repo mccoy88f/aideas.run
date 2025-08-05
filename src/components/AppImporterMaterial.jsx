@@ -295,9 +295,10 @@ const AppImporterMaterial = ({
     } catch (error) {
       console.error('Errore verifica URL:', error);
       
-      // Se è un errore CORS o di rete, mostra un messaggio più user-friendly
-      if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
-        setError('Impossibile verificare l\'URL a causa di restrizioni di rete. Puoi comunque procedere con l\'installazione, ma i metadati potrebbero non essere estratti automaticamente.');
+      // Se è un errore CORS, di rete, o tutti i proxy sono falliti, mostra un messaggio più user-friendly
+      if (error.message.includes('Failed to fetch') || error.message.includes('CORS') || 
+          error.message.includes('Impossibile recuperare il contenuto')) {
+        setError('Impossibile verificare l\'URL a causa di restrizioni di rete. Puoi comunque procedere con l\'installazione, ma i metadati dovranno essere inseriti manualmente.');
         // Permetti comunque di procedere
         setUrlVerified(true);
         showToast('Attenzione: Verifica non riuscita, ma puoi procedere con l\'installazione', 'warning');

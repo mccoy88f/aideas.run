@@ -1080,7 +1080,24 @@ function AIdeasApp() {
             throw new Error('URL non supportato. Deve essere un file HTML o ZIP.');
           }
         } catch (error) {
-          throw new Error(`Errore nel caricamento dell'URL: ${error.message}`);
+          console.log('⚠️ Tutti i proxy sono falliti per URL, procedendo con fallback');
+          
+          // Se tutti i proxy falliscono, crea comunque l'app con i metadati forniti dall'utente
+          const domain = new URL(appData.url).hostname;
+          processedAppData = {
+            ...appData,
+            name: appData.name || `App da ${domain}`,
+            description: appData.description || `App web da ${domain}`,
+            category: appData.category || 'altro',
+            tags: appData.tags?.length > 0 ? appData.tags : [],
+            icon: appData.icon,
+            author: appData.author || 'Unknown',
+            content: `<html><head><title>${appData.name || `App da ${domain}`}</title></head><body><iframe src="${appData.url}" style="width:100%;height:100vh;border:none;"></iframe></body></html>`,
+            type: 'html',
+            url: appData.url
+          };
+          
+          console.log('✅ URL processato con fallback (senza contenuto originale)');
         }
       }
       // Gestisci collegamento WebAPP
@@ -1113,7 +1130,23 @@ function AIdeasApp() {
           
           console.log('✅ WebAPP collegata con successo');
         } catch (error) {
-          throw new Error(`Errore nel collegamento della WebAPP: ${error.message}`);
+          console.log('⚠️ Tutti i proxy sono falliti, procedendo senza contenuto HTML');
+          
+          // Se tutti i proxy falliscono, crea comunque l'app con i metadati forniti dall'utente
+          processedAppData = {
+            ...appData,
+            name: appData.name || 'WebAPP',
+            description: appData.description || `App web da ${new URL(appData.url).hostname}`,
+            category: appData.category || 'altro',
+            tags: appData.tags?.length > 0 ? appData.tags : [],
+            icon: appData.icon,
+            author: appData.author || 'Unknown',
+            content: `<html><head><title>${appData.name || 'WebAPP'}</title></head><body><iframe src="${appData.url}" style="width:100%;height:100vh;border:none;"></iframe></body></html>`,
+            type: 'html',
+            url: appData.url // Mantieni l'URL originale per riferimento
+          };
+          
+          console.log('✅ WebAPP collegata con fallback (senza contenuto HTML)');
         }
       }
       
