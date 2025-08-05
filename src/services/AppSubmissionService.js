@@ -178,9 +178,17 @@ export default class AppSubmissionService {
    */
   async createSubmissionIssue(submissionData, zipUrl) {
     try {
-      const { app, manifest, securityReport } = submissionData;
+      const { app, manifest, securityReport, existingSubmission } = submissionData;
       
-      const issueBody = this.generateIssueBody(app, manifest, zipUrl, securityReport);
+      // Determina se è un aggiornamento
+      const isUpdate = existingSubmission && 
+                      existingSubmission.submissionType === 'approved';
+      
+      const issueTitle = isUpdate ? 
+        `[SUBMISSION] [UPDATE] ${app.name} v${app.version}` :
+        `[SUBMISSION] ${app.name}`;
+      
+      const issueBody = this.generateIssueBody(app, manifest, zipUrl, securityReport, isUpdate);
       
       const response = await this.githubService.makeRequest(
         `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/issues`,
@@ -191,7 +199,7 @@ export default class AppSubmissionService {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            title: `[SUBMISSION] ${app.name}`,
+            title: issueTitle,
             body: issueBody,
             labels: ['app-submission', 'pending-review', 'ai-generated']
           })
@@ -220,10 +228,12 @@ export default class AppSubmissionService {
    * @param {Object} securityReport - Report di sicurezza
    * @returns {string} Corpo dell'issue
    */
-  generateIssueBody(app, manifest, zipUrl, securityReport) {
+  generateIssueBody(app, manifest, zipUrl, securityReport, isUpdate = false) {
     const userInfo = this.githubService.userInfo;
     
-    return `## App Submission: ${app.name}
+    const submissionType = isUpdate ? 'App Update' : 'App Submission';
+    
+    return `## ${submissionType}: ${app.name}
 
 **Descrizione:** ${app.description || 'Nessuna descrizione'}
 
@@ -242,6 +252,8 @@ export default class AppSubmissionService {
 **Sottomesso da:** ${userInfo?.login || 'Unknown'}
 
 **Data sottomissione:** ${new Date().toISOString()}
+
+${isUpdate ? `**Tipo:** Aggiornamento (versione precedente approvata)` : ''}
 
 ---
 
