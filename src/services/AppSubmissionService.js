@@ -18,6 +18,7 @@ export default class AppSubmissionService {
       repo: 'aideas.store'
     };
     this.submissionCache = new Map();
+    this.storageService = new StorageService();
   }
 
   /**
@@ -107,6 +108,9 @@ export default class AppSubmissionService {
         zipUrl: zipUrl,
         status: 'pending'
       });
+
+      // Salva submission locale per tracking persistente
+      await this.saveLocalSubmission(submissionData, issueData.number);
 
       DEBUG.success(`✅ App ${submissionData.app.name} sottomessa: Issue #${issueData.number}`);
       
@@ -459,7 +463,62 @@ ${securityReport.hasIssues ?
         throw new Error('Utente non autenticato');
       }
 
-      // Ottieni tutte le issue dell'utente (non solo quelle con label submission)
+      // PRIMA: Controlla submission locale per questa app
+      const localSubmission = await this.getLocalSubmissionForApp(app);
+      if (localSubmission) {
+        DEBUG.log(`🔍 Submission locale trovata per "${app.name}": #${localSubmission.issueNumber}`);
+        
+        // Verifica lo stato attuale dell'issue su GitHub
+        try {
+          const response = await this.githubService.makeRequest(
+            `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/issues/${localSubmission.issueNumber}`,
+            {
+              headers: await this.githubService.getAuthHeaders()
+            }
+          );
+
+          if (response.ok) {
+            const issue = await response.json();
+            const labels = issue.labels.map(label => label.name);
+            
+            // Determina il tipo di submission
+            let submissionType = 'new';
+            if (issue.state === 'open') {
+              submissionType = 'pending';
+            } else if (issue.state === 'closed') {
+              if (labels.includes('approved')) {
+                submissionType = 'approved';
+              } else if (labels.includes('rejected')) {
+                submissionType = 'rejected';
+              } else {
+                submissionType = 'closed';
+              }
+            }
+
+            // Aggiorna lo stato locale
+            await this.updateLocalSubmissionStatus(localSubmission.issueNumber, submissionType);
+
+            return {
+              issueNumber: issue.number,
+              status: submissionType,
+              title: issue.title,
+              url: issue.html_url,
+              createdAt: issue.created_at,
+              updatedAt: issue.updated_at,
+              labels: labels,
+              state: issue.state,
+              submissionType: submissionType,
+              isLocalSubmission: true
+            };
+          }
+        } catch (error) {
+          DEBUG.error('❌ Errore verifica issue locale:', error);
+        }
+      }
+
+      // SECONDA: Fallback alla ricerca per nome (per submission non tracciate)
+      DEBUG.log(`🔍 Ricerca fallback per app: "${app.name}"`);
+      
       const response = await this.githubService.makeRequest(
         `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/issues?creator=${userLogin}&state=all`,
         {
@@ -474,22 +533,10 @@ ${securityReport.hasIssues ?
       const issues = await response.json();
       const appName = app.name.toLowerCase().trim();
       
-      DEBUG.log(`🔍 Cercando app: "${appName}"`);
       DEBUG.log(`📋 Issues trovate: ${issues.length}`);
-      
-      // Debug: mostra tutte le issue dell'utente
-      issues.forEach(issue => {
-        const cleanTitle = issue.title
-          .replace(/^\[SUBMISSION\]\s*/i, '')
-          .replace(/^\[APP\]\s*/i, '')
-          .toLowerCase()
-          .trim();
-        DEBUG.log(`  - "${issue.title}" -> "${cleanTitle}" (state: ${issue.state})`);
-      });
       
       // Cerca issue con lo stesso nome dell'app
       const existingIssue = issues.find(issue => {
-        // Rimuovi prefissi comuni dal titolo
         const cleanTitle = issue.title
           .replace(/^\[SUBMISSION\]\s*/i, '')
           .replace(/^\[APP\]\s*/i, '')
@@ -500,21 +547,9 @@ ${securityReport.hasIssues ?
       });
       
       if (existingIssue) {
-        DEBUG.log(`✅ Issue esistente trovata: #${existingIssue.number} - "${existingIssue.title}" (state: ${existingIssue.state})`);
-      } else {
-        DEBUG.log(`❌ Nessuna issue esistente trovata per "${appName}"`);
-      }
-      
-      if (existingIssue) {
+        DEBUG.log(`✅ Issue esistente trovata (fallback): #${existingIssue.number} - "${existingIssue.title}" (state: ${existingIssue.state})`);
+        
         const labels = existingIssue.labels.map(label => label.name);
-        let status = 'pending';
-        if (labels.includes('approved')) {
-          status = 'approved';
-        } else if (labels.includes('rejected')) {
-          status = 'rejected';
-        }
-
-        // Determina il tipo di submission esistente
         let submissionType = 'new';
         if (existingIssue.state === 'open') {
           submissionType = 'pending';
@@ -530,14 +565,15 @@ ${securityReport.hasIssues ?
 
         return {
           issueNumber: existingIssue.number,
-          status: status,
+          status: submissionType,
           title: existingIssue.title,
           url: existingIssue.html_url,
           createdAt: existingIssue.created_at,
           updatedAt: existingIssue.updated_at,
           labels: labels,
-          state: existingIssue.state, // 'open' o 'closed'
-          submissionType: submissionType // 'pending', 'approved', 'rejected', 'closed'
+          state: existingIssue.state,
+          submissionType: submissionType,
+          isLocalSubmission: false
         };
       }
       
@@ -562,6 +598,81 @@ ${securityReport.hasIssues ?
    */
   clearSubmissionCache() {
     this.submissionCache.clear();
+  }
+
+  /**
+   * Salva una submission locale
+   * @param {Object} submissionData - Dati della submission
+   * @param {number} issueNumber - Numero dell'issue GitHub
+   */
+  async saveLocalSubmission(submissionData, issueNumber) {
+    try {
+      const localSubmission = {
+        appId: submissionData.app.id,
+        appName: submissionData.app.name,
+        issueNumber: issueNumber,
+        submissionId: submissionData.submissionId,
+        timestamp: new Date().toISOString(),
+        status: 'pending'
+      };
+
+      const submissions = await this.getLocalSubmissions();
+      submissions.push(localSubmission);
+      
+      await this.storageService.set('localSubmissions', submissions);
+      DEBUG.log(`💾 Submission salvata localmente: ${localSubmission.appName} -> #${issueNumber}`);
+    } catch (error) {
+      DEBUG.error('❌ Errore salvataggio submission locale:', error);
+    }
+  }
+
+  /**
+   * Ottiene le submission locali
+   * @returns {Promise<Array>} Lista delle submission locali
+   */
+  async getLocalSubmissions() {
+    try {
+      const submissions = await this.storageService.get('localSubmissions');
+      return submissions || [];
+    } catch (error) {
+      DEBUG.error('❌ Errore recupero submission locali:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Verifica se un'app ha una submission locale
+   * @param {Object} app - App da verificare
+   * @returns {Promise<Object|null>} Submission locale o null
+   */
+  async getLocalSubmissionForApp(app) {
+    try {
+      const submissions = await this.getLocalSubmissions();
+      return submissions.find(sub => sub.appId === app.id) || null;
+    } catch (error) {
+      DEBUG.error('❌ Errore verifica submission locale:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Aggiorna lo stato di una submission locale
+   * @param {number} issueNumber - Numero dell'issue
+   * @param {string} status - Nuovo stato
+   */
+  async updateLocalSubmissionStatus(issueNumber, status) {
+    try {
+      const submissions = await this.getLocalSubmissions();
+      const submissionIndex = submissions.findIndex(sub => sub.issueNumber === issueNumber);
+      
+      if (submissionIndex !== -1) {
+        submissions[submissionIndex].status = status;
+        await this.storageService.set('localSubmissions', submissions);
+        DEBUG.log(`📝 Stato submission aggiornato: #${issueNumber} -> ${status}`);
+      }
+    } catch (error) {
+      DEBUG.error('❌ Errore aggiornamento stato submission:', error);
+    }
   }
 }
 
