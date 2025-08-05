@@ -747,15 +747,17 @@ const AppInfoModal = ({ open, onClose, app, onAppChange }) => {
                       {app.uniqueId && (
                         <Chip label={`ID: ${app.uniqueId}`} variant="outlined" size="small" />
                       )}
-                      <TextField
-                        fullWidth
-                        label="Versione"
-                        value={app.version || ''}
-                        onChange={e => onAppChange && onAppChange({ ...app, version: e.target.value })}
-                        placeholder="es: 1.0.0"
-                        helperText="Versione semantica (es: 1.0.0, 1.1.0, 2.0.0)"
-                        sx={{ mt: 2 }}
-                      />
+                      {onAppChange && (
+                        <TextField
+                          fullWidth
+                          label="Versione"
+                          value={app.version || ''}
+                          onChange={e => onAppChange({ ...app, version: e.target.value })}
+                          placeholder="es: 1.0.0"
+                          helperText="Versione semantica (es: 1.0.0, 1.1.0, 2.0.0)"
+                          sx={{ mt: 2 }}
+                        />
+                      )}
                       {app.type === 'url' && (
                         <TextField
                           fullWidth
