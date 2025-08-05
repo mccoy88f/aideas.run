@@ -588,7 +588,7 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
               fullWidth
               label="Versione"
               value={formData.version}
-              onChange={(e) => handleFormChange('version', e.target.value)}
+              InputProps={{ readOnly: true }}
               placeholder="es: 1.0.0"
               helperText="Versione semantica (es: 1.0.0, 1.1.0, 2.0.0)"
               required

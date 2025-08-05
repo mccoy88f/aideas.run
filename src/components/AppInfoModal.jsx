@@ -25,7 +25,8 @@ import {
   Grid,
   Menu,
   MenuItem,
-  LinearProgress
+  LinearProgress,
+  TextField
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -56,7 +57,7 @@ import AppSubmissionModal from './AppSubmissionModal.jsx';
 /**
  * Modal per visualizzare informazioni dettagliate sull'app
  */
-const AppInfoModal = ({ open, onClose, app }) => {
+const AppInfoModal = ({ open, onClose, app, onAppChange }) => {
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -746,8 +747,24 @@ const AppInfoModal = ({ open, onClose, app }) => {
                       {app.uniqueId && (
                         <Chip label={`ID: ${app.uniqueId}`} variant="outlined" size="small" />
                       )}
-                      {app.version && (
-                        <Chip label={`v${app.version}`} variant="outlined" size="small" />
+                      <TextField
+                        fullWidth
+                        label="Versione"
+                        value={app.version || ''}
+                        onChange={e => onAppChange && onAppChange({ ...app, version: e.target.value })}
+                        placeholder="es: 1.0.0"
+                        helperText="Versione semantica (es: 1.0.0, 1.1.0, 2.0.0)"
+                        sx={{ mt: 2 }}
+                      />
+                      {app.type === 'url' && (
+                        <TextField
+                          fullWidth
+                          label="URL applicazione"
+                          value={app.url || ''}
+                          onChange={e => onAppChange && onAppChange({ ...app, url: e.target.value })}
+                          placeholder="https://..."
+                          sx={{ mt: 2 }}
+                        />
                       )}
                     </Box>
                     {(app.originalGithubUrl || app.githubUrl) && (
