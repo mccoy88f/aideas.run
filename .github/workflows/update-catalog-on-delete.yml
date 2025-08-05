@@ -1,0 +1,118 @@
+name: Update Catalog on App Deletion
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+
+jobs:
+  update-catalog:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Get deleted directories
+        id: deleted-dirs
+        run: |
+          # Ottieni la lista delle cartelle cancellate
+          DELETED_DIRS=$(git diff --name-only --diff-filter=D HEAD~1 HEAD | grep '^apps/' | sed 's|apps/||' | sed 's|/.*||' | sort | uniq)
+          
+          if [ -n "$DELETED_DIRS" ]; then
+            echo "deleted_dirs=$DELETED_DIRS" >> $GITHUB_OUTPUT
+            echo "Found deleted directories: $DELETED_DIRS"
+          else
+            echo "No deleted directories found"
+          fi
+      
+      - name: Update catalog.json
+        if: steps.deleted-dirs.outputs.deleted_dirs
+        run: |
+          # Leggi il catalog.json corrente
+          if [ -f "catalog.json" ]; then
+            echo "Updating catalog.json..."
+            
+            # Crea script Node.js per aggiornare il catalog
+            cat > update-catalog.js << 'EOF'
+            const fs = require('fs');
+            const deletedDirs = process.env.DELETED_DIRS.split(' ').filter(dir => dir.trim());
+            
+            console.log('Removing apps:', deletedDirs);
+            
+            if (fs.existsSync('catalog.json')) {
+              const catalog = JSON.parse(fs.readFileSync('catalog.json', 'utf8'));
+              
+              // Rimuovi le app cancellate
+              const originalCount = catalog.apps.length;
+              catalog.apps = catalog.apps.filter(app => {
+                const shouldKeep = !deletedDirs.includes(app.id);
+                if (!shouldKeep) {
+                  console.log(`Removing app: ${app.name} (ID: ${app.id})`);
+                }
+                return shouldKeep;
+              });
+              
+              const removedCount = originalCount - catalog.apps.length;
+              catalog.lastUpdated = new Date().toISOString();
+              
+              fs.writeFileSync('catalog.json', JSON.stringify(catalog, null, 2));
+              
+              console.log(`Removed ${removedCount} apps from catalog`);
+              console.log(`Catalog now contains ${catalog.apps.length} apps`);
+            } else {
+              console.log('No catalog.json found, creating empty one');
+              const emptyCatalog = {
+                apps: [],
+                lastUpdated: new Date().toISOString()
+              };
+              fs.writeFileSync('catalog.json', JSON.stringify(emptyCatalog, null, 2));
+            }
+            EOF
+            
+            # Esegui lo script
+            DELETED_DIRS="${{ steps.deleted-dirs.outputs.deleted_dirs }}" node update-catalog.js
+            
+            # Mostra il risultato
+            echo "Updated catalog.json:"
+            cat catalog.json
+          else
+            echo "No catalog.json found, creating empty one"
+            echo '{"apps":[],"lastUpdated":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > catalog.json
+          fi
+      
+      - name: Commit and push changes
+        if: steps.deleted-dirs.outputs.deleted_dirs
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Controlla se ci sono modifiche da committare
+          if git diff --quiet catalog.json; then
+            echo "No changes to catalog.json"
+          else
+            git add catalog.json
+            git commit -m "chore: update catalog after app deletion
+
+            - Remove deleted apps from catalog.json
+            - Update lastUpdated timestamp
+            - Deleted directories: ${{ steps.deleted-dirs.outputs.deleted_dirs }}"
+            git push origin main
+          fi
+      
+      - name: Notify completion
+        run: |
+          if [ -n "${{ steps.deleted-dirs.outputs.deleted_dirs }}" ]; then
+            echo "✅ Catalog updated after app deletion"
+            echo "🗑️ Deleted directories: ${{ steps.deleted-dirs.outputs.deleted_dirs }}"
+          else
+            echo "ℹ️ No app directories were deleted"
+          fi 

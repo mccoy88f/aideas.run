@@ -67,12 +67,15 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
   // Inizializza form data quando l'app cambia
   useEffect(() => {
     if (app) {
+      // Ottieni username GitHub per l'autore
+      const githubUsername = appSubmissionService.githubService.getUserInfo()?.login || '';
+      
       setFormData({
         name: app.name || '',
         description: app.description || '',
         category: app.category || 'utility',
         tags: app.tags || [],
-        author: '' // Verrà impostato automaticamente dal GitHub username
+        author: githubUsername // Usa sempre username GitHub
       });
     }
   }, [app]);
@@ -81,27 +84,8 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
   useEffect(() => {
     if (open) {
       loadUserSubmissions();
-      loadGitHubUsername();
     }
   }, [open]);
-
-  // Carica il nome utente GitHub
-  const loadGitHubUsername = async () => {
-    try {
-      const isAuthenticated = await appSubmissionService.githubService.isAuthenticated();
-      if (isAuthenticated) {
-        const userInfo = appSubmissionService.githubService.getUserInfo();
-        if (userInfo && userInfo.login) {
-          setFormData(prev => ({
-            ...prev,
-            author: userInfo.login
-          }));
-        }
-      }
-    } catch (error) {
-      DEBUG.error('❌ Errore caricamento username GitHub:', error);
-    }
-  };
 
   // Carica submission dell'utente
   const loadUserSubmissions = async () => {
@@ -128,11 +112,6 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
           setError(`L'app "${app.name}" è già stata submittata. Status: ${existingSubmission.status}`);
         }
       }
-      
-      // Verifica che l'utente sia autenticato
-      if (!isAuthenticated) {
-        setError('Configura GitHub nelle impostazioni per poter sottomettere app.');
-      }
     } catch (error) {
       DEBUG.error('❌ Errore caricamento submission:', error);
       // In caso di errore, imposta array vuoto invece di fallire
@@ -151,14 +130,6 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
     setError(null);
 
     try {
-      // Assicurati che l'autore sia impostato dal GitHub username
-      const userInfo = appSubmissionService.githubService.getUserInfo();
-      const githubAuthor = userInfo?.login;
-      
-      if (!githubAuthor) {
-        throw new Error('Impossibile recuperare il nome utente GitHub. Verifica la configurazione nelle impostazioni.');
-      }
-      
       // Aggiorna l'app con i dati del form
       const updatedApp = {
         ...app,
@@ -166,7 +137,7 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
         description: formData.description,
         category: formData.category,
         tags: formData.tags,
-        author: githubAuthor // Usa sempre il GitHub username
+        author: formData.author
       };
 
       // Verifica se l'app è già stata submittata
@@ -404,35 +375,16 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
               </Select>
             </FormControl>
             
-            <Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Autore
-              </Typography>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1,
-                p: 2,
-                borderRadius: 1,
-                bgcolor: 'background.paper',
-                border: '1px solid',
-                borderColor: 'divider'
-              }}>
-                <GitHubIcon fontSize="small" color="primary" />
-                <Typography variant="body1">
-                  {formData.author || 'Caricamento...'}
-                </Typography>
-                <Chip 
-                  label="GitHub" 
-                  size="small" 
-                  color="primary" 
-                  variant="outlined"
-                />
-              </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                L'autore viene impostato automaticamente dal tuo account GitHub
-              </Typography>
-            </Box>
+            <TextField
+              fullWidth
+              label="Autore"
+              value={formData.author}
+              InputProps={{
+                readOnly: true,
+                sx: { bgcolor: 'action.disabledBackground' }
+              }}
+              helperText="Username GitHub (non modificabile)"
+            />
 
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
@@ -534,15 +486,7 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
                   </Box>
                   <Box>
                     <Typography variant="body2" color="text.secondary">Autore</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body1">{submissionData.app.author}</Typography>
-                      <Chip 
-                        label="GitHub" 
-                        size="small" 
-                        color="primary" 
-                        variant="outlined"
-                      />
-                    </Box>
+                    <Typography variant="body1">{submissionData.app.author}</Typography>
                   </Box>
                   <Box>
                     <Typography variant="body2" color="text.secondary">File</Typography>

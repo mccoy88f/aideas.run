@@ -190,7 +190,7 @@ Il modal delle impostazioni è completamente ottimizzato per dispositivi mobili:
 
 ### **Prerequisiti**
 
-- Node.js 18+
+- Node.js 18+ 
 - npm o yarn
 - Git
 
