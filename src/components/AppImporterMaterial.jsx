@@ -25,12 +25,12 @@ import {
   Add as AddIcon,
   Link as LinkIcon,
   Code as CodeIcon,
-  GitHub as GitHubIcon,
   Close as CloseIcon,
   Check as CheckIcon,
   Error as ErrorIcon,
   Info as InfoIcon,
-  Store as StoreIcon
+  Store as StoreIcon,
+  SmartToy as AIIcon
 } from '@mui/icons-material';
 
 /**
@@ -57,7 +57,7 @@ const AppImporterMaterial = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
+
   const [uploadedZip, setUploadedZip] = useState(null);
   const [customIcon, setCustomIcon] = useState(null);
   const [iconSelectorOpen, setIconSelectorOpen] = useState(false);
@@ -81,7 +81,7 @@ const AppImporterMaterial = ({
     {
       id: 'url',
       title: 'Importa da URL',
-      description: 'Aggiungi un\'applicazione web tramite URL (supporta anche file ZIP o HTML singoli)',
+      description: 'Carica file ZIP o HTML singoli tramite URL. Simile al sistema di carica file ma tramite URL.',
       icon: <LinkIcon />, 
       color: 'primary'
     },
@@ -93,10 +93,10 @@ const AppImporterMaterial = ({
       color: 'warning'
     },
     {
-      id: 'github',
-      title: 'Importa da GitHub',
-      description: 'Importa un\'app da un repository GitHub',
-      icon: <GitHubIcon />, 
+      id: 'webapp',
+      title: 'Collega WebAPP',
+      description: 'Collega un\'applicazione web tramite URL. Recupera automaticamente metadati e permette modifiche.',
+      icon: <StoreIcon />, 
       color: 'success'
     }
   ];
@@ -132,8 +132,8 @@ const AppImporterMaterial = ({
         setError('Devi caricare un file ZIP o HTML');
         return;
       }
-      if (importType === 'github' && !githubUrl.trim()) {
-        setError('URL GitHub è obbligatorio');
+      if (importType === 'webapp' && !formData.url.trim()) {
+        setError('URL è obbligatorio per collegare WebAPP');
         return;
       }
     }
@@ -156,7 +156,7 @@ const AppImporterMaterial = ({
       category: '',
       tags: []
     });
-    setGithubUrl('');
+
     setUploadedZip(null);
     setCustomIcon(null);
     setError('');
@@ -195,9 +195,8 @@ const AppImporterMaterial = ({
             appData.tags = formData.tags;
           }
           break;
-        case 'github':
-          appData.url = githubUrl;
-          appData.type = 'github';
+        case 'webapp':
+          appData.type = 'webapp';
           break;
         default:
           appData.type = 'url';
@@ -585,21 +584,46 @@ const AppImporterMaterial = ({
               textAlign: 'center'
             }}>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Cerchi app pronte all'uso?
+                Cerchi app pronte all'uso o hai un idea?
               </Typography>
-              <Button
-                variant="outlined"
-                color="secondary"
-                onClick={() => {
-                  onClose();
-                  window.history.pushState(null, '', '/store');
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                }}
-                startIcon={<StoreIcon />}
-                sx={{ textTransform: 'none' }}
-              >
-                Esplora AIdeas Store
-              </Button>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => {
+                    onClose();
+                    window.history.pushState(null, '', '/store');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                  startIcon={<StoreIcon />}
+                  sx={{ textTransform: 'none' }}
+                  onDoubleClick={() => {
+                    onClose();
+                    window.history.pushState(null, '', '/store');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                >
+                  Esplora AIdeas Store
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={() => {
+                    onClose();
+                    window.history.pushState(null, '', '/ai-generator');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                  startIcon={<AIIcon />}
+                  sx={{ textTransform: 'none' }}
+                  onDoubleClick={() => {
+                    onClose();
+                    window.history.pushState(null, '', '/ai-generator');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                >
+                  Genera app con l'AI
+                </Button>
+              </Box>
             </Box>
           </Box>
         );
@@ -669,14 +693,16 @@ const AppImporterMaterial = ({
                 </Box>
               )}
               
-              {importType === 'github' && (
+              {importType === 'webapp' && (
                 <TextField
-                  label="URL Repository GitHub"
-                  value={githubUrl}
-                  onChange={(e) => setGithubUrl(e.target.value)}
+                  label="URL WebAPP *"
+                  value={formData.url}
+                  onChange={(e) => handleInputChange('url', e.target.value)}
                   fullWidth
                   variant="outlined"
-                  placeholder="https://github.com/username/repository"
+                  required
+                  placeholder="https://esempio.com"
+                  helperText="Inserisci l'URL dell'applicazione web. I metadati verranno recuperati automaticamente."
                 />
               )}
               

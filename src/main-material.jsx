@@ -979,6 +979,138 @@ function AIdeasApp() {
         
         console.log('✅ ZIP processato con successo:', files.length, 'file estratti');
       }
+      // Gestisci importazione da URL (file ZIP o HTML)
+      else if (appData.type === 'url' && appData.url) {
+        console.log('🌐 Processando importazione da URL:', appData.url);
+        
+        try {
+          // Carica il contenuto dall'URL
+          const response = await fetch(appData.url);
+          if (!response.ok) {
+            throw new Error(`Errore nel caricamento dell'URL: ${response.status}`);
+          }
+          
+          const contentType = response.headers.get('content-type');
+          
+          // Se è un file HTML singolo
+          if (contentType && contentType.includes('text/html')) {
+            const htmlContent = await response.text();
+            const htmlMetadata = extractHtmlMetadataFromZip(htmlContent);
+            
+            processedAppData = {
+              ...appData,
+              name: appData.name || htmlMetadata.title || 'App HTML',
+              description: appData.description || htmlMetadata.description || '',
+              category: appData.category || 'altro',
+              tags: appData.tags?.length > 0 ? appData.tags : (htmlMetadata.keywords ? htmlMetadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag) : []),
+              icon: appData.icon || htmlMetadata.icon,
+              author: appData.author || htmlMetadata.author || 'Unknown',
+              content: htmlContent,
+              type: 'html'
+            };
+            
+            console.log('✅ File HTML da URL processato con successo');
+          }
+          // Se è un file ZIP
+          else if (contentType && contentType.includes('application/zip') || appData.url.toLowerCase().endsWith('.zip')) {
+            const zipBlob = await response.blob();
+            const zipFile = new File([zipBlob], 'app.zip', { type: 'application/zip' });
+            
+            // Importa JSZip dinamicamente
+            const JSZip = (await import('jszip')).default;
+            const zip = new JSZip();
+            
+            // Leggi il contenuto del ZIP
+            const contents = await zip.loadAsync(zipBlob);
+            
+            // Estrai tutti i file
+            const files = [];
+            let manifest = null;
+            
+            for (const [filename, fileObj] of Object.entries(contents.files)) {
+              if (fileObj.dir) continue;
+              
+              const content = await fileObj.async('text');
+              const fileData = {
+                filename,
+                content,
+                size: content.length,
+                mimeType: getMimeType(filename)
+              };
+              
+              files.push(fileData);
+              
+              // Cerca manifest AIdeas
+              if (filename === 'aideas.json') {
+                try {
+                  manifest = JSON.parse(content);
+                } catch (e) {
+                  console.warn('Manifest aideas.json non valido:', e);
+                }
+              }
+            }
+            
+            // Validazione: deve contenere almeno un file HTML
+            const hasHTML = files.some(f => f.filename.endsWith('.html'));
+            if (!hasHTML) {
+              throw new Error('Il file ZIP deve contenere almeno un file HTML');
+            }
+            
+            // Estrai metadati dal manifest o dai file
+            const metadata = extractZipMetadata(files, manifest);
+            
+            processedAppData = {
+              ...appData,
+              name: appData.name || metadata.name,
+              description: appData.description || metadata.description,
+              category: appData.category || metadata.category,
+              tags: appData.tags?.length > 0 ? appData.tags : metadata.tags,
+              icon: appData.icon || metadata.icon,
+              author: appData.author || metadata.author,
+              files: files,
+              manifest: manifest || {}
+            };
+            
+            console.log('✅ ZIP da URL processato con successo:', files.length, 'file estratti');
+          } else {
+            throw new Error('URL non supportato. Deve essere un file HTML o ZIP.');
+          }
+        } catch (error) {
+          throw new Error(`Errore nel caricamento dell'URL: ${error.message}`);
+        }
+      }
+      // Gestisci collegamento WebAPP
+      else if (appData.type === 'webapp' && appData.url) {
+        console.log('🔗 Processando collegamento WebAPP:', appData.url);
+        
+        try {
+          // Carica il contenuto dall'URL
+          const response = await fetch(appData.url);
+          if (!response.ok) {
+            throw new Error(`Errore nel caricamento dell'URL: ${response.status}`);
+          }
+          
+          const htmlContent = await response.text();
+          const htmlMetadata = extractHtmlMetadataFromZip(htmlContent);
+          
+          processedAppData = {
+            ...appData,
+            name: appData.name || htmlMetadata.title || 'WebAPP',
+            description: appData.description || htmlMetadata.description || '',
+            category: appData.category || 'altro',
+            tags: appData.tags?.length > 0 ? appData.tags : (htmlMetadata.keywords ? htmlMetadata.keywords.split(',').map(tag => tag.trim()).filter(tag => tag) : []),
+            icon: appData.icon || htmlMetadata.icon,
+            author: appData.author || htmlMetadata.author || 'Unknown',
+            content: htmlContent,
+            type: 'html',
+            url: appData.url // Mantieni l'URL originale per riferimento
+          };
+          
+          console.log('✅ WebAPP collegata con successo');
+        } catch (error) {
+          throw new Error(`Errore nel collegamento della WebAPP: ${error.message}`);
+        }
+      }
       
       const appId = await StorageService.installApp(processedAppData);
       await loadApps(); // Ricarica tutte le app
@@ -2301,6 +2433,7 @@ function AIdeasApp() {
               <IconButton
                 aria-label="AIdeas Store"
                 onClick={navigateToStore}
+                onDoubleClick={navigateToStore}
                 sx={{
                   background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
                   color: 'white',
@@ -2316,6 +2449,7 @@ function AIdeasApp() {
               <IconButton
                 aria-label="Genera app con AI"
                 onClick={navigateToAIGenerator}
+                onDoubleClick={navigateToAIGenerator}
                 sx={{
                   background: `linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)`,
                   color: 'white',
@@ -2331,6 +2465,7 @@ function AIdeasApp() {
               <IconButton
                 aria-label="Aggiungi app"
                 onClick={() => setImporterOpen(true)}
+                onDoubleClick={() => setImporterOpen(true)}
                 sx={{
                   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                   color: 'white',
@@ -2796,6 +2931,15 @@ function AIdeasApp() {
                 <option value="Utility">Utility</option>
                 <option value="Altro">Altro</option>
               </TextField>
+              <TextField
+                fullWidth
+                label="Versione"
+                value={selectedApp.version || ''}
+                onChange={(e) => setSelectedApp({...selectedApp, version: e.target.value})}
+                placeholder="es: 1.0.0"
+                helperText="Versione semantica (es: 1.0.0, 1.1.0, 2.0.0)"
+                sx={{ mb: 2 }}
+              />
               <TextField
                 fullWidth
                 label="URL"
