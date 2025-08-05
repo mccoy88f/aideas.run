@@ -33,4 +33,4 @@ assignees: ""
 
 ---
 
-**Note:** This issue will be automatically processed when labeled as 'approved' and closed. 
+**Note:** This issue will be automatically processed when closed AND it has the 'approved' label AND the '[SUBMISSION]' tag in the title. 
