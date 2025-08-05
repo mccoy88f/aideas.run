@@ -1088,13 +1088,14 @@ function AIdeasApp() {
         console.log('🔗 Processando collegamento WebAPP:', appData.url);
         
         try {
-          // Carica il contenuto dall'URL
-          const response = await fetch(appData.url);
-          if (!response.ok) {
-            throw new Error(`Errore nel caricamento dell'URL: ${response.status}`);
+          // Usa il ProxyService per evitare problemi CORS
+          const proxyService = new ProxyService();
+          const htmlContent = await proxyService.fetchWithProxy(appData.url);
+          
+          if (!htmlContent) {
+            throw new Error('Impossibile recuperare il contenuto dall\'URL');
           }
           
-          const htmlContent = await response.text();
           const htmlMetadata = extractHtmlMetadataFromZip(htmlContent);
           
           processedAppData = {
