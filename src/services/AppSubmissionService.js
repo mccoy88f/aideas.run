@@ -13,12 +13,23 @@ export default class AppSubmissionService {
   constructor() {
     this.githubService = new GitHubService();
     this.securityService = new SecurityService();
-    this.storageService = new StorageService();
+    this.storageService = null; // Inizializzato lazy
     this.storeRepo = {
       owner: 'mccoy88f',
       repo: 'aideas.store'
     };
     this.submissionCache = new Map();
+  }
+
+  /**
+   * Ottiene l'istanza di StorageService (lazy loading)
+   * @returns {StorageService} Istanza di StorageService
+   */
+  getStorageService() {
+    if (!this.storageService) {
+      this.storageService = new StorageService();
+    }
+    return this.storageService;
   }
 
   /**
@@ -752,7 +763,7 @@ ${securityReport.hasIssues ?
       const submissions = await this.getLocalSubmissions();
       submissions.push(localSubmission);
       
-      await this.storageService.setSetting('localSubmissions', JSON.stringify(submissions));
+      await this.getStorageService().setSetting('localSubmissions', JSON.stringify(submissions));
       DEBUG.log(`💾 Submission salvata localmente: ${localSubmission.appName} -> #${issueNumber}`);
     } catch (error) {
       DEBUG.error('❌ Errore salvataggio submission locale:', error);
@@ -765,7 +776,7 @@ ${securityReport.hasIssues ?
    */
   async getLocalSubmissions() {
     try {
-      const submissions = await this.storageService.getSetting('localSubmissions', '[]');
+      const submissions = await this.getStorageService().getSetting('localSubmissions', '[]');
       return JSON.parse(submissions);
     } catch (error) {
       DEBUG.error('❌ Errore recupero submission locali:', error);
@@ -800,7 +811,7 @@ ${securityReport.hasIssues ?
       
       if (submissionIndex !== -1) {
         submissions[submissionIndex].status = status;
-        await this.storageService.setSetting('localSubmissions', JSON.stringify(submissions));
+        await this.getStorageService().setSetting('localSubmissions', JSON.stringify(submissions));
         DEBUG.log(`📝 Stato submission aggiornato: #${issueNumber} -> ${status}`);
       }
     } catch (error) {
