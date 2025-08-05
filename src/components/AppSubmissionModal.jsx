@@ -67,16 +67,47 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
   // Inizializza form data quando l'app cambia
   useEffect(() => {
     if (app) {
-      // Ottieni username GitHub per l'autore
-      const githubUsername = appSubmissionService.githubService.getUserInfo()?.login || '';
+      // Ottieni username GitHub per l'autore in modo asincrono
+      const loadGitHubUsername = async () => {
+        try {
+          const isAuthenticated = await appSubmissionService.githubService.isAuthenticated();
+          if (isAuthenticated) {
+            const userInfo = appSubmissionService.githubService.getUserInfo();
+            const githubUsername = userInfo?.login || '';
+            
+            setFormData(prev => ({
+              ...prev,
+              name: app.name || '',
+              description: app.description || '',
+              category: app.category || 'utility',
+              tags: app.tags || [],
+              author: githubUsername // Usa sempre username GitHub
+            }));
+          } else {
+            // Se non autenticato, usa un placeholder
+            setFormData(prev => ({
+              ...prev,
+              name: app.name || '',
+              description: app.description || '',
+              category: app.category || 'utility',
+              tags: app.tags || [],
+              author: 'GitHub username (configura GitHub nelle impostazioni)'
+            }));
+          }
+        } catch (error) {
+          DEBUG.error('❌ Errore caricamento username GitHub:', error);
+          setFormData(prev => ({
+            ...prev,
+            name: app.name || '',
+            description: app.description || '',
+            category: app.category || 'utility',
+            tags: app.tags || [],
+            author: 'Unknown'
+          }));
+        }
+      };
       
-      setFormData({
-        name: app.name || '',
-        description: app.description || '',
-        category: app.category || 'utility',
-        tags: app.tags || [],
-        author: githubUsername // Usa sempre username GitHub
-      });
+      loadGitHubUsername();
     }
   }, [app]);
 
@@ -86,6 +117,29 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
       loadUserSubmissions();
     }
   }, [open]);
+
+  // Aggiorna l'autore quando l'autenticazione cambia
+  useEffect(() => {
+    if (open && isAuthenticated && app) {
+      const updateAuthor = async () => {
+        try {
+          const userInfo = appSubmissionService.githubService.getUserInfo();
+          const githubUsername = userInfo?.login || '';
+          
+          if (githubUsername && githubUsername !== formData.author) {
+            setFormData(prev => ({
+              ...prev,
+              author: githubUsername
+            }));
+          }
+        } catch (error) {
+          DEBUG.error('❌ Errore aggiornamento username:', error);
+        }
+      };
+      
+      updateAuthor();
+    }
+  }, [open, isAuthenticated, app]);
 
   // Carica submission dell'utente
   const loadUserSubmissions = async () => {
@@ -130,6 +184,23 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
     setError(null);
 
     try {
+      // Verifica che l'autore sia un username GitHub valido
+      let author = formData.author;
+      if (!author || author === 'Unknown' || author.includes('configura GitHub')) {
+        // Prova a ottenere l'username GitHub
+        try {
+          const isAuthenticated = await appSubmissionService.githubService.isAuthenticated();
+          if (isAuthenticated) {
+            const userInfo = appSubmissionService.githubService.getUserInfo();
+            author = userInfo?.login || 'Unknown';
+          } else {
+            throw new Error('GitHub non configurato. Vai nelle impostazioni e configura GitHub.');
+          }
+        } catch (error) {
+          throw new Error('Impossibile ottenere username GitHub. Verifica la configurazione nelle impostazioni.');
+        }
+      }
+      
       // Aggiorna l'app con i dati del form
       const updatedApp = {
         ...app,
@@ -137,7 +208,7 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
         description: formData.description,
         category: formData.category,
         tags: formData.tags,
-        author: formData.author
+        author: author
       };
 
       // Verifica se l'app è già stata submittata
@@ -383,7 +454,12 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
                 readOnly: true,
                 sx: { bgcolor: 'action.disabledBackground' }
               }}
-              helperText="Username GitHub (non modificabile)"
+              helperText={
+                formData.author === 'Unknown' || formData.author.includes('configura GitHub')
+                  ? "Configura GitHub nelle impostazioni per ottenere il tuo username"
+                  : "Username GitHub (non modificabile)"
+              }
+              error={formData.author === 'Unknown' || formData.author.includes('configura GitHub')}
             />
 
             <Box>

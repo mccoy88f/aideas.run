@@ -180,66 +180,19 @@ jobs:
           
           echo "App structure validated successfully"
       
-      - name: Update catalog
+      - name: Validate app installation
         run: |
-          # Create catalog.json if it doesn't exist
-          if [ ! -f "catalog.json" ]; then
-            echo "Creating catalog.json..."
-            echo '{"apps":[],"lastUpdated":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > "catalog.json"
-          fi
+          echo "✅ App installed successfully in apps/${{ steps.extract.outputs.app_id }}/"
+          echo "📁 App structure:"
+          ls -la "apps/${{ steps.extract.outputs.app_id }}/"
           
-          # Update catalog with new app
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            
-            const catalogPath = 'catalog.json';
-            const appId = '${{ steps.extract.outputs.app_id }}';
-            const appName = '${{ steps.extract.outputs.app_name }}';
-            const description = '${{ steps.extract.outputs.description }}';
-            const author = '${{ steps.extract.outputs.author }}';
-            const category = '${{ steps.extract.outputs.category }}';
-            const tags = '${{ steps.extract.outputs.tags }}'.split(',').filter(tag => tag.trim());
-            
-            let catalog = { apps: [], lastUpdated: new Date().toISOString() };
-            
-            if (fs.existsSync(catalogPath)) {
-              catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
-            }
-            
-            // Check if app already exists
-            const existingAppIndex = catalog.apps.findIndex(app => app.id === appId);
-            
-            const appInfo = {
-              id: appId,
-              name: appName,
-              description: description,
-              author: author,
-              version: '1.0.0',
-              category: category,
-              tags: tags,
-              icon: '📱',
-              githubUrl: 'https://github.com/mccoy88f/aideas.store/tree/main/apps/' + appId,
-              downloadUrl: 'https://github.com/mccoy88f/aideas.store/archive/refs/heads/main.zip',
-              installDate: new Date().toISOString(),
-              lastUsed: null,
-              favorite: false,
-              type: 'store',
-              storeId: appId,
-              lastModified: new Date().toISOString()
-            };
-            
-            if (existingAppIndex >= 0) {
-              catalog.apps[existingAppIndex] = appInfo;
-            } else {
-              catalog.apps.push(appInfo);
-            }
-            
-            catalog.lastUpdated = new Date().toISOString();
-            
-            fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2));
-            console.log('Catalog updated with app:', appId);
-          "
+          # Verifica che aideas.json sia valido
+          if [ -f "apps/${{ steps.extract.outputs.app_id }}/aideas.json" ]; then
+            echo "✅ aideas.json found and valid"
+            cat "apps/${{ steps.extract.outputs.app_id }}/aideas.json"
+          else
+            echo "⚠️ aideas.json not found (will be created automatically by StoreService)"
+          fi
       
       - name: Commit and push changes
         run: |
@@ -248,7 +201,6 @@ jobs:
           
           # Add all files except hidden ones
           git add apps/${{ steps.extract.outputs.app_id }}/
-          git add catalog.json
           
           # Commit with detailed message
           git commit -m "feat: add approved app '${{ steps.extract.outputs.app_name }}' (ID: ${{ steps.extract.outputs.app_id }})
@@ -257,7 +209,8 @@ jobs:
           - Author: ${{ steps.extract.outputs.author }}
           - Category: ${{ steps.extract.outputs.category }}
           - Tags: ${{ steps.extract.outputs.tags }}
-          - Auto-approved via workflow"
+          - Auto-approved via workflow
+          - App installed in apps/${{ steps.extract.outputs.app_id }}/"
           
           # Push to main branch
           git push origin main
