@@ -454,16 +454,79 @@ ${securityReport.hasIssues ?
    */
   async checkAppAlreadySubmitted(app) {
     try {
-      const submissions = await this.getUserSubmissions();
+      const userLogin = this.githubService.userInfo?.login;
+      if (!userLogin) {
+        throw new Error('Utente non autenticato');
+      }
+
+      // Ottieni tutte le issue dell'utente (non solo quelle con label submission)
+      const response = await this.githubService.makeRequest(
+        `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/issues?creator=${userLogin}&state=all`,
+        {
+          headers: await this.githubService.getAuthHeaders()
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Errore recupero issues: ${response.statusText}`);
+      }
+
+      const issues = await response.json();
       const appName = app.name.toLowerCase().trim();
       
-      // Cerca submission con lo stesso nome
-      const existingSubmission = submissions.find(submission => {
-        const submissionTitle = submission.title.replace('[SUBMISSION] ', '').toLowerCase().trim();
-        return submissionTitle === appName;
+      DEBUG.log(`🔍 Cercando app: "${appName}"`);
+      DEBUG.log(`📋 Issues trovate: ${issues.length}`);
+      
+      // Debug: mostra tutte le issue dell'utente
+      issues.forEach(issue => {
+        const cleanTitle = issue.title
+          .replace(/^\[SUBMISSION\]\s*/i, '')
+          .replace(/^\[APP\]\s*/i, '')
+          .toLowerCase()
+          .trim();
+        DEBUG.log(`  - "${issue.title}" -> "${cleanTitle}" (state: ${issue.state})`);
       });
       
-      return existingSubmission || null;
+      // Cerca issue con lo stesso nome dell'app
+      const existingIssue = issues.find(issue => {
+        // Rimuovi prefissi comuni dal titolo
+        const cleanTitle = issue.title
+          .replace(/^\[SUBMISSION\]\s*/i, '')
+          .replace(/^\[APP\]\s*/i, '')
+          .toLowerCase()
+          .trim();
+        
+        return cleanTitle === appName;
+      });
+      
+      if (existingIssue) {
+        DEBUG.log(`✅ Issue esistente trovata: #${existingIssue.number} - "${existingIssue.title}" (state: ${existingIssue.state})`);
+      } else {
+        DEBUG.log(`❌ Nessuna issue esistente trovata per "${appName}"`);
+      }
+      
+      if (existingIssue) {
+        const labels = existingIssue.labels.map(label => label.name);
+        let status = 'pending';
+        if (labels.includes('approved')) {
+          status = 'approved';
+        } else if (labels.includes('rejected')) {
+          status = 'rejected';
+        }
+
+        return {
+          issueNumber: existingIssue.number,
+          status: status,
+          title: existingIssue.title,
+          url: existingIssue.html_url,
+          createdAt: existingIssue.created_at,
+          updatedAt: existingIssue.updated_at,
+          labels: labels,
+          state: existingIssue.state // 'open' o 'closed'
+        };
+      }
+      
+      return null;
     } catch (error) {
       DEBUG.error('❌ Errore verifica submission esistente:', error);
       return null;
