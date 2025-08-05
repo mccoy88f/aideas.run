@@ -63,7 +63,8 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
     description: '',
     category: '',
     tags: [],
-    author: ''
+    author: '',
+    version: ''
   });
 
   // Inizializza form data quando l'app cambia
@@ -83,7 +84,8 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
               description: app.description || '',
               category: app.category || 'utility',
               tags: app.tags || [],
-              author: githubUsername // Usa sempre username GitHub
+              author: githubUsername, // Usa sempre username GitHub
+              version: app.version || '1.0.0'
             }));
           } else {
             // Se non autenticato, usa un placeholder
@@ -93,7 +95,8 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
               description: app.description || '',
               category: app.category || 'utility',
               tags: app.tags || [],
-              author: 'GitHub username (configura GitHub nelle impostazioni)'
+              author: 'GitHub username (configura GitHub nelle impostazioni)',
+              version: app.version || '1.0.0'
             }));
           }
         } catch (error) {
@@ -104,7 +107,8 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
             description: app.description || '',
             category: app.category || 'utility',
             tags: app.tags || [],
-            author: 'Unknown'
+            author: 'Unknown',
+            version: app.version || '1.0.0'
           }));
         }
       };
@@ -241,7 +245,8 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
         description: formData.description,
         category: formData.category,
         tags: formData.tags,
-        author: author
+        author: author,
+        version: formData.version
       };
 
       // Verifica se l'app è già stata submittata
@@ -258,8 +263,15 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
         });
       }
       
+      // Verifica se è un aggiornamento valido
+      const isUpdateValid = await appSubmissionService.checkVersionUpdate(updatedApp, existingSubmission);
+      
       if (existingSubmission && existingSubmission.submissionType === 'pending') {
         throw new Error(`L'app "${updatedApp.name}" è già stata submittata e l'issue è ancora aperta.`);
+      }
+      
+      if (existingSubmission && existingSubmission.submissionType === 'approved' && !isUpdateValid) {
+        throw new Error(`L'app "${updatedApp.name}" è già stata approvata. Per aggiornarla, la versione deve essere maggiore di quella esistente. Versione attuale: ${updatedApp.version}`);
       }
 
       setProgress({ show: true, value: 30, text: 'Validazione app...' });
@@ -368,6 +380,14 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
     setProgress({ show: false, value: 0, text: '' });
     setExistingSubmission(null);
     setCanSubmit(false);
+    setFormData({
+      name: '',
+      description: '',
+      category: '',
+      tags: [],
+      author: '',
+      version: ''
+    });
     onClose();
   };
 
@@ -562,6 +582,16 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
                   : "Username GitHub (non modificabile)"
               }
               error={formData.author === 'Unknown' || formData.author.includes('configura GitHub')}
+            />
+
+            <TextField
+              fullWidth
+              label="Versione"
+              value={formData.version}
+              onChange={(e) => handleFormChange('version', e.target.value)}
+              placeholder="es: 1.0.0"
+              helperText="Versione semantica (es: 1.0.0, 1.1.0, 2.0.0)"
+              required
             />
 
             <Box>

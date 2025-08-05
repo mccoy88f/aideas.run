@@ -585,6 +585,139 @@ ${securityReport.hasIssues ?
   }
 
   /**
+   * Verifica se un'app è già stata submittata dall'utente
+   * @param {Object} app - App da verificare
+   * @returns {Promise<Object|null>} Submission esistente o null
+   */
+  async checkAppAlreadySubmitted(app) {
+    try {
+      const userLogin = this.githubService.userInfo?.login;
+      if (!userLogin) {
+        throw new Error('Utente non autenticato');
+      }
+
+      // PRIMA: Controlla submission locale per questa app
+      const localSubmission = await this.getLocalSubmissionForApp(app);
+      if (localSubmission) {
+        DEBUG.log(`🔍 Submission locale trovata per "${app.name}": #${localSubmission.issueNumber}`);
+        
+        // Verifica lo stato attuale dell'issue su GitHub
+        try {
+          const response = await this.githubService.makeRequest(
+            `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/issues/${localSubmission.issueNumber}`,
+            {
+              headers: await this.githubService.getAuthHeaders()
+            }
+          );
+
+          if (response.ok) {
+            const issue = await response.json();
+            const labels = issue.labels.map(label => label.name);
+            
+            // Determina il tipo di submission
+            let submissionType = 'new';
+            if (issue.state === 'open') {
+              submissionType = 'pending';
+            } else if (issue.state === 'closed') {
+              if (labels.includes('approved')) {
+                submissionType = 'approved';
+              } else if (labels.includes('rejected')) {
+                submissionType = 'rejected';
+              } else {
+                submissionType = 'closed';
+              }
+            }
+
+            // Aggiorna lo stato locale
+            await this.updateLocalSubmissionStatus(localSubmission.issueNumber, submissionType);
+
+            return {
+              issueNumber: issue.number,
+              status: submissionType,
+              title: issue.title,
+              url: issue.html_url,
+              createdAt: issue.created_at,
+              updatedAt: issue.updated_at,
+              labels: labels,
+              state: issue.state,
+              submissionType: submissionType,
+              isLocalSubmission: true
+            };
+          }
+        } catch (error) {
+          DEBUG.error('❌ Errore verifica issue locale:', error);
+        }
+      }
+
+      // SECONDA: Fallback alla ricerca per nome (per submission non tracciate)
+      DEBUG.log(`🔍 Ricerca fallback per app: "${app.name}"`);
+      
+      const response = await this.githubService.makeRequest(
+        `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/issues?creator=${userLogin}&state=all`,
+        {
+          headers: await this.githubService.getAuthHeaders()
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Errore recupero issues: ${response.statusText}`);
+      }
+
+      const issues = await response.json();
+      const appName = app.name.toLowerCase().trim();
+      
+      DEBUG.log(`📋 Issues trovate: ${issues.length}`);
+      
+      // Cerca issue con lo stesso nome dell'app
+      const existingIssue = issues.find(issue => {
+        const cleanTitle = issue.title
+          .replace(/^\[SUBMISSION\]\s*/i, '')
+          .replace(/^\[APP\]\s*/i, '')
+          .toLowerCase()
+          .trim();
+        
+        return cleanTitle === appName;
+      });
+      
+      if (existingIssue) {
+        DEBUG.log(`✅ Issue esistente trovata (fallback): #${existingIssue.number} - "${existingIssue.title}" (state: ${existingIssue.state})`);
+        
+        const labels = existingIssue.labels.map(label => label.name);
+        let submissionType = 'new';
+        if (existingIssue.state === 'open') {
+          submissionType = 'pending';
+        } else if (existingIssue.state === 'closed') {
+          if (labels.includes('approved')) {
+            submissionType = 'approved';
+          } else if (labels.includes('rejected')) {
+            submissionType = 'rejected';
+          } else {
+            submissionType = 'closed';
+          }
+        }
+
+        return {
+          issueNumber: existingIssue.number,
+          status: submissionType,
+          title: existingIssue.title,
+          url: existingIssue.html_url,
+          createdAt: existingIssue.created_at,
+          updatedAt: existingIssue.updated_at,
+          labels: labels,
+          state: existingIssue.state,
+          submissionType: submissionType,
+          isLocalSubmission: false
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      DEBUG.error('❌ Errore verifica submission esistente:', error);
+      return null;
+    }
+  }
+
+  /**
    * Ottiene submission dal cache locale
    * @param {number} issueNumber - Numero dell'issue
    * @returns {Object|null} Submission dal cache
@@ -672,6 +805,88 @@ ${securityReport.hasIssues ?
       }
     } catch (error) {
       DEBUG.error('❌ Errore aggiornamento stato submission:', error);
+    }
+  }
+
+  /**
+   * Confronta due versioni semantiche
+   * @param {string} version1 - Prima versione
+   * @param {string} version2 - Seconda versione
+   * @returns {number} 1 se version1 > version2, -1 se version1 < version2, 0 se uguali
+   */
+  compareVersions(version1, version2) {
+    const v1 = version1.split('.').map(Number);
+    const v2 = version2.split('.').map(Number);
+    
+    for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+      const num1 = v1[i] || 0;
+      const num2 = v2[i] || 0;
+      
+      if (num1 > num2) return 1;
+      if (num1 < num2) return -1;
+    }
+    
+    return 0;
+  }
+
+  /**
+   * Verifica se la versione dell'app è maggiore di quella esistente
+   * @param {Object} app - App da verificare
+   * @param {Object} existingSubmission - Submission esistente
+   * @returns {Promise<boolean>} True se la versione è maggiore
+   */
+  async checkVersionUpdate(app, existingSubmission) {
+    try {
+      // Se non c'è submission esistente, permette sempre
+      if (!existingSubmission) {
+        return true;
+      }
+
+      // Se la submission è pending, non permette aggiornamento
+      if (existingSubmission.submissionType === 'pending') {
+        return false;
+      }
+
+      // Se la submission è rejected, permette sempre
+      if (existingSubmission.submissionType === 'rejected') {
+        return true;
+      }
+
+      // Se la submission è approved, verifica la versione
+      if (existingSubmission.submissionType === 'approved') {
+        // Estrai la versione dall'issue esistente
+        const response = await this.githubService.makeRequest(
+          `/repos/${this.storeRepo.owner}/${this.storeRepo.repo}/issues/${existingSubmission.issueNumber}`,
+          {
+            headers: await this.githubService.getAuthHeaders()
+          }
+        );
+
+        if (response.ok) {
+          const issue = await response.json();
+          const issueBody = issue.body;
+          
+          // Estrai la versione dall'issue body
+          const versionMatch = issueBody.match(/\*\*Versione:\*\*\s*([^\n]+)/);
+          const existingVersion = versionMatch ? versionMatch[1].trim() : '1.0.0';
+          
+          const newVersion = app.version || '1.0.0';
+          
+          DEBUG.log(`🔍 Confronto versioni: ${newVersion} vs ${existingVersion}`);
+          
+          const comparison = this.compareVersions(newVersion, existingVersion);
+          const isUpdate = comparison > 0;
+          
+          DEBUG.log(`📊 Risultato confronto: ${comparison} (${isUpdate ? 'aggiornamento valido' : 'versione non maggiore'})`);
+          
+          return isUpdate;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      DEBUG.error('❌ Errore verifica versione:', error);
+      return false;
     }
   }
 }
