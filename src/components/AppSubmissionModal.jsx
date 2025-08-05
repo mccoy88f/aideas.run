@@ -246,8 +246,20 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
 
       // Verifica se l'app è già stata submittata
       const existingSubmission = await appSubmissionService.checkAppAlreadySubmitted(updatedApp);
+      
+      // Debug: mostra i dati dell'issue esistente
       if (existingSubmission) {
-        throw new Error(`L'app "${updatedApp.name}" è già stata submittata. Status: ${existingSubmission.status}`);
+        DEBUG.log(`🔍 Issue esistente trovata:`, {
+          issueNumber: existingSubmission.issueNumber,
+          title: existingSubmission.title,
+          state: existingSubmission.state,
+          submissionType: existingSubmission.submissionType,
+          url: existingSubmission.url
+        });
+      }
+      
+      if (existingSubmission && existingSubmission.submissionType === 'pending') {
+        throw new Error(`L'app "${updatedApp.name}" è già stata submittata e l'issue è ancora aperta.`);
       }
 
       setProgress({ show: true, value: 30, text: 'Validazione app...' });
@@ -361,8 +373,8 @@ const AppSubmissionModal = ({ open, onClose, app, onSubmissionComplete }) => {
 
   // Apre l'issue esistente in una nuova tab
   const handleOpenExistingIssue = () => {
-    if (existingSubmission && existingSubmission.html_url) {
-      window.open(existingSubmission.html_url, '_blank');
+    if (existingSubmission && existingSubmission.url) {
+      window.open(existingSubmission.url, '_blank');
     }
   };
 
