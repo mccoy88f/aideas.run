@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { showToast } from '../utils/helpers.js';
+import ProxyService from '../services/ProxyService.js';
 import {
   Dialog,
   DialogTitle,
@@ -254,13 +255,13 @@ const AppImporterMaterial = ({
     setError('');
 
     try {
-      // Carica il contenuto dall'URL
-      const response = await fetch(formData.url);
-      if (!response.ok) {
-        throw new Error(`Errore nel caricamento dell'URL: ${response.status}`);
+      // Usa il ProxyService per evitare problemi CORS
+      const proxyService = new ProxyService();
+      const htmlContent = await proxyService.fetchWithProxy(formData.url);
+      
+      if (!htmlContent) {
+        throw new Error('Impossibile recuperare il contenuto dall\'URL');
       }
-
-      const htmlContent = await response.text();
       const htmlMetadata = extractHtmlMetadataFromZip(htmlContent);
 
       // Aggiorna i campi con i metadati estratti
